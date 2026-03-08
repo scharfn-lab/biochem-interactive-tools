@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ramachandran Plot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #12172b;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      color: #c5cae9;
+      font-size: 1.7em;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      color: #7986cb;
+      font-size: 0.85em;
+      margin-bottom: 24px;
+    }
+
+    #main-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-items: center;
+    }
+
+    #bottom-row {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    canvas { display: block; }
+
+    #plot {
+      cursor: crosshair;
+      border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+    }
+
+    #panel {
+      background: #1a2040;
+      padding: 22px;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+      width: 1044px;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 24px;
+    }
+    #panel > div { flex: 1; }
+    #angle-section { flex: 2; }
+
+    .panel-section-title {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #7986cb;
+      margin-bottom: 10px;
+    }
+
+    .angle-block { display: flex; flex-direction: row; gap: 20px; }
+    .angle-block > div { flex: 1; }
+
+    .angle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .angle-name { font-weight: 600; font-size: 1.05em; color: #9fa8da; }
+
+    .angle-value {
+      font-size: 1.25em;
+      font-weight: 700;
+      color: #ef9a9a;
+      min-width: 70px;
+      text-align: right;
+    }
+
+    input[type=range] {
+      width: 100%;
+      height: 4px;
+      accent-color: #7986cb;
+      cursor: pointer;
+    }
+
+    input[type=number] {
+      width: 100%;
+      padding: 7px 10px;
+      background: #0d1526;
+      border: 1px solid #2a3560;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    input[type=number]:focus { outline: none; border-color: #7986cb; }
+
+    #region-display {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1em;
+      text-align: center;
+      transition: background 0.25s, color 0.25s;
+      border: 1px solid transparent;
+    }
+    .reg-favored    { background: #1b3a23; color: #69f0ae; border-color: #2e7d52; }
+    .reg-allowed    { background: #2e3a1a; color: #ccff90; border-color: #558b2f; }
+    .reg-disallowed { background: #3e1111; color: #ff8a80; border-color: #b71c1c; }
+
+    .legend { display: flex; flex-direction: column; gap: 7px; }
+    .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.88em; color: #b0bec5; }
+    .legend-swatch { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+
+    .slider-hint { font-size: 0.8em; color: #546e7a; line-height: 1.6; margin-top: 10px; }
+    .slider-hint b { color: #7986cb; }
+    #plot-wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .plot-hint { font-size: 0.8em; color: #546e7a; line-height: 1.6; }
+    .plot-hint b { color: #7986cb; }
+
+    /* ── Dipeptide viewer ── */
+    #dipeptide-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #dipeptide-header {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    #dipeptide-title {
+      color: #c5cae9;
+      font-size: 1.15em;
+      font-weight: 600;
+    }
+
+    #dipeptide-hint {
+      font-size: 0.8em;
+      color: #546e7a;
+    }
+
+    #dipeptide-btns {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #nterm-toggle, #cterm-toggle {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid #3a4a6a;
+      background: #1a2040;
+      color: #9fa8da;
+      font-size: 0.88em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #nterm-toggle:hover, #cterm-toggle:hover { background: #232d54; border-color: #7986cb; color: #c5cae9; }
+    #nterm-toggle.active, #cterm-toggle.active { background: #1b3a23; border-color: #2e7d52; color: #69f0ae; }
+
+    #plane-toggle {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid #e6c229;
+      background: #2a3a1a;
+      color: #ffe082;
+      font-size: 0.88em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #plane-toggle:hover { background: #3a4e22; border-color: #ffe082; color: #fff3b0; }
+    #plane-toggle.active { background: #1a2040; border-color: #3a4a6a; color: #9fa8da; }
+
+    #dipeptide-wrapper {
+      position: relative;
+      display: inline-block;
+      line-height: 0;
+    }
+
+    #dipeptide {
+      cursor: grab;
+      border-radius: 10px;
+      box-shadow: 0 6px 28px rgba(0,0,0,0.6);
+      background: #0b1020;
+      touch-action: none;
+    }
+    #dipeptide:active { cursor: grabbing; }
+
+    #rotate-btns {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, 30px);
+      grid-template-rows: repeat(3, 30px);
+      gap: 3px;
+      pointer-events: none;   /* grid itself transparent; only buttons catch events */
+    }
+
+    #zoom-btns {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      pointer-events: none;
+    }
+    .zoom-btn {
+      width: 30px;
+      height: 30px;
+      font-size: 18px;
+      pointer-events: all;
+    }
+
+    #angle-toggle {
+      padding: 5px 14px;
+      border-radius: 6px;
+      border: 1px solid #3a4a6a;
+      background: #1a2040;
+      color: #9fa8da;
+      font-size: 0.82em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #angle-toggle:hover { background: #232d54; border-color: #7986cb; color: #c5cae9; }
+
+    .rot-btn {
+      width: 30px;
+      height: 30px;
+      background: rgba(18, 24, 48, 0.82);
+      border: 1px solid #3a4a7a;
+      border-radius: 6px;
+      color: #9fa8da;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: all;
+      user-select: none;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .rot-btn:hover  { background: rgba(50, 62, 110, 0.95); color: #c5cae9; border-color: #7986cb; }
+    .rot-btn:active { background: rgba(80, 96, 160, 0.95); }
+
+    #dipeptide-legend {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.8em;
+      color: #90a4ae;
+      margin-top: 4px;
+    }
+    .dp-legend-item { display: flex; align-items: center; gap: 5px; }
+    .dp-legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<h1>Ramachandran Plot</h1>
+<p class="subtitle">Backbone dihedral angles (φ, ψ) of amino acid residues</p>
+
+<div id="main-layout">
+  <div id="panel">
+      <div id="angle-section">
+        <div class="panel-section-title">Dihedral Angles</div>
+        <div class="angle-block">
+          <div>
+            <div class="angle-row">
+              <span class="angle-name">φ &nbsp;(Phi)</span>
+              <span class="angle-value" id="phi-display">-120°</span>
+            </div>
+            <input type="range" id="phi-slider" min="-180" max="180" value="-120" step="1">
+            <input type="number" id="phi-input" min="-180" max="180" value="-120" step="1" placeholder="-180 to 180">
+          </div>
+          <div>
+            <div class="angle-row">
+              <span class="angle-name">ψ &nbsp;(Psi)</span>
+              <span class="angle-value" id="psi-display">130°</span>
+            </div>
+            <input type="range" id="psi-slider" min="-180" max="180" value="130" step="1">
+            <input type="number" id="psi-input" min="-180" max="180" value="130" step="1" placeholder="-180 to 180">
+          </div>
+        </div>
+        <div class="slider-hint">Use <b>sliders</b> or <b>number fields</b> to set dihedral angles.</div>
+      </div>
+
+      <div id="region-display" class="reg-favored">Favored — alpha-helix</div>
+
+      <div>
+        <div class="panel-section-title">Legend</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch" style="background:#1b5e20;"></div>Core favored (&ge;98%)</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#66bb6a;"></div>Additionally allowed</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#e8f5e9;"></div>Disallowed region</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#f44336; border:2px solid white;"></div>Current angles</div>
+        </div>
+      </div>
+    </div>
+
+  <div id="bottom-row">
+    <!-- Dipeptide 3D viewer -->
+    <div id="dipeptide-section">
+  <div id="dipeptide-header">
+    <span id="dipeptide-title">Dipeptide Backbone</span>
+    <span id="dipeptide-hint">Drag to rotate &nbsp;|&nbsp; <span style="color:#ffa726;">&#9135; φ bond</span> &nbsp; <span style="color:#26c6da;">&#9135; ψ bond</span></span>
+  </div>
+  <div id="dipeptide-btns">
+    <button id="nterm-toggle" onclick="toggleNterm()">Add N-terminal AA</button>
+    <button id="plane-toggle" onclick="togglePlanes()">Show Peptide Planes</button>
+    <button id="cterm-toggle" onclick="toggleCterm()">Add C-terminal AA</button>
+  </div>
+  <div id="dipeptide-wrapper">
+    <canvas id="dipeptide" width="500" height="290"></canvas>
+    <div id="zoom-btns">
+      <button class="rot-btn zoom-btn" id="zbtn-in"  title="Zoom in">+</button>
+      <button class="rot-btn zoom-btn" id="zbtn-out" title="Zoom out">−</button>
+    </div>
+    <div id="rotate-btns">
+      <!-- row 1 -->
+      <div></div>
+      <button class="rot-btn" id="rbtn-up"    title="Rotate up">▲</button>
+      <div></div>
+      <!-- row 2 -->
+      <button class="rot-btn" id="rbtn-left"  title="Rotate left">◀</button>
+      <div></div>
+      <button class="rot-btn" id="rbtn-right" title="Rotate right">▶</button>
+      <!-- row 3 -->
+      <div></div>
+      <button class="rot-btn" id="rbtn-down"  title="Rotate down">▼</button>
+      <div></div>
+    </div>
+  </div>
+  <button id="angle-toggle" onclick="toggleAngles()">Hide φ/ψ Angles</button>
+  <div id="dipeptide-legend">
+    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#4fc3f7;"></div>N (nitrogen)</div>
+    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#b0bec5;"></div>C (carbon)</div>
+    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ef5350;"></div>O (oxygen)</div>
+    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#eeeeee; border:1px solid #555;"></div>H (hydrogen)</div>
+    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R (side chain)</div>
+  </div>
+    </div><!-- end #dipeptide-section -->
+    <div id="plot-wrapper">
+      <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
+      <canvas id="plot" width="520" height="520"></canvas>
+    </div>
+  </div><!-- end #bottom-row -->
+</div><!-- end #main-layout -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  RAMACHANDRAN PLOT
+// ═══════════════════════════════════════════════════════════════
+const W = 520, H = 520, M = 55, PW = W - 2 * M;
+
+const REGIONS = [
+  { phi0: -60,  psi0: -45,  sP: 24, sQ: 22, w: 1.00, name: 'alpha-helix'     },
+  { phi0: -120, psi0: 130,  sP: 34, sQ: 32, w: 0.90, name: 'beta-sheet'      },
+  { phi0: -75,  psi0: 148,  sP: 22, sQ: 22, w: 0.65, name: 'PPII / beta'     },
+  { phi0:  60,  psi0:  45,  sP: 18, sQ: 18, w: 0.50, name: 'left-hand helix' },
+  { phi0:  80,  psi0: -60,  sP: 14, sQ: 14, w: 0.25, name: 'gamma-turn'      },
+];
+const FAVORED_THRESH = 0.38, ALLOWED_THRESH = 0.055;
+
+let phi = -60, psi = -45;
+let isDragging = false;
+let bgCache = null;
+
+function toCanvas(p, q) { return { x: M + (p+180)/360*PW, y: M + (180-q)/360*PW }; }
+function toAngles(cx, cy) {
+  return {
+    phi: Math.max(-180, Math.min(180, (cx-M)/PW*360-180)),
+    psi: Math.max(-180, Math.min(180, 180-(cy-M)/PW*360)),
+  };
+}
+
+function computeScore(p, q) {
+  let total=0, bestW=0, bestName='';
+  for (const r of REGIONS) {
+    const v = r.w * Math.exp(-((p-r.phi0)**2/(2*r.sP**2) + (q-r.psi0)**2/(2*r.sQ**2)));
+    total += v;
+    if (v > bestW) { bestW=v; bestName=r.name; }
+  }
+  return { total, name: bestName };
+}
+
+function getRegion(p, q) {
+  const { total, name } = computeScore(p, q);
+  if (total > FAVORED_THRESH) return { level:'favored', name };
+  if (total > ALLOWED_THRESH) return { level:'allowed', name };
+  return { level:'disallowed', name:'' };
+}
+
+function pixelColor(p, q) {
+  const { total } = computeScore(p, q);
+  if (total > FAVORED_THRESH) {
+    const t = Math.min((total-FAVORED_THRESH)/(1-FAVORED_THRESH), 1);
+    return [Math.round(27+t*(0-27)), Math.round(94+t*(140-94)), Math.round(32+t*(20-32))];
+  }
+  if (total > ALLOWED_THRESH) {
+    const t = (total-ALLOWED_THRESH)/(FAVORED_THRESH-ALLOWED_THRESH);
+    return [Math.round(102+t*(27-102)), Math.round(187+t*(94-187)), Math.round(106+t*(32-106))];
+  }
+  return [238, 245, 238];
+}
+
+const plotCanvas = document.getElementById('plot');
+const ctx = plotCanvas.getContext('2d');
+
+function buildBackground() {
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+  for (let cy=0; cy<H; cy++) {
+    for (let cx=0; cx<W; cx++) {
+      const i = (cy*W+cx)*4;
+      if (cx<M || cx>=W-M || cy<M || cy>=H-M) {
+        d[i]=18; d[i+1]=28; d[i+2]=52; d[i+3]=255;
+      } else {
+        const a = toAngles(cx, cy);
+        const [r,g,b] = pixelColor(a.phi, a.psi);
+        d[i]=r; d[i+1]=g; d[i+2]=b; d[i+3]=255;
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  drawAxes();
+  bgCache = ctx.getImageData(0, 0, W, H);
+}
+
+function drawAxes() {
+  ctx.save();
+  ctx.setLineDash([3, 4]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(80,80,80,0.5)';
+  for (const a of [-90, 0, 90]) {
+    const x = M + (a+180)/360*PW;
+    ctx.beginPath(); ctx.moveTo(x,M); ctx.lineTo(x,H-M); ctx.stroke();
+    const y = M + (180-a)/360*PW;
+    ctx.beginPath(); ctx.moveTo(M,y); ctx.lineTo(W-M,y); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.strokeStyle='#4a4a6a'; ctx.lineWidth=1.5;
+  ctx.strokeRect(M, M, PW, PW);
+
+  ctx.fillStyle='#9e9e9e'; ctx.font='11px "Segoe UI",Arial';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for (const a of [-180,-90,0,90,180]) {
+    ctx.fillText(a+'°', M+(a+180)/360*PW, H-M+6);
+  }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for (const a of [-180,-90,0,90,180]) {
+    ctx.fillText(a+'°', M-6, M+(180-a)/360*PW);
+  }
+  ctx.fillStyle='#7986cb'; ctx.font='bold 13px "Segoe UI",Arial';
+  ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('φ   (Phi)', W/2, H-2);
+  ctx.save(); ctx.translate(13,H/2); ctx.rotate(-Math.PI/2);
+  ctx.textBaseline='top'; ctx.fillText('ψ   (Psi)', 0, 0); ctx.restore();
+
+  ctx.font='italic bold 11px "Segoe UI",Arial';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for (const lbl of [{phi:-60,psi:-45,t:'α'},{phi:-120,psi:130,t:'β'},{phi:60,psi:45,t:'αL'}]) {
+    const {x,y}=toCanvas(lbl.phi,lbl.psi);
+    ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.fillText(lbl.t,x,y);
+  }
+}
+
+function drawPoint() {
+  const {x,y}=toCanvas(phi,psi);
+  ctx.save(); ctx.beginPath(); ctx.rect(M,M,PW,PW); ctx.clip();
+  ctx.strokeStyle='rgba(239,154,154,0.55)'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(M,y); ctx.lineTo(W-M,y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,M); ctx.lineTo(x,H-M); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+  const grd=ctx.createRadialGradient(x,y,0,x,y,20);
+  grd.addColorStop(0,'rgba(244,67,54,0.45)'); grd.addColorStop(1,'rgba(244,67,54,0)');
+  ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(x,y,20,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#f44336'; ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
+}
+
+function renderPlot() {
+  if (!bgCache) buildBackground(); else ctx.putImageData(bgCache,0,0);
+  drawPoint();
+}
+
+function updateUI() {
+  const rp=Math.round(phi), rq=Math.round(psi);
+  document.getElementById('phi-display').textContent = rp+'°';
+  document.getElementById('psi-display').textContent = rq+'°';
+  document.getElementById('phi-slider').value = rp;
+  document.getElementById('psi-slider').value = rq;
+  document.getElementById('phi-input').value  = rp;
+  document.getElementById('psi-input').value  = rq;
+  const reg=getRegion(phi,psi), rd=document.getElementById('region-display');
+  if (reg.level==='favored')    { rd.className='reg-favored';    rd.textContent=`Favored — ${reg.name}`; }
+  else if (reg.level==='allowed') { rd.className='reg-allowed';  rd.textContent=`Allowed — ${reg.name||'transition zone'}`; }
+  else                            { rd.className='reg-disallowed'; rd.textContent='Disallowed region'; }
+}
+
+function setAngles(p, q) {
+  phi = Math.max(-180, Math.min(180, p));
+  psi = Math.max(-180, Math.min(180, q));
+  // Sync central residue; extra residues share the same angles until independently controlled
+  residueAngles.central.phi = phi;  residueAngles.central.psi = psi;
+  residueAngles.nTerm.phi   = phi;  residueAngles.nTerm.psi   = psi;
+  residueAngles.cTerm.phi   = phi;  residueAngles.cTerm.psi   = psi;
+  renderPlot();
+  updateUI();
+  renderDipeptide();
+}
+
+function getCanvasXY(e) {
+  const r=plotCanvas.getBoundingClientRect(), sx=W/r.width, sy=H/r.height;
+  const src=e.touches?e.touches[0]:e;
+  return { cx:(src.clientX-r.left)*sx, cy:(src.clientY-r.top)*sy };
+}
+
+function handlePointer(e) {
+  e.preventDefault();
+  const {cx,cy}=getCanvasXY(e);
+  if (cx>=M && cx<=W-M && cy>=M && cy<=H-M) {
+    const a=toAngles(cx,cy); setAngles(a.phi,a.psi);
+  }
+}
+
+plotCanvas.addEventListener('mousedown',  e=>{ isDragging=true; handlePointer(e); });
+plotCanvas.addEventListener('mousemove',  e=>{ if(isDragging) handlePointer(e); });
+document.addEventListener('mouseup',  ()=>isDragging=false);
+plotCanvas.addEventListener('touchstart', e=>{ isDragging=true;  handlePointer(e); },{passive:false});
+plotCanvas.addEventListener('touchmove',  e=>{ if(isDragging) handlePointer(e); },{passive:false});
+document.addEventListener('touchend', ()=>isDragging=false);
+
+document.getElementById('phi-slider').addEventListener('input', e=>setAngles(+e.target.value,psi));
+document.getElementById('psi-slider').addEventListener('input', e=>setAngles(phi,+e.target.value));
+document.getElementById('phi-input').addEventListener('change', e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)) setAngles(v,psi); });
+document.getElementById('psi-input').addEventListener('change', e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)) setAngles(phi,v); });
+document.getElementById('phi-input').addEventListener('input',  e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)&&v>=-180&&v<=180) setAngles(v,psi); });
+document.getElementById('psi-input').addEventListener('input',  e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)&&v>=-180&&v<=180) setAngles(phi,v); });
+
+
+// ═══════════════════════════════════════════════════════════════
+//  DIPEPTIDE 3D VIEWER
+// ═══════════════════════════════════════════════════════════════
+const dp = document.getElementById('dipeptide');
+const dc = dp.getContext('2d');
+const DW = 500, DH = 290;
+
+// ── View state: rotation matrix (replaces Euler angles) ──────────
+// Stores the current orientation as a 3×3 matrix so that every new
+// rotation (drag or button) is always applied in current screen space,
+// not in a fixed world frame. This gives fully dynamic, gimbal-lock-free rotation.
+function mRotX(a){ const c=Math.cos(a),s=Math.sin(a); return [[1,0,0],[0,c,-s],[0,s,c]]; }
+function mRotY(a){ const c=Math.cos(a),s=Math.sin(a); return [[c,0,s],[0,1,0],[-s,0,c]]; }
+function mMul(A,B){
+  return [[0,1,2].map(j=>A[0][0]*B[0][j]+A[0][1]*B[1][j]+A[0][2]*B[2][j]),
+          [0,1,2].map(j=>A[1][0]*B[0][j]+A[1][1]*B[1][j]+A[1][2]*B[2][j]),
+          [0,1,2].map(j=>A[2][0]*B[0][j]+A[2][1]*B[1][j]+A[2][2]*B[2][j])];
+}
+function mApply(M,v){
+  return v3(M[0][0]*v.x+M[0][1]*v.y+M[0][2]*v.z,
+            M[1][0]*v.x+M[1][1]*v.y+M[1][2]*v.z,
+            M[2][0]*v.x+M[2][1]*v.y+M[2][2]*v.z);
+}
+// Gram-Schmidt re-orthonormalization prevents floating-point drift over many ops
+function mOrtho(M){
+  const r0 = norm3(v3(M[0][0],M[0][1],M[0][2]));
+  const r1r = v3(M[1][0],M[1][1],M[1][2]);
+  const r1 = norm3(sub3(r1r, sc3(dot3(r0,r1r), r0)));
+  const r2 = cross3(r0, r1);
+  return [[r0.x,r0.y,r0.z],[r1.x,r1.y,r1.z],[r2.x,r2.y,r2.z]];
+}
+// Default orientation: Cα→R (Cb) points up on screen, φ bond (N–Cα) on left, ψ bond (Cα–C) on right.
+// Row 0 = screen-right direction in world space, Row 1 = screen-up direction in world space.
+let viewMatrix = [
+  [ 0.1928, -0.9815,  0 ],
+  [ 0.9815,  0.1928,  0 ],
+  [ 0,       0,       1 ],
+];
+let dpDrag = false, dpDragX = 0, dpDragY = 0;
+
+// ── 3-D vector helpers ─────────────────────────────────────────
+const v3=(x,y,z)=>({x,y,z});
+const add3=(a,b)=>v3(a.x+b.x,a.y+b.y,a.z+b.z);
+const sub3=(a,b)=>v3(a.x-b.x,a.y-b.y,a.z-b.z);
+const sc3=(s,a)=>v3(s*a.x,s*a.y,s*a.z);
+const dot3=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+const cross3=(a,b)=>v3(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
+const len3=a=>Math.sqrt(dot3(a,a));
+const norm3=a=>{ const l=len3(a); return l>1e-9?sc3(1/l,a):v3(0,0,0); };
+
+// Rodrigues rotation: rotate vector v around unit axis k by angle (radians)
+function rodrigues(v, k, angle) {
+  const c=Math.cos(angle), s=Math.sin(angle), d=dot3(k,v);
+  return add3(add3(sc3(c,v), sc3(s,cross3(k,v))), sc3((1-c)*d, k));
+}
+
+// Phi-compensation: rotate all atoms around the N→Cα axis so that C and R (Cb)
+// always appear at their phi_ref positions on screen. The left side (C_prev, O_prev,
+// Ca_prev, H_N) visually sweeps around as phi changes. N stays put (it's on the axis).
+function applyPhiCompensation(atoms, phiDeg) {
+  const PHI_REF = -60; // reference phi – matches the default starting angle
+  const Ca = atoms.Ca, N = atoms.N;
+  const axis = norm3(sub3(Ca, N));               // unit vector N → Cα (phi rotation axis)
+  const angle = -(phiDeg - PHI_REF) * Math.PI / 180; // undo the phi delta from reference
+  const out = {};
+  for (const [key, pos] of Object.entries(atoms)) {
+    out[key] = add3(rodrigues(sub3(pos, Ca), axis, angle), Ca);
+  }
+  return out;
+}
+
+// N-terminal R-group compensation: after central phi comp, rotate Cb_p and Ha_prev
+// around the N_p→Ca_prev axis so Cb_p always appears "up" in screen space.
+function applyNtermRGroupComp(atoms) {
+  const Ca_prev = atoms.Ca_prev, N_p = atoms.N_p;
+  const worldUp = v3(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]);
+  const axis = norm3(sub3(Ca_prev, N_p));          // N_p → Ca_prev direction
+  const cb_rel  = sub3(atoms.Cb_p, Ca_prev);
+  const cb_perp = sub3(cb_rel,  sc3(dot3(cb_rel,  axis), axis));
+  const up_perp = sub3(worldUp, sc3(dot3(worldUp, axis), axis));
+  if (len3(cb_perp) < 1e-6 || len3(up_perp) < 1e-6) return atoms;
+  const cb_n = norm3(cb_perp), up_n = norm3(up_perp);
+  const angle = Math.atan2(dot3(cross3(cb_n, up_n), axis), dot3(cb_n, up_n));
+  const out = { ...atoms };
+  for (const key of ['Cb_p', 'Ha_prev']) {
+    if (atoms[key]) out[key] = add3(rodrigues(sub3(atoms[key], Ca_prev), axis, angle), Ca_prev);
+  }
+  return out;
+}
+
+// C-terminal R-group compensation: same idea for Cb_n / Ha_next around N_next→Ca_next.
+function applyCtermRGroupComp(atoms) {
+  const Ca_next = atoms.Ca_next, N_next = atoms.N_next;
+  const worldUp = v3(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]);
+  const axis = norm3(sub3(Ca_next, N_next));        // N_next → Ca_next direction
+  const cb_rel  = sub3(atoms.Cb_n, Ca_next);
+  const cb_perp = sub3(cb_rel,  sc3(dot3(cb_rel,  axis), axis));
+  const up_perp = sub3(worldUp, sc3(dot3(worldUp, axis), axis));
+  if (len3(cb_perp) < 1e-6 || len3(up_perp) < 1e-6) return atoms;
+  const cb_n_unit = norm3(cb_perp), up_n = norm3(up_perp);
+  const angle = Math.atan2(dot3(cross3(cb_n_unit, up_n), axis), dot3(cb_n_unit, up_n));
+  const out = { ...atoms };
+  for (const key of ['Cb_n', 'Ha_next']) {
+    if (atoms[key]) out[key] = add3(rodrigues(sub3(atoms[key], Ca_next), axis, angle), Ca_next);
+  }
+  return out;
+}
+
+// NeRF: place atom D given A,B,C; bond length r, angle B-C-D θ, dihedral A-B-C-D φ
+function placeAtom(A, B, C, r, thetaDeg, phiDeg) {
+  const theta = thetaDeg * Math.PI / 180;
+  const phi   = phiDeg   * Math.PI / 180;
+  const e1 = norm3(sub3(C, B));
+  const ab = norm3(sub3(A, B));
+  const e2 = norm3(sub3(ab, sc3(dot3(ab,e1), e1)));  // component of A→B perp to e1
+  const e3 = cross3(e1, e2);
+  const sinA = Math.sin(Math.PI - theta), cosA = Math.cos(Math.PI - theta);
+  return add3(C, sc3(r,
+    add3(add3(sc3(cosA, e1), sc3(sinA*Math.cos(phi), e2)), sc3(sinA*Math.sin(phi), e3))
+  ));
+}
+
+// ── Build dipeptide atom positions (Å) ─────────────────────────
+function buildDipeptide(phiDeg, psiDeg) {
+  const D2R = Math.PI / 180;
+
+  // Start with the incoming peptide plane (trans, ω=180°) in the XY plane.
+  // C_prev at origin, N along +x axis.
+  const C_prev = v3(0, 0, 0);
+  const N      = v3(1.329, 0, 0);
+
+  // Ca_prev: angle Cα_prev–C_prev–N = 116.2°, in XY plane above C_prev
+  const Ca_prev = add3(C_prev, sc3(1.525, v3(Math.cos(116.2*D2R), Math.sin(116.2*D2R), 0)));
+
+  // O_prev: carbonyl O of C_prev, angle N–C_prev–O_prev = 123° below x-axis
+  const O_prev = add3(C_prev, sc3(1.229, v3(Math.cos(-123*D2R), Math.sin(-123*D2R), 0)));
+
+  // H on N: angle C_prev–N–H = 119°, dihedral Ca_prev–C_prev–N–H = 0° (cis to Ca_prev)
+  const H_N = placeAtom(Ca_prev, C_prev, N, 1.010, 119.0, 0);
+
+  // Cα: angle C_prev–N–Cα = 121.7°, dihedral Ca_prev–C_prev–N–Cα = 180° (trans ω)
+  const Ca = placeAtom(Ca_prev, C_prev, N, 1.458, 121.7, 180);
+
+  // C (carbonyl): angle N–Cα–C = 111.2°, dihedral C_prev–N–Cα–C = phi
+  const C = placeAtom(C_prev, N, Ca, 1.525, 111.2, phiDeg);
+
+  // Cβ (side-chain stub): dihedral C_prev–N–Cα–Cβ = phi – 120°  (gauche, L-amino acid)
+  const Cb = placeAtom(C_prev, N, Ca, 1.521, 110.5, phiDeg - 120);
+
+  // Hα: dihedral C_prev–N–Cα–Hα = phi + 120° (120° from Cb, tetrahedral with N, C, Cb)
+  const Ha = placeAtom(C_prev, N, Ca, 1.090, 110.5, phiDeg + 120);
+
+  // O (carbonyl O): angle Cα–C=O = 120.8°, dihedral N–Cα–C–O = psi + 180°
+  const O = placeAtom(N, Ca, C, 1.229, 120.8, psiDeg + 180);
+
+  // N_next: angle Cα–C–N_next = 116.2°, dihedral N–Cα–C–N_next = psi
+  const N_next = placeAtom(N, Ca, C, 1.329, 116.2, psiDeg);
+
+  // H on N_next: dihedral Cα–C–N_next–H = 0° (cis to Cα → trans to Ca_next)
+  const H_N2 = placeAtom(Ca, C, N_next, 1.010, 119.0, 0);
+
+  // Cα_next: dihedral Cα–C–N_next–Cα_next = 180° (trans ω for next residue)
+  const Ca_next = placeAtom(Ca, C, N_next, 1.458, 121.7, 180);
+
+  return { Ca_prev, C_prev, O_prev, N, H_N, Ca, Ha, Cb, C, O, N_next, H_N2, Ca_next };
+}
+
+// ── Per-residue angle data (extensible: each residue can have independent φ/ψ later) ──
+const residueAngles = {
+  nTerm:   { phi: -120, psi: 130 },
+  central: { phi: -120, psi: 130 },
+  cTerm:   { phi: -120, psi: 130 },
+};
+let showNterm = false;
+let showCterm = false;
+
+// Build extra N-terminal residue atoms from the base dipeptide atoms
+function buildNtermAtoms(atoms) {
+  const { N, C_prev, Ca_prev } = atoms;
+  const { phi: nPhi, psi: nPsi } = residueAngles.nTerm;
+  // N_p: amide N of residue -1; psi_prev = N_p–Ca_prev–C_prev–N = nPsi
+  // NeRF places N_p at dihedral N–C_prev–Ca_prev–N_p = -nPsi (reversed chain direction)
+  const N_p  = placeAtom(N, C_prev, Ca_prev, 1.458, 111.2, -nPsi);
+  // C_pp: carbonyl C stub of residue -2 (trans ω: C_prev–Ca_prev–N_p–C_pp = 180°)
+  const C_pp = placeAtom(C_prev, Ca_prev, N_p, 1.329, 121.7, 180);
+  // O_pp: carbonyl O of C_pp
+  const O_pp = placeAtom(N_p, Ca_prev, C_pp, 1.229, 120.8, 180);
+  // Cb_p: side-chain of Ca_prev; phi_prev = C_pp–N_p–Ca_prev–C_prev, so Cb is 120° offset
+  const Cb_p = placeAtom(C_pp, N_p, Ca_prev, 1.521, 110.5, nPhi - 120);
+  // H_Np: amide H on N_p, cis to C_prev around Ca_prev–N_p
+  const H_Np = placeAtom(C_prev, Ca_prev, N_p, 1.010, 119.0, 0);
+  // Ha_prev: Hα on Ca_prev; dihedral C_pp–N_p–Ca_prev–Ha_prev = nPhi + 120° (tetrahedral)
+  const Ha_prev = placeAtom(C_pp, N_p, Ca_prev, 1.090, 110.5, nPhi + 120);
+  // Ca_pp: Cα stub of residue -2 (trans ω: Ca_prev–N_p–C_pp–Ca_pp = 180°)
+  const Ca_pp = placeAtom(Ca_prev, N_p, C_pp, 1.525, 116.2, 180);
+  return { N_p, H_Np, Ha_prev, Cb_p, C_pp, O_pp, Ca_pp };
+}
+
+// Build extra C-terminal residue atoms from the base dipeptide atoms
+function buildCtermAtoms(atoms) {
+  const { C, N_next, Ca_next } = atoms;
+  const { phi: cPhi, psi: cPsi } = residueAngles.cTerm;
+  // C_n: carbonyl C of residue +1; phi_c = C–N_next–Ca_next–C_n
+  const C_n   = placeAtom(C, N_next, Ca_next, 1.525, 111.2, cPhi);
+  // Cb_n: side-chain of Ca_next; offset 120° from C_n
+  const Cb_n  = placeAtom(C, N_next, Ca_next, 1.521, 110.5, cPhi - 120);
+  // O_n: carbonyl O of C_n; psi_c = N_next–Ca_next–C_n–N_n2
+  const O_n   = placeAtom(N_next, Ca_next, C_n, 1.229, 120.8, cPsi + 180);
+  // N_n2: amide N of residue +2
+  const N_n2  = placeAtom(N_next, Ca_next, C_n, 1.329, 116.2, cPsi);
+  // H_Nn2: amide H on N_n2
+  const H_Nn2 = placeAtom(Ca_next, C_n, N_n2, 1.010, 119.0, 0);
+  // Ca_n2: Cα stub of residue +2 (trans ω)
+  const Ca_n2 = placeAtom(Ca_next, C_n, N_n2, 1.458, 121.7, 180);
+  // Ha_next: Hα on Ca_next; dihedral C–N_next–Ca_next–Ha_next = cPhi + 120° (tetrahedral)
+  const Ha_next = placeAtom(C, N_next, Ca_next, 1.090, 110.5, cPhi + 120);
+  return { C_n, O_n, Cb_n, N_n2, H_Nn2, Ca_n2, Ha_next };
+}
+
+// ── Extra residue atom styles ───────────────────────────────────
+const NTERM_ATOM_STYLE = {
+  Ca_prev: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' }, // upgrade stub → full Cα
+  N_p:     { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  H_Np:    { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'H'  },
+  Ha_prev: { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'Hα' },
+  Cb_p:    { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  C_pp:    { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O_pp:    { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Ca_pp:   { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+};
+const NTERM_BOND_DEFS = [
+  ['Ca_pp',   'C_pp',   'stub'],
+  ['C_pp',    'O_pp',   'double'],
+  ['C_pp',    'N_p',    'peptide'],
+  ['N_p',     'H_Np',   'hbond'],
+  ['N_p',     'Ca_prev','single'],
+  ['Ca_prev', 'Ha_prev','hbond'],
+  ['Ca_prev', 'Cb_p',   'stub'],
+];
+
+const CTERM_ATOM_STYLE = {
+  Ca_next:  { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' }, // upgrade stub → full Cα
+  Ha_next:  { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'Hα' },
+  C_n:      { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
+  O_n:      { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
+  Cb_n:     { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  N_n2:     { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  H_Nn2:    { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'H'  },
+  Ca_n2:    { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+};
+const CTERM_BOND_DEFS = [
+  ['Ca_next', 'Ha_next','hbond'],
+  ['Ca_next', 'C_n',   'single'],
+  ['Ca_next', 'Cb_n',  'stub'],
+  ['C_n',     'O_n',   'double'],
+  ['C_n',     'N_n2',  'peptide'],
+  ['N_n2',    'H_Nn2', 'hbond'],
+  ['N_n2',    'Ca_n2', 'stub'],
+];
+
+// ── View rotation ──────────────────────────────────────────────
+function rotateView(p) { return mApply(viewMatrix, p); }
+
+// Orthographic project: returns {x,y,z} in canvas space
+function project(p, scale, cx, cy) {
+  return { x: cx + p.x*scale, y: cy - p.y*scale, z: p.z };
+}
+
+// ── Atom styles ────────────────────────────────────────────────
+const ATOM_STYLE = {
+  Ca_prev: { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+  C_prev:  { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
+  O_prev:  { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
+  N:       { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  H_N:     { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'H'  },
+  Ca:      { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  Ha:      { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'Hα' },
+  Cb:      { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  C:       { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
+  O:       { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
+  N_next:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  H_N2:    { fill:'#eeeeee', stroke:'#9e9e9e', r:4,  label:'H'  },
+  Ca_next: { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+};
+
+// Bond definitions: [atomKey1, atomKey2, type]
+// types: 'single','double','peptide','phi','psi','hbond','stub'
+const BOND_DEFS = [
+  ['Ca_prev','C_prev', 'stub'],
+  ['C_prev', 'O_prev', 'double'],
+  ['C_prev', 'N',      'peptide'],
+  ['N',      'H_N',    'hbond'],
+  ['N',      'Ca',     'phi'],
+  ['Ca',     'Ha',     'hbond'],
+  ['Ca',     'Cb',     'stub'],
+  ['Ca',     'C',      'psi'],
+  ['C',      'O',      'double'],
+  ['C',      'N_next', 'peptide'],
+  ['N_next', 'H_N2',   'hbond'],
+  ['N_next', 'Ca_next','stub'],
+];
+
+const BOND_COLOR = {
+  single:  { color:'#78909c', width:3 },
+  double:  { color:'#ef5350', width:3 },
+  peptide: { color:'#9e9e9e', width:3.5 },
+  hbond:   { color:'#bdbdbd', width:2 },
+  phi:     { color:'#ffa726', width:5 },
+  psi:     { color:'#26c6da', width:5 },
+  stub:    { color:'#607d8b', width:2.5 },
+};
+
+// ── Draw a single bond ─────────────────────────────────────────
+function drawBond(p2a, p2b, type, depth) {
+  const bc = BOND_COLOR[type];
+  // Depth-based brightness tweak
+  const alpha = 0.5 + 0.5 * Math.tanh(depth * 0.3 + 0.5);
+
+  if (type === 'double') {
+    // Offset the two lines slightly perpendicular to bond
+    const dx = p2b.x - p2a.x, dy = p2b.y - p2a.y;
+    const len = Math.sqrt(dx*dx+dy*dy)||1;
+    const ox = -dy/len * 2.5, oy = dx/len * 2.5;
+    dc.strokeStyle = bc.color; dc.lineWidth = bc.width - 1;
+    dc.globalAlpha = alpha;
+    dc.beginPath(); dc.moveTo(p2a.x+ox,p2a.y+oy); dc.lineTo(p2b.x+ox,p2b.y+oy); dc.stroke();
+    dc.beginPath(); dc.moveTo(p2a.x-ox,p2a.y-oy); dc.lineTo(p2b.x-ox,p2b.y-oy); dc.stroke();
+  } else {
+    dc.strokeStyle = bc.color; dc.lineWidth = bc.width;
+    dc.globalAlpha = alpha;
+    dc.beginPath(); dc.moveTo(p2a.x,p2a.y); dc.lineTo(p2b.x,p2b.y); dc.stroke();
+  }
+  dc.globalAlpha = 1;
+}
+
+// ── Draw atom circle ───────────────────────────────────────────
+function drawAtom(p2, style, depth) {
+  const alpha = 0.55 + 0.45 * Math.tanh(depth * 0.3 + 0.5);
+  // Ambient sphere shading: bright spot offset upper-left
+  const sx = p2.x - style.r * 0.3, sy = p2.y - style.r * 0.35;
+  const grd = dc.createRadialGradient(sx, sy, 0, p2.x, p2.y, style.r * 1.2);
+  grd.addColorStop(0, lighten(style.fill, 0.55));
+  grd.addColorStop(0.55, style.fill);
+  grd.addColorStop(1, darken(style.fill, 0.4));
+  dc.globalAlpha = alpha;
+  dc.fillStyle = grd;
+  dc.beginPath(); dc.arc(p2.x, p2.y, style.r, 0, Math.PI*2); dc.fill();
+  dc.strokeStyle = style.stroke; dc.lineWidth = 1;
+  dc.beginPath(); dc.arc(p2.x, p2.y, style.r, 0, Math.PI*2); dc.stroke();
+  dc.globalAlpha = 1;
+}
+
+function lighten(hex, t) { return blendHex(hex, '#ffffff', t); }
+function darken(hex, t)  { return blendHex(hex, '#000000', t); }
+function blendHex(hex, hex2, t) {
+  const [r1,g1,b1] = parseHex(hex), [r2,g2,b2] = parseHex(hex2);
+  return `rgb(${Math.round(r1+t*(r2-r1))},${Math.round(g1+t*(g2-g1))},${Math.round(b1+t*(b2-b1))})`;
+}
+function parseHex(hex) {
+  const h = hex.replace('#','');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+
+// ── Draw angle arc between two vectors projected at pivot ──────
+function drawAngleArc(pivot2, fromVec2, toVec2, radius, color, labelText) {
+  const ang1 = Math.atan2(-fromVec2.y, fromVec2.x);
+  const ang2 = Math.atan2(-toVec2.y,  toVec2.x);
+  // Draw arc from ang1 to ang2 (shortest path)
+  let diff = ang2 - ang1;
+  while (diff >  Math.PI) diff -= 2*Math.PI;
+  while (diff < -Math.PI) diff += 2*Math.PI;
+  dc.strokeStyle = color; dc.lineWidth = 1.5; dc.setLineDash([3,3]);
+  dc.beginPath(); dc.arc(pivot2.x, pivot2.y, radius, -ang1, -(ang1+diff), diff<0); dc.stroke();
+  dc.setLineDash([]);
+  // Arrowhead at ang2
+  const arrowAng = -(ang1+diff);
+  const sign = diff>0?1:-1;
+  dc.fillStyle = color;
+  dc.beginPath();
+  dc.moveTo(
+    pivot2.x + radius*Math.cos(arrowAng),
+    pivot2.y + radius*Math.sin(arrowAng)
+  );
+  dc.lineTo(
+    pivot2.x + radius*Math.cos(arrowAng+sign*0.35) - 4*Math.cos(arrowAng+sign*0.35+Math.PI/2)*sign,
+    pivot2.y + radius*Math.sin(arrowAng+sign*0.35) - 4*Math.sin(arrowAng+sign*0.35+Math.PI/2)*sign
+  );
+  dc.lineTo(
+    pivot2.x + radius*Math.cos(arrowAng-sign*0.12),
+    pivot2.y + radius*Math.sin(arrowAng-sign*0.12)
+  );
+  dc.closePath(); dc.fill();
+  // Label at midpoint of arc
+  const midAng = -(ang1 + diff/2);
+  const lx = pivot2.x + (radius+14)*Math.cos(midAng);
+  const ly = pivot2.y + (radius+14)*Math.sin(midAng);
+  dc.fillStyle = color; dc.font='bold 12px "Segoe UI",Arial';
+  dc.textAlign='center'; dc.textBaseline='middle';
+  dc.fillText(labelText, lx, ly);
+}
+
+// ── Main dipeptide renderer ────────────────────────────────────
+function renderDipeptide() {
+  dc.clearRect(0, 0, DW, DH);
+
+  // Dark background
+  dc.fillStyle = '#0b1020';
+  dc.fillRect(0, 0, DW, DH);
+
+  // Build base atoms, then add extra residues before phi compensation
+  const baseAtoms = buildDipeptide(phi, psi);
+  if (showNterm) Object.assign(baseAtoms, buildNtermAtoms(baseAtoms));
+  if (showCterm) Object.assign(baseAtoms, buildCtermAtoms(baseAtoms));
+
+  // Compensate for phi so Cα, C, and R stay fixed on screen
+  let atoms = applyPhiCompensation(baseAtoms, phi);
+  if (showNterm) atoms = applyNtermRGroupComp(atoms);
+  if (showCterm) atoms = applyCtermRGroupComp(atoms);
+
+  // Center the scene on Cα (which is always at its reference position after compensation)
+  const mid = atoms.Ca;
+
+  // Build per-frame atom style and bond defs (merge in extras when active)
+  const atomStyle = { ...ATOM_STYLE };
+  const bondDefs  = [...BOND_DEFS];
+  if (showNterm) { Object.assign(atomStyle, NTERM_ATOM_STYLE); bondDefs.push(...NTERM_BOND_DEFS); }
+  if (showCterm) { Object.assign(atomStyle, CTERM_ATOM_STYLE); bondDefs.push(...CTERM_BOND_DEFS); }
+
+  // Scale and center
+  const SCALE = dipScale;
+  const CX = DW * 0.48, CY = DH * 0.52;
+
+  // Project all atoms into 2D
+  const proj = {};
+  for (const [key, pos] of Object.entries(atoms)) {
+    const centered = sub3(pos, mid);
+    const rotated  = rotateView(centered);
+    proj[key] = project(rotated, SCALE, CX, CY);
+  }
+
+  // ── Collect render items (bonds + atoms) sorted by z ──────────
+  const items = [];
+
+  for (const [a, b, type] of bondDefs) {
+    const pa = proj[a], pb = proj[b];
+    const z = (pa.z + pb.z) / 2;
+    items.push({ kind:'bond', a, b, type, z });
+  }
+
+  for (const key of Object.keys(atomStyle)) {
+    items.push({ kind:'atom', key, z: proj[key].z });
+  }
+
+  // Sort back-to-front
+  items.sort((a,b) => a.z - b.z);
+
+  // ── Draw items ─────────────────────────────────────────────────
+  dc.lineCap  = 'round';
+  dc.lineJoin = 'round';
+
+  for (const item of items) {
+    if (item.kind === 'bond') {
+      drawBond(proj[item.a], proj[item.b], item.type, item.z);
+    } else {
+      drawAtom(proj[item.key], atomStyle[item.key], proj[item.key].z);
+    }
+  }
+
+  // ── Labels (drawn on top of everything) ───────────────────────
+  dc.globalAlpha = 1;
+  for (const [key, style] of Object.entries(atomStyle)) {
+    if (style.r < 5) continue;   // skip H labels
+    const p = proj[key];
+    dc.fillStyle = 'white';
+    dc.font = `bold ${style.r < 8 ? 9 : 10}px "Segoe UI",Arial`;
+    dc.textAlign = 'center'; dc.textBaseline = 'middle';
+    dc.fillText(style.label, p.x, p.y);
+  }
+
+  if (showAngles) {
+    // ── Phi angle arc ────────────────────────────────────────────
+    // Dihedral C_prev–N–Cα–C: arc at Cα, between N→Cα and C→Cα directions (projected)
+    {
+      const pN   = proj['N'];
+      const pCa  = proj['Ca'];
+      const pC   = proj['C'];
+      const fromV = { x: pN.x - pCa.x,  y: pN.y - pCa.y  };
+      const toV   = { x: pC.x - pCa.x,  y: pC.y - pCa.y  };
+      const r = ATOM_STYLE['Ca'].r + 16;
+      drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#ffa726', `φ=${Math.round(phi)}°`);
+    }
+
+    // ── Psi angle arc ────────────────────────────────────────────
+    // Dihedral N–Cα–C–N_next: arc at C, between Cα→C and N_next→C directions
+    {
+      const pCa   = proj['Ca'];
+      const pC    = proj['C'];
+      const pNn   = proj['N_next'];
+      const fromV = { x: pCa.x - pC.x,  y: pCa.y - pC.y  };
+      const toV   = { x: pNn.x - pC.x,  y: pNn.y - pC.y  };
+      const r = ATOM_STYLE['C'].r + 16;
+      drawAngleArc(pC, norm2(fromV), norm2(toV), r, '#26c6da', `ψ=${Math.round(psi)}°`);
+    }
+
+    // ── Bond axis highlight (capsule glow on phi/psi bonds) ──────
+    drawBondGlow(proj['N'],  proj['Ca'], '#ffa726');
+    drawBondGlow(proj['Ca'], proj['C'],  '#26c6da');
+  }
+
+  // ── Peptide plane rectangles (toggled) ────────────────────────
+  // N-terminal extra: plane between residue -2 and residue -1
+  if (showNterm) drawPeptidePlane(proj, ['Ca_pp', 'C_pp', 'O_pp', 'H_Np', 'Ca_prev']);
+  // First central plane: C_prev–N peptide bond
+  drawPeptidePlane(proj, ['Ca_prev', 'O_prev', 'H_N', 'Ca']);
+  // Second central plane: C–N_next peptide bond
+  drawPeptidePlane(proj, ['Ca', 'O', 'H_N2', 'Ca_next']);
+  // C-terminal extra: plane between residue +1 and residue +2
+  if (showCterm) drawPeptidePlane(proj, ['Ca_next', 'O_n', 'H_Nn2', 'Ca_n2']);
+}
+
+function norm2(v) { const l=Math.sqrt(v.x*v.x+v.y*v.y)||1; return {x:v.x/l,y:v.y/l}; }
+
+function drawBondGlow(p2a, p2b, color) {
+  dc.save();
+  dc.strokeStyle = color;
+  dc.lineWidth = 12;
+  dc.globalAlpha = 0.15;
+  dc.lineCap = 'round';
+  dc.beginPath(); dc.moveTo(p2a.x,p2a.y); dc.lineTo(p2b.x,p2b.y); dc.stroke();
+  dc.globalAlpha = 1;
+  dc.restore();
+}
+
+function drawPeptidePlane(proj, keys) {
+  if (!showPlanes) return;
+  // Compute convex hull of projected points so the polygon never self-intersects
+  const pts = keys.map(k => ({ x: proj[k].x, y: proj[k].y }));
+  const hull = convexHull(pts);
+  dc.beginPath();
+  dc.moveTo(hull[0].x, hull[0].y);
+  for (let i = 1; i < hull.length; i++) dc.lineTo(hull[i].x, hull[i].y);
+  dc.closePath();
+  dc.fillStyle   = 'rgba(255, 210, 30, 0.50)';
+  dc.strokeStyle = 'rgba(255, 210, 30, 0.75)';
+  dc.lineWidth   = 1.2;
+  dc.fill();
+  dc.stroke();
+}
+
+// Gift-wrap convex hull (small N, ~4-6 points)
+function convexHull(pts) {
+  if (pts.length < 3) return pts;
+  // Find bottom-most (then left-most) point
+  let start = 0;
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].y > pts[start].y || (pts[i].y === pts[start].y && pts[i].x < pts[start].x)) start = i;
+  }
+  const hull = [];
+  let cur = start;
+  do {
+    hull.push(pts[cur]);
+    let next = (cur + 1) % pts.length;
+    for (let i = 0; i < pts.length; i++) {
+      const cross = (pts[next].x - pts[cur].x) * (pts[i].y - pts[cur].y)
+                  - (pts[next].y - pts[cur].y) * (pts[i].x - pts[cur].x);
+      if (cross < 0) next = i;
+    }
+    cur = next;
+  } while (cur !== start && hull.length <= pts.length);
+  return hull;
+}
+
+// ── D-pad rotation buttons ─────────────────────────────────────
+const ROT_STEP = 10 * Math.PI / 180;   // 10° per click
+let rotInterval = null;
+
+function applyRotStep(dRy, dRx) {
+  // Pre-multiply in screen space so ▲▼ always go up/down and ◀▶ always go left/right
+  // relative to the molecule's current orientation on screen.
+  viewMatrix = mOrtho(mMul(mMul(mRotX(dRx * ROT_STEP), mRotY(dRy * ROT_STEP)), viewMatrix));
+  renderDipeptide();
+}
+
+function startRotBtn(dRy, dRx) {
+  applyRotStep(dRy, dRx);
+  rotInterval = setInterval(() => applyRotStep(dRy, dRx), 80);
+}
+
+function stopRotBtn() {
+  clearInterval(rotInterval);
+  rotInterval = null;
+}
+
+// Attach to the four buttons
+const rotDefs = [
+  ['rbtn-up',     0, -1],
+  ['rbtn-down',   0,  1],
+  ['rbtn-left',  -1,  0],
+  ['rbtn-right',  1,  0],
+];
+for (const [id, dRy, dRx] of rotDefs) {
+  const btn = document.getElementById(id);
+  btn.addEventListener('mousedown',   () => startRotBtn(dRy, dRx));
+  btn.addEventListener('touchstart',  e  => { e.preventDefault(); startRotBtn(dRy, dRx); }, { passive: false });
+}
+document.addEventListener('mouseup',  stopRotBtn);
+document.addEventListener('touchend', stopRotBtn);
+
+// ── Dipeptide drag-to-rotate ───────────────────────────────────
+dp.addEventListener('mousedown', e => {
+  dpDrag=true; dpDragX=e.clientX; dpDragY=e.clientY;
+  e.preventDefault();
+});
+window.addEventListener('mousemove', e => {
+  if (!dpDrag) return;
+  const dx = e.clientX - dpDragX, dy = e.clientY - dpDragY;
+  dpDragX = e.clientX; dpDragY = e.clientY;
+  viewMatrix = mOrtho(mMul(mMul(mRotX(dy * 0.008), mRotY(dx * 0.008)), viewMatrix));
+  renderDipeptide();
+});
+window.addEventListener('mouseup', () => dpDrag = false);
+
+dp.addEventListener('touchstart', e => {
+  dpDrag=true; dpDragX=e.touches[0].clientX; dpDragY=e.touches[0].clientY;
+  e.preventDefault();
+}, {passive:false});
+dp.addEventListener('touchmove', e => {
+  if (!dpDrag) return;
+  const dx=e.touches[0].clientX-dpDragX, dy=e.touches[0].clientY-dpDragY;
+  dpDragX=e.touches[0].clientX; dpDragY=e.touches[0].clientY;
+  viewMatrix = mOrtho(mMul(mMul(mRotX(dy * 0.008), mRotY(dx * 0.008)), viewMatrix));
+  renderDipeptide();
+  e.preventDefault();
+}, {passive:false});
+dp.addEventListener('touchend', ()=>dpDrag=false);
+
+// ── Peptide plane toggle (yellow = inactive/hidden, normal = active/shown) ──
+let showPlanes = false;
+function togglePlanes() {
+  showPlanes = !showPlanes;
+  const btn = document.getElementById('plane-toggle');
+  btn.textContent = showPlanes ? 'Hide Peptide Planes' : 'Show Peptide Planes';
+  btn.classList.toggle('active', showPlanes);  // active class = planes shown = non-yellow
+  renderDipeptide();
+}
+
+// ── Phi/psi angle arc toggle ───────────────────────────────────
+let showAngles = true;
+function toggleAngles() {
+  showAngles = !showAngles;
+  const btn = document.getElementById('angle-toggle');
+  btn.textContent = showAngles ? 'Hide φ/ψ Angles' : 'Show φ/ψ Angles';
+  renderDipeptide();
+}
+
+// ── Zoom ───────────────────────────────────────────────────────
+let dipScale = 44;
+let zoomInterval = null;
+function applyZoom(delta) {
+  dipScale = Math.max(18, Math.min(120, dipScale + delta));
+  renderDipeptide();
+}
+document.getElementById('zbtn-in').addEventListener('mousedown', () => {
+  applyZoom(4); zoomInterval = setInterval(() => applyZoom(4), 80);
+});
+document.getElementById('zbtn-out').addEventListener('mousedown', () => {
+  applyZoom(-4); zoomInterval = setInterval(() => applyZoom(-4), 80);
+});
+document.addEventListener('mouseup', () => { clearInterval(zoomInterval); zoomInterval = null; });
+
+// ── N/C-terminal AA toggles ────────────────────────────────────
+function toggleNterm() {
+  showNterm = !showNterm;
+  const btn = document.getElementById('nterm-toggle');
+  btn.textContent = showNterm ? 'Remove N-terminal AA' : 'Add N-terminal AA';
+  btn.classList.toggle('active', showNterm);
+  renderDipeptide();
+}
+
+function toggleCterm() {
+  showCterm = !showCterm;
+  const btn = document.getElementById('cterm-toggle');
+  btn.textContent = showCterm ? 'Remove C-terminal AA' : 'Add C-terminal AA';
+  btn.classList.toggle('active', showCterm);
+  renderDipeptide();
+}
+
+// ── Init ───────────────────────────────────────────────────────
+setAngles(-120, 130);
+</script>
+</body>
+</html>
