@@ -622,57 +622,6 @@ function rodrigues(v, k, angle) {
   return add3(add3(sc3(c,v), sc3(s,cross3(k,v))), sc3((1-c)*d, k));
 }
 
-// Phi-compensation: rotate all atoms around the N→Cα axis so that C and R (Cb)
-// always appear at their phi_ref positions on screen. The left side (C_prev, O_prev,
-// Ca_prev, H_N) visually sweeps around as phi changes. N stays put (it's on the axis).
-function applyPhiCompensation(atoms, phiDeg) {
-  const PHI_REF = -60; // reference phi – matches the default starting angle
-  const Ca = atoms.Ca, N = atoms.N;
-  const axis = norm3(sub3(Ca, N));               // unit vector N → Cα (phi rotation axis)
-  const angle = -(phiDeg - PHI_REF) * Math.PI / 180; // undo the phi delta from reference
-  const out = {};
-  for (const [key, pos] of Object.entries(atoms)) {
-    out[key] = add3(rodrigues(sub3(pos, Ca), axis, angle), Ca);
-  }
-  return out;
-}
-
-// N-terminal R-group compensation: after central phi comp, rotate Cb_p and Ha_prev
-// around the N_p→Ca_prev axis so Cb_p always appears "up" in screen space.
-function applyNtermRGroupComp(atoms) {
-  const Ca_prev = atoms.Ca_prev, N_p = atoms.N_p;
-  const worldUp = v3(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]);
-  const axis = norm3(sub3(Ca_prev, N_p));          // N_p → Ca_prev direction
-  const cb_rel  = sub3(atoms.Cb_p, Ca_prev);
-  const cb_perp = sub3(cb_rel,  sc3(dot3(cb_rel,  axis), axis));
-  const up_perp = sub3(worldUp, sc3(dot3(worldUp, axis), axis));
-  if (len3(cb_perp) < 1e-6 || len3(up_perp) < 1e-6) return atoms;
-  const cb_n = norm3(cb_perp), up_n = norm3(up_perp);
-  const angle = Math.atan2(dot3(cross3(cb_n, up_n), axis), dot3(cb_n, up_n));
-  const out = { ...atoms };
-  for (const key of ['Cb_p', 'Ha_prev']) {
-    if (atoms[key]) out[key] = add3(rodrigues(sub3(atoms[key], Ca_prev), axis, angle), Ca_prev);
-  }
-  return out;
-}
-
-// C-terminal R-group compensation: same idea for Cb_n / Ha_next around N_next→Ca_next.
-function applyCtermRGroupComp(atoms) {
-  const Ca_next = atoms.Ca_next, N_next = atoms.N_next;
-  const worldUp = v3(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]);
-  const axis = norm3(sub3(Ca_next, N_next));        // N_next → Ca_next direction
-  const cb_rel  = sub3(atoms.Cb_n, Ca_next);
-  const cb_perp = sub3(cb_rel,  sc3(dot3(cb_rel,  axis), axis));
-  const up_perp = sub3(worldUp, sc3(dot3(worldUp, axis), axis));
-  if (len3(cb_perp) < 1e-6 || len3(up_perp) < 1e-6) return atoms;
-  const cb_n_unit = norm3(cb_perp), up_n = norm3(up_perp);
-  const angle = Math.atan2(dot3(cross3(cb_n_unit, up_n), axis), dot3(cb_n_unit, up_n));
-  const out = { ...atoms };
-  for (const key of ['Cb_n', 'Ha_next']) {
-    if (atoms[key]) out[key] = add3(rodrigues(sub3(atoms[key], Ca_next), axis, angle), Ca_next);
-  }
-  return out;
-}
 
 // NeRF: place atom D given A,B,C; bond length r, angle B-C-D θ, dihedral A-B-C-D φ
 function placeAtom(A, B, C, r, thetaDeg, phiDeg) {
@@ -690,45 +639,39 @@ function placeAtom(A, B, C, r, thetaDeg, phiDeg) {
 
 // ── Build dipeptide atom positions (Å) ─────────────────────────
 function buildDipeptide(phiDeg, psiDeg) {
+  const PHI_REF = -60;
   const D2R = Math.PI / 180;
 
-  // Start with the incoming peptide plane (trans, ω=180°) in the XY plane.
-  // C_prev at origin, N along +x axis.
-  const C_prev = v3(0, 0, 0);
-  const N      = v3(1.329, 0, 0);
+  // ── Reference frame: C_prev at origin, N along +x ────────────
+  const C_prev_ref  = v3(0, 0, 0);
+  const N           = v3(1.329, 0, 0);
+  const Ca_prev_ref = add3(C_prev_ref, sc3(1.525, v3(Math.cos(116.2*D2R), Math.sin(116.2*D2R), 0)));
+  const O_prev_ref  = add3(C_prev_ref, sc3(1.229, v3(Math.cos(-123*D2R), Math.sin(-123*D2R), 0)));
 
-  // Ca_prev: angle Cα_prev–C_prev–N = 116.2°, in XY plane above C_prev
-  const Ca_prev = add3(C_prev, sc3(1.525, v3(Math.cos(116.2*D2R), Math.sin(116.2*D2R), 0)));
+  // Cα is fixed (trans ω, no phi/psi dependence)
+  const Ca = placeAtom(Ca_prev_ref, C_prev_ref, N, 1.458, 121.7, 180);
 
-  // O_prev: carbonyl O of C_prev, angle N–C_prev–O_prev = 123° below x-axis
-  const O_prev = add3(C_prev, sc3(1.229, v3(Math.cos(-123*D2R), Math.sin(-123*D2R), 0)));
+  // ── Fixed right side: built at PHI_REF, never change ─────────
+  const C  = placeAtom(C_prev_ref, N, Ca, 1.525, 111.2, PHI_REF);
+  const Cb = placeAtom(C_prev_ref, N, Ca, 1.521, 110.5, PHI_REF - 120);
+  const Ha = placeAtom(C_prev_ref, N, Ca, 1.090, 110.5, PHI_REF + 120);
 
-  // H on N: angle C_prev–N–H = 119°, dihedral Ca_prev–C_prev–N–H = 0° (cis to Ca_prev)
-  const H_N = placeAtom(Ca_prev, C_prev, N, 1.010, 119.0, 0);
-
-  // Cα: angle C_prev–N–Cα = 121.7°, dihedral Ca_prev–C_prev–N–Cα = 180° (trans ω)
-  const Ca = placeAtom(Ca_prev, C_prev, N, 1.458, 121.7, 180);
-
-  // C (carbonyl): angle N–Cα–C = 111.2°, dihedral C_prev–N–Cα–C = phi
-  const C = placeAtom(C_prev, N, Ca, 1.525, 111.2, phiDeg);
-
-  // Cβ (side-chain stub): dihedral C_prev–N–Cα–Cβ = phi – 120°  (gauche, L-amino acid)
-  const Cb = placeAtom(C_prev, N, Ca, 1.521, 110.5, phiDeg - 120);
-
-  // Hα: dihedral C_prev–N–Cα–Hα = phi + 120° (120° from Cb, tetrahedral with N, C, Cb)
-  const Ha = placeAtom(C_prev, N, Ca, 1.090, 110.5, phiDeg + 120);
-
-  // O (carbonyl O): angle Cα–C=O = 120.8°, dihedral N–Cα–C–O = psi + 180°
-  const O = placeAtom(N, Ca, C, 1.229, 120.8, psiDeg + 180);
-
-  // N_next: angle Cα–C–N_next = 116.2°, dihedral N–Cα–C–N_next = psi
+  // ── Psi-rotating right side: relative to fixed C ─────────────
+  const O      = placeAtom(N, Ca, C, 1.229, 120.8, psiDeg + 180);
   const N_next = placeAtom(N, Ca, C, 1.329, 116.2, psiDeg);
-
-  // H on N_next: dihedral Cα–C–N_next–H = 0° (cis to Cα → trans to Ca_next)
-  const H_N2 = placeAtom(Ca, C, N_next, 1.010, 119.0, 0);
-
-  // Cα_next: dihedral Cα–C–N_next–Cα_next = 180° (trans ω for next residue)
+  const H_N2   = placeAtom(Ca, C, N_next, 1.010, 119.0, 0);
   const Ca_next = placeAtom(Ca, C, N_next, 1.458, 121.7, 180);
+
+  // ── Phi-rotating left side: rotate reference by (phi − PHI_REF) ─
+  const phi_axis  = norm3(sub3(Ca, N));   // N→Ca direction
+  const phi_delta = (phiDeg - PHI_REF) * D2R;
+  const rot = pos => add3(rodrigues(sub3(pos, Ca), phi_axis, phi_delta), Ca);
+
+  const Ca_prev = rot(Ca_prev_ref);
+  const O_prev  = rot(O_prev_ref);
+  const C_prev  = rot(C_prev_ref);
+  // H_N placed after rotation so it uses updated Ca_prev and C_prev
+  const H_N = placeAtom(Ca_prev, C_prev, N, 1.010, 119.0, 0);
 
   return { Ca_prev, C_prev, O_prev, N, H_N, Ca, Ha, Cb, C, O, N_next, H_N2, Ca_next };
 }
@@ -980,10 +923,7 @@ function renderDipeptide() {
   if (showNterm) Object.assign(baseAtoms, buildNtermAtoms(baseAtoms));
   if (showCterm) Object.assign(baseAtoms, buildCtermAtoms(baseAtoms));
 
-  // Compensate for phi so Cα, C, and R stay fixed on screen
-  let atoms = applyPhiCompensation(baseAtoms, phi);
-  if (showNterm) atoms = applyNtermRGroupComp(atoms);
-  if (showCterm) atoms = applyCtermRGroupComp(atoms);
+  const atoms = { ...baseAtoms };
 
   // Center the scene on Cα (which is always at its reference position after compensation)
   const mid = atoms.Ca;
@@ -1047,13 +987,13 @@ function renderDipeptide() {
 
   if (showAngles) {
     // ── Phi angle arc ────────────────────────────────────────────
-    // Dihedral C_prev–N–Cα–C: arc at Cα, between N→Cα and C→Cα directions (projected)
+    // Dihedral C_prev–N–Cα–C: arc at Cα, between C_prev→Ca and C→Ca directions (projected)
     {
-      const pN   = proj['N'];
-      const pCa  = proj['Ca'];
-      const pC   = proj['C'];
-      const fromV = { x: pN.x - pCa.x,  y: pN.y - pCa.y  };
-      const toV   = { x: pC.x - pCa.x,  y: pC.y - pCa.y  };
+      const pCa      = proj['Ca'];
+      const pC       = proj['C'];
+      const pC_prev  = proj['C_prev'];
+      const fromV = { x: pC_prev.x - pCa.x, y: pC_prev.y - pCa.y };
+      const toV   = { x: pC.x      - pCa.x, y: pC.y      - pCa.y };
       const r = ATOM_STYLE['Ca'].r + 16;
       drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#ffa726', `φ=${Math.round(phi)}°`);
     }
