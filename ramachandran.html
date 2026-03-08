@@ -664,7 +664,7 @@ function buildDipeptide(phiDeg, psiDeg) {
 
   // ── Phi-rotating left side: rotate reference by (phi − PHI_REF) ─
   const phi_axis  = norm3(sub3(Ca, N));   // N→Ca direction
-  const phi_delta = (phiDeg - PHI_REF) * D2R;
+  const phi_delta = -(phiDeg - PHI_REF) * D2R;
   const rot = pos => add3(rodrigues(sub3(pos, Ca), phi_axis, phi_delta), Ca);
 
   const Ca_prev = rot(Ca_prev_ref);
@@ -689,21 +689,27 @@ let showCterm = false;
 function buildNtermAtoms(atoms) {
   const { N, C_prev, Ca_prev } = atoms;
   const { phi: nPhi, psi: nPsi } = residueAngles.nTerm;
-  // N_p: amide N of residue -1; psi_prev = N_p–Ca_prev–C_prev–N = nPsi
-  // NeRF places N_p at dihedral N–C_prev–Ca_prev–N_p = -nPsi (reversed chain direction)
-  const N_p  = placeAtom(N, C_prev, Ca_prev, 1.458, 111.2, -nPsi);
-  // C_pp: carbonyl C stub of residue -2 (trans ω: C_prev–Ca_prev–N_p–C_pp = 180°)
-  const C_pp = placeAtom(C_prev, Ca_prev, N_p, 1.329, 121.7, 180);
-  // O_pp: carbonyl O of C_pp
-  const O_pp = placeAtom(N_p, Ca_prev, C_pp, 1.229, 120.8, 180);
-  // Cb_p: side-chain of Ca_prev; phi_prev = C_pp–N_p–Ca_prev–C_prev, so Cb is 120° offset
-  const Cb_p = placeAtom(C_pp, N_p, Ca_prev, 1.521, 110.5, nPhi - 120);
-  // H_Np: amide H on N_p, cis to C_prev around Ca_prev–N_p
-  const H_Np = placeAtom(C_prev, Ca_prev, N_p, 1.010, 119.0, 0);
-  // Ha_prev: Hα on Ca_prev; dihedral C_pp–N_p–Ca_prev–Ha_prev = nPhi + 120° (tetrahedral)
-  const Ha_prev = placeAtom(C_pp, N_p, Ca_prev, 1.090, 110.5, nPhi + 120);
-  // Ca_pp: Cα stub of residue -2 (trans ω: Ca_prev–N_p–C_pp–Ca_pp = 180°)
+  // N_p: amide N of residue -1; psi_nterm = dihedral(N_p,Ca_prev,C_prev,N) = nPsi
+  // By reversal identity: dihedral(N,C_prev,Ca_prev,N_p) = nPsi
+  const N_p   = placeAtom(N, C_prev, Ca_prev, 1.458, 111.2, nPsi);
+  // C_pp: carbonyl C of residue -2; phi_nterm = dihedral(C_pp,N_p,Ca_prev,C_prev) = nPhi
+  // By reversal identity: dihedral(C_prev,Ca_prev,N_p,C_pp) = nPhi
+  const C_pp  = placeAtom(C_prev, Ca_prev, N_p, 1.329, 121.7, nPhi);
+  // Ca_pp: Cα stub of residue -2; trans ω = dihedral(Ca_pp,C_pp,N_p,Ca_prev) = 180°
+  // By reversal: dihedral(Ca_prev,N_p,C_pp,Ca_pp) = 180°
   const Ca_pp = placeAtom(Ca_prev, N_p, C_pp, 1.525, 116.2, 180);
+  // O_pp: carbonyl O; in trans peptide plane, O is syn to Ca_prev across C_pp-N_p
+  // dihedral(Ca_prev,N_p,C_pp,O_pp) = 0°  (Ca_pp is at 180°, O is anti to Ca_pp)
+  const O_pp  = placeAtom(Ca_prev, N_p, C_pp, 1.229, 120.8, 0);
+  // H_Np: amide H on N_p; syn to Ca_pp across C_pp-N_p (standard trans amide)
+  // dihedral(Ca_pp,C_pp,N_p,H_Np) = 0°
+  const H_Np  = placeAtom(Ca_pp, C_pp, N_p, 1.010, 119.0, 0);
+  // Cb_p: side-chain of Ca_prev; 120° offset from C_prev in the phi frame
+  // dihedral(C_pp,N_p,Ca_prev,Cb_p) = nPhi - 120°
+  const Cb_p  = placeAtom(C_pp, N_p, Ca_prev, 1.521, 110.5, nPhi - 120);
+  // Ha_prev: Hα on Ca_prev; opposite side from Cb_p (tetrahedral)
+  // dihedral(C_pp,N_p,Ca_prev,Ha_prev) = nPhi + 120°
+  const Ha_prev = placeAtom(C_pp, N_p, Ca_prev, 1.090, 110.5, nPhi + 120);
   return { N_p, H_Np, Ha_prev, Cb_p, C_pp, O_pp, Ca_pp };
 }
 
@@ -962,7 +968,13 @@ function renderDipeptide() {
   // Sort back-to-front
   items.sort((a,b) => a.z - b.z);
 
-  // ── Draw items ─────────────────────────────────────────────────
+  // ── Peptide plane fills (drawn first, behind everything) ──────
+  if (showNterm) drawPeptidePlane(proj, ['Ca_pp', 'C_pp', 'O_pp', 'H_Np', 'Ca_prev']);
+  drawPeptidePlane(proj, ['Ca_prev', 'O_prev', 'H_N', 'Ca']);
+  drawPeptidePlane(proj, ['Ca', 'O', 'H_N2', 'Ca_next']);
+  if (showCterm) drawPeptidePlane(proj, ['Ca_next', 'O_n', 'H_Nn2', 'Ca_n2']);
+
+  // ── Draw items (on top of planes) ──────────────────────────────
   dc.lineCap  = 'round';
   dc.lineJoin = 'round';
 
@@ -1015,15 +1027,6 @@ function renderDipeptide() {
     drawBondGlow(proj['Ca'], proj['C'],  '#26c6da');
   }
 
-  // ── Peptide plane rectangles (toggled) ────────────────────────
-  // N-terminal extra: plane between residue -2 and residue -1
-  if (showNterm) drawPeptidePlane(proj, ['Ca_pp', 'C_pp', 'O_pp', 'H_Np', 'Ca_prev']);
-  // First central plane: C_prev–N peptide bond
-  drawPeptidePlane(proj, ['Ca_prev', 'O_prev', 'H_N', 'Ca']);
-  // Second central plane: C–N_next peptide bond
-  drawPeptidePlane(proj, ['Ca', 'O', 'H_N2', 'Ca_next']);
-  // C-terminal extra: plane between residue +1 and residue +2
-  if (showCterm) drawPeptidePlane(proj, ['Ca_next', 'O_n', 'H_Nn2', 'Ca_n2']);
 }
 
 function norm2(v) { const l=Math.sqrt(v.x*v.x+v.y*v.y)||1; return {x:v.x/l,y:v.y/l}; }
