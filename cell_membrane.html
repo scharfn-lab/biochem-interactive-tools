@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cell Membrane Potential & Ion Gradients</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0f1923;
+    color: #e0e8f0;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  h1 { text-align:center; font-size:1.5rem; color:#7ecfff; margin-bottom:4px; letter-spacing:1px; }
+  .subtitle { text-align:center; font-size:0.82rem; color:#607a8a; margin-bottom:16px; }
+  .page-wrap { max-width: 1100px; margin: 0 auto; }
+
+  /* ========== MEMBRANE + AP SIDE-BY-SIDE CONTAINER ========== */
+  .mem-ap-container {
+    display: flex;
+    gap: 14px;
+    align-items: stretch;   /* AP card stretches to match left-column height */
+  }
+
+  /* Left column: outside panel + SVG membrane + inside panel (2/3 width) */
+  .mem-section {
+    flex: 2;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Right column: action potential plot (1/3 width) */
+  .ap-section {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ========== CONCENTRATION PANELS ========== */
+  .hpanel {
+    border-radius: 10px;
+    padding: 11px 16px;
+    border: 1px solid #1e3045;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .outside-panel {
+    background: #07111a; border-color: #1a2f45;
+    border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;
+  }
+  .inside-panel {
+    background: #1a0d08; border-color: #3a200e;
+    border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;
+  }
+
+  .hpanel-title { font-size:0.85rem; font-weight:700; white-space:nowrap; min-width:130px; }
+  .outside-panel .hpanel-title { color:#7ecfff; }
+  .inside-panel  .hpanel-title { color:#ff8c69; }
+
+  .hpanel-ions { display:flex; gap:14px; flex:1; align-items:center; }
+  .hion-row {
+    display:flex; align-items:center; gap:8px; flex:1;
+    background:rgba(255,255,255,0.04); border-radius:8px; padding:6px 10px;
+  }
+
+  .ion-symbol { font-size:1.1rem; font-weight:700; min-width:30px; text-align:center; }
+  .na-color { color:#ff7043; }
+  .k-color  { color:#42a5f5; }
+  .x-color  { color:#a78bfa; }
+  .ion-value-big { font-size:1.3rem; font-weight:700; min-width:40px; text-align:right; }
+  .ion-unit      { font-size:0.7rem; color:#607a8a; min-width:18px; }
+
+  /* ========== SLIDERS & INPUTS ========== */
+  input[type="range"] {
+    -webkit-appearance:none; height:6px; border-radius:3px;
+    outline:none; cursor:pointer; flex:1; min-width:50px;
+  }
+  .hion-row input[type="range"] { flex:none; width:70px; min-width:40px; }
+  input[type="range"].na-slider { background:linear-gradient(to right,#ff7043,#bf360c); }
+  input[type="range"].k-slider  { background:linear-gradient(to right,#42a5f5,#1565c0); }
+  input[type="range"].vm-slider { background:linear-gradient(to right,#3a6080,#7ecfff); }
+  input[type="range"].x-slider  { background:linear-gradient(to right,#7c3aed,#a78bfa); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:14px; height:14px;
+    border-radius:50%; background:#fff; border:2px solid #607a8a; cursor:pointer;
+  }
+
+  input[type="number"] {
+    background:#0d1820; border:1px solid #2a4060; border-radius:6px;
+    color:#e0e8f0; padding:4px 5px; font-size:0.82rem; width:58px; text-align:center;
+  }
+  input[type="number"]:focus { outline:1px solid #7ecfff; }
+
+  select {
+    background:#0d1820; border:1px solid #2a4060; border-radius:6px;
+    color:#e0e8f0; padding:5px 8px; font-size:0.82rem; cursor:pointer; outline:none;
+  }
+  select:focus { outline:1px solid #a78bfa; }
+
+  /* ========== SVG MEMBRANE ========== */
+  #membraneSVG {
+    width:100%; display:block; flex:1;
+    border-left:1px solid #1e3045; border-right:1px solid #1e3045;
+  }
+
+  /* ========== ACTION POTENTIAL CARD ========== */
+  .ap-card {
+    background:#162030; border:1px solid #1e3045;
+    border-radius:10px; padding:10px 12px;
+    display:flex; flex-direction:column; flex:1;
+  }
+
+  .ap-card-title {
+    font-size:0.8rem; color:#7ecfff; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.7px; margin-bottom:2px;
+  }
+
+  .ap-card-sub {
+    font-size:0.63rem; color:#607a8a; margin-bottom:8px; line-height:1.4;
+  }
+
+  #apSVG { width:100%; flex:1; display:block; }
+
+  /* ========== CONTROLS (side-by-side Vm + Temp) ========== */
+  .controls-bar { margin-top:14px; }
+
+  .control-card {
+    background:#162030; border:1px solid #1e3045;
+    border-radius:10px; padding:12px 16px;
+  }
+
+  .control-card h3 {
+    font-size:0.82rem; color:#7ecfff; text-transform:uppercase;
+    letter-spacing:0.7px; margin-bottom:10px; display:flex; align-items:center;
+  }
+
+  /* Two sliders side by side */
+  .ctrl-pair-row {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .ctrl-half {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ctrl-label {
+    font-size:0.76rem; color:#8aa0b0; white-space:nowrap; min-width:0;
+  }
+
+  .ctrl-value {
+    font-weight:700; color:#e0e8f0; white-space:nowrap; font-size:0.88rem;
+    min-width:80px; text-align:right;
+  }
+
+  .ctrl-hint { font-size:0.68rem; color:#607a8a; }
+
+  .reset-btn {
+    margin-left:auto; background:#1e3045; border:1px solid #2a4060;
+    color:#7ecfff; padding:5px 14px; border-radius:8px; cursor:pointer;
+    font-size:0.78rem; transition:background 0.2s; white-space:nowrap;
+  }
+  .reset-btn:hover { background:#2a4060; }
+
+  /* ========== UNIFIED DG TABLE ========== */
+  .dg-card {
+    margin-top:14px; background:#162030; border:1px solid #1e3045;
+    border-radius:10px; padding:14px 16px;
+  }
+
+  .dg-card-header { margin-bottom:12px; }
+  .dg-card-header h3 {
+    font-size:0.88rem; color:#7ecfff; text-transform:uppercase;
+    letter-spacing:0.7px; margin-bottom:4px;
+  }
+  .dg-formula {
+    font-size:0.72rem; color:#607a8a; font-style:italic;
+    background:#0d1820; padding:5px 10px; border-radius:6px;
+  }
+
+  .dg-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+  .dg-table th, .dg-table td {
+    padding:8px 11px; text-align:center;
+    border-bottom:1px solid #1a2a3a; vertical-align:middle;
+    overflow:hidden;
+  }
+  .dg-table td:first-child { text-align:left; color:#8aa0b0; font-size:0.78rem; width:185px; }
+  .dg-table th:nth-child(2), .dg-table td:nth-child(2),
+  .dg-table th:nth-child(3), .dg-table td:nth-child(3),
+  .dg-table th:nth-child(4), .dg-table td:nth-child(4),
+  .dg-table th:nth-child(5), .dg-table td:nth-child(5) { width:120px; }
+  .dg-table th { background:#0d1820; font-size:0.86rem; padding-top:9px; padding-bottom:9px; }
+  .dg-table th:first-child { text-align:left; color:#607a8a; font-size:0.73rem; }
+
+  .col-na { color:#ff7043; }
+  .col-k  { color:#42a5f5; }
+  .col-x  { color:#a78bfa; }
+  .col-x2 { color:#f472b6; }
+
+  .dg-table .row-sep td { border-top:2px solid #2a4060; padding-top:10px; }
+  .dg-table .row-total td { font-size:1.1rem; font-weight:700; }
+  .dg-table .row-total td:first-child { font-size:0.78rem; font-weight:400; }
+
+  /* Blue = favorable (colorblind-accessible) */
+  .favorable   { color:#38bdf8; }
+  .unfavorable { color:#ff6b6b; }
+  .neutral     { color:#8aa0b0; }
+
+  .conc-display { font-size:1.05rem; font-weight:700; }
+
+  /* Third-ion concentration controls — vertical stack in each cell */
+  .x-conc-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .x-conc-cell input[type="range"] { width: 52px; min-width: 52px; flex: none; }
+  .x-conc-cell input[type="number"] { width: 54px; }
+
+  /* Ion selector in column header */
+  .th-select-wrap { display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .z-badge {
+    font-size:0.66rem; color:#c4b5fd;
+    background:#2d1b6e33; border:1px solid #6d28d955;
+    border-radius:10px; padding:1px 8px;
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<h1>Cell Membrane Ion Transport</h1>
+<p class="subtitle">Electrochemical Gradients &amp; Free Energy Changes</p>
+
+<!-- ===== MEMBRANE + ACTION POTENTIAL SIDE BY SIDE ===== -->
+<div class="mem-ap-container">
+
+  <!-- Left: outside panel + SVG membrane + inside panel (2/3) -->
+  <div class="mem-section">
+
+    <div class="hpanel outside-panel">
+      <div class="hpanel-title">Extracellular</div>
+      <div class="hpanel-ions">
+        <div class="hion-row">
+          <div class="ion-symbol na-color">Na<sup>+</sup></div>
+          <div class="ion-value-big na-color" id="naOutDisplay">145</div>
+          <div class="ion-unit">mM</div>
+          <input type="range" class="na-slider" id="naOutSlider" min="1" max="300" step="1" value="145">
+          <input type="number" id="naOutNum" min="1" max="300" value="145">
+        </div>
+        <div class="hion-row">
+          <div class="ion-symbol k-color">K<sup>+</sup></div>
+          <div class="ion-value-big k-color" id="kOutDisplay">4</div>
+          <div class="ion-unit">mM</div>
+          <input type="range" class="k-slider" id="kOutSlider" min="1" max="300" step="1" value="4">
+          <input type="number" id="kOutNum" min="1" max="300" value="4">
+        </div>
+      </div>
+    </div>
+
+    <svg id="membraneSVG" viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="potGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" id="potGradStop1" stop-color="#607a8a"/>
+          <stop offset="100%" id="potGradStop2" stop-color="#607a8a"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0"   width="900" height="75"  fill="#07111a"/>
+      <rect x="0" y="75"  width="900" height="90"  fill="#0d1820"/>
+      <rect x="0" y="165" width="900" height="75"  fill="#1a0906"/>
+      <rect x="0" y="115" width="900" height="6"   fill="#0a1525" opacity="0.9"/>
+      <g id="ions-outside"></g>
+      <g id="heads-outer"></g>
+      <g id="tails-outer"></g>
+      <g id="tails-inner"></g>
+      <g id="heads-inner"></g>
+      <g id="channels"></g>
+      <g id="ions-inside"></g>
+      <rect x="878" y="77" width="12" height="88" fill="url(#potGrad)" rx="3" opacity="0.85"/>
+      <text id="potTopLabel" x="876" y="86"  text-anchor="end" fill="#8aa0b0" font-size="9" font-family="Segoe UI,Arial">0 mV</text>
+      <text id="potBotLabel" x="876" y="160" text-anchor="end" fill="#8aa0b0" font-size="9" font-family="Segoe UI,Arial">Vm</text>
+      <line x1="0" y1="75"  x2="900" y2="75"  stroke="#2a4060" stroke-width="0.5" opacity="0.5"/>
+      <line x1="0" y1="165" x2="900" y2="165" stroke="#2a4060" stroke-width="0.5" opacity="0.5"/>
+    </svg>
+
+    <div class="hpanel inside-panel">
+      <div class="hpanel-title">Intracellular</div>
+      <div class="hpanel-ions">
+        <div class="hion-row">
+          <div class="ion-symbol na-color">Na<sup>+</sup></div>
+          <div class="ion-value-big na-color" id="naInDisplay">12</div>
+          <div class="ion-unit">mM</div>
+          <input type="range" class="na-slider" id="naInSlider" min="1" max="300" step="1" value="12">
+          <input type="number" id="naInNum" min="1" max="300" value="12">
+        </div>
+        <div class="hion-row">
+          <div class="ion-symbol k-color">K<sup>+</sup></div>
+          <div class="ion-value-big k-color" id="kInDisplay">155</div>
+          <div class="ion-unit">mM</div>
+          <input type="range" class="k-slider" id="kInSlider" min="1" max="300" step="1" value="155">
+          <input type="number" id="kInNum" min="1" max="300" value="155">
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end mem-section -->
+
+  <!-- Right: Action potential plot (1/3) -->
+  <div class="ap-section">
+    <div class="ap-card">
+      <div class="ap-card-title">Action Potential</div>
+      <div class="ap-card-sub">Canonical neuronal AP shape (fixed; independent of V<sub>m</sub> slider)</div>
+      <svg id="apSVG" viewBox="0 0 270 310" preserveAspectRatio="xMidYMid meet"
+           xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="apClip">
+            <rect x="42" y="18" width="216" height="240"/>
+          </clipPath>
+          <filter id="apGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- Static axes structure drawn by JS -->
+        <g id="ap-grid"></g>
+        <g id="ap-axes"></g>
+        <g id="ap-curve" clip-path="url(#apClip)"></g>
+        <g id="ap-annotations" clip-path="url(#apClip)"></g>
+        <g id="ap-labels"></g>
+      </svg>
+    </div>
+  </div>
+
+</div><!-- end mem-ap-container -->
+
+<!-- ===== CONTROLS: Vm + Temp SIDE BY SIDE ===== -->
+<div class="controls-bar">
+  <div class="control-card">
+    <h3>Membrane Potential &amp; Temperature
+      <button class="reset-btn" onclick="resetDefaults()">Reset Defaults</button>
+    </h3>
+    <div class="ctrl-pair-row">
+      <!-- Vm -->
+      <div class="ctrl-half">
+        <span class="ctrl-label">V<sub>m</sub> (in&minus;out)</span>
+        <input type="range" class="vm-slider" id="vmSlider" min="-120" max="60" step="1" value="-70">
+        <input type="number" id="vmNum" min="-120" max="60" value="-70">
+        <span class="ctrl-value" id="vmLabel">-70 mV</span>
+      </div>
+      <!-- Temperature -->
+      <div class="ctrl-half">
+        <span class="ctrl-label">Temperature</span>
+        <input type="range" class="vm-slider" id="tempSlider" min="0" max="50" step="1" value="37">
+        <input type="number" id="tempNum" min="0" max="50" value="37">
+        <span class="ctrl-value" id="tempDisplay">37°C (310 K)</span>
+      </div>
+    </div>
+    <div class="ctrl-hint">
+      V<sub>m</sub>: resting ~-70 mV, AP peak ~+40 mV &nbsp;|&nbsp;
+      R = 8.314 J·mol⁻¹·K⁻¹ &nbsp;|&nbsp; F = 96,485 C·mol⁻¹
+    </div>
+  </div>
+</div>
+
+<!-- ===== UNIFIED ΔG TABLE ===== -->
+<div class="dg-card">
+  <div class="dg-card-header">
+    <h3>Free Energy Changes (outside &rarr; inside)</h3>
+    <div class="dg-formula">
+      &Delta;G = RT&thinsp;ln([in]/[out]) + ZF&Delta;V &nbsp;(kJ/mol) &nbsp;&nbsp;
+      <span style="color:#38bdf8;">blue</span> = favorable entry &nbsp;|&nbsp;
+      <span style="color:#ff6b6b;">red</span> = unfavorable
+    </div>
+  </div>
+
+  <table class="dg-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th class="col-na">Na<sup>+</sup></th>
+        <th class="col-k">K<sup>+</sup></th>
+        <th class="col-x">
+          <div class="th-select-wrap">
+            <select id="thirdIonSelect" onchange="onThirdIonChange()">
+              <option value="Ca2+">Ca²⁺</option>
+              <option value="Cl-">Cl⁻</option>
+              <option value="Glucose">Glucose</option>
+              <option value="HCO3-">HCO₃⁻</option>
+              <option value="Mg2+">Mg²⁺</option>
+            </select>
+          </div>
+        </th>
+        <th class="col-x2">
+          <div class="th-select-wrap">
+            <select id="fourthIonSelect" onchange="onFourthIonChange()">
+              <option value="Ca2+">Ca²⁺</option>
+              <option value="Cl-" selected>Cl⁻</option>
+              <option value="Glucose">Glucose</option>
+              <option value="HCO3-">HCO₃⁻</option>
+              <option value="Mg2+">Mg²⁺</option>
+            </select>
+          </div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- [Out] row -->
+      <tr>
+        <td>[Out] concentration (mM)</td>
+        <td><span class="conc-display na-color" id="naOutTable">145</span></td>
+        <td><span class="conc-display k-color"  id="kOutTable">4</span></td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="xOutSlider" min="0.01" max="5" step="0.01" value="1.2">
+            <input type="number" id="xOutNum" min="0.01" max="5" step="0.01" value="1.2">
+          </div>
+        </td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="x2OutSlider" min="1" max="200" step="1" value="110">
+            <input type="number" id="x2OutNum" min="1" max="200" step="1" value="110">
+          </div>
+        </td>
+      </tr>
+      <!-- [In] row -->
+      <tr>
+        <td>[In] concentration (mM)</td>
+        <td><span class="conc-display na-color" id="naInTable">12</span></td>
+        <td><span class="conc-display k-color"  id="kInTable">155</span></td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="xInSlider" min="0.001" max="2" step="0.001" value="0.001">
+            <input type="number" id="xInNum" min="0.001" max="2" step="0.001" value="0.001">
+          </div>
+        </td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="x2InSlider" min="1" max="200" step="1" value="10">
+            <input type="number" id="x2InNum" min="1" max="200" step="1" value="10">
+          </div>
+        </td>
+      </tr>
+      <!-- ΔG rows -->
+      <tr class="row-sep row-total">
+        <td>&Delta;G total (kJ/mol)</td>
+        <td id="naDgTotal">—</td><td id="kDgTotal">—</td><td id="xDgTotal">—</td><td id="x2DgTotal">—</td>
+      </tr>
+      <tr>
+        <td>&Delta;G chemical (kJ/mol)</td>
+        <td id="naDgChem">—</td><td id="kDgChem">—</td><td id="xDgChem">—</td><td id="x2DgChem">—</td>
+      </tr>
+      <tr>
+        <td>&Delta;G electrical (kJ/mol)</td>
+        <td id="naDgElec">—</td><td id="kDgElec">—</td><td id="xDgElec">—</td><td id="x2DgElec">—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- end page-wrap -->
+<script>
+// ---- Ion presets ----
+const ION_PRESETS = {
+  'Ca2+'   : { Z:+2, out:1.2,  in:0.001, min:0.001, max:5,   step:0.001 },
+  'Cl-'    : { Z:-1, out:110,  in:10,    min:1,     max:200, step:1     },
+  'Glucose': { Z: 0, out:5,    in:0.5,   min:0.1,   max:30,  step:0.1   },
+  'HCO3-'  : { Z:-1, out:24,   in:15,    min:1,     max:50,  step:1     },
+  'Mg2+'   : { Z:+2, out:1.2,  in:0.5,   min:0.1,   max:10,  step:0.1   },
+};
+
+const defaults = { naOut:145, naIn:12, kOut:4, kIn:155, vm:-70, temp:37,
+                   xOut:1.2, xIn:0.001, xKey:'Ca2+',
+                   x2Out:110, x2In:10, x2Key:'Cl-' };
+let state = {...defaults};
+const R = 8.314, F = 96485;
+const ns = 'http://www.w3.org/2000/svg';
+
+// ---- Wire inputs ----
+function wireInput(sliderId, numId, key, min, max) {
+  const sl = document.getElementById(sliderId), nu = document.getElementById(numId);
+  sl.addEventListener('input', () => { state[key] = +sl.value; nu.value = state[key]; update(); });
+  nu.addEventListener('input', () => {
+    let v = parseFloat(nu.value); if (isNaN(v)) return;
+    v = Math.max(min, Math.min(max, v)); state[key] = v; sl.value = v; update();
+  });
+}
+wireInput('naOutSlider','naOutNum','naOut',1,300);
+wireInput('naInSlider', 'naInNum', 'naIn', 1,300);
+wireInput('kOutSlider', 'kOutNum', 'kOut', 1,300);
+wireInput('kInSlider',  'kInNum',  'kIn',  1,300);
+wireInput('vmSlider',   'vmNum',   'vm',  -120,60);
+wireInput('tempSlider', 'tempNum', 'temp', 0, 50);
+
+['xOut','xIn'].forEach(field => {
+  const sl = document.getElementById(field+'Slider'), nu = document.getElementById(field+'Num');
+  sl.addEventListener('input', () => { state[field] = +sl.value; nu.value = state[field]; update(); });
+  nu.addEventListener('input', () => {
+    let v = parseFloat(nu.value); if (isNaN(v)) return;
+    state[field] = v; sl.value = v; update();
+  });
+});
+
+['x2Out','x2In'].forEach(field => {
+  const sl = document.getElementById(field+'Slider'), nu = document.getElementById(field+'Num');
+  sl.addEventListener('input', () => { state[field] = +sl.value; nu.value = state[field]; update(); });
+  nu.addEventListener('input', () => {
+    let v = parseFloat(nu.value); if (isNaN(v)) return;
+    state[field] = v; sl.value = v; update();
+  });
+});
+
+function applyPreset(key, outField, inField, sliderPrefix) {
+  const p = ION_PRESETS[key];
+  state[outField] = p.out; state[inField] = p.in;
+  [outField, inField].forEach(f => {
+    const sl = document.getElementById(sliderPrefix + (f===outField?'Out':'In') + 'Slider');
+    const nu = document.getElementById(sliderPrefix + (f===outField?'Out':'In') + 'Num');
+    sl.min=p.min; sl.max=p.max; sl.step=p.step; sl.value=state[f];
+    nu.min=p.min; nu.max=p.max; nu.step=p.step; nu.value=state[f];
+  });
+}
+
+function onThirdIonChange() {
+  const key = document.getElementById('thirdIonSelect').value;
+  state.xKey = key;
+  applyPreset(key, 'xOut', 'xIn', 'x');
+  update();
+}
+
+function onFourthIonChange() {
+  const key = document.getElementById('fourthIonSelect').value;
+  state.x2Key = key;
+  applyPreset(key, 'x2Out', 'x2In', 'x2');
+  update();
+}
+
+function resetDefaults() {
+  state = {...defaults};
+  [['naOut',1,300],['naIn',1,300],['kOut',1,300],['kIn',1,300],['vm',-120,60],['temp',0,50]].forEach(([k]) => {
+    const s = document.getElementById(k+'Slider'), n = document.getElementById(k+'Num');
+    if (s) s.value = state[k]; if (n) n.value = state[k];
+  });
+  document.getElementById('thirdIonSelect').value = state.xKey;
+  document.getElementById('fourthIonSelect').value = state.x2Key;
+  onThirdIonChange();
+  onFourthIonChange();
+}
+
+// ---- Physics ----
+function calcDeltaG(cIn, cOut, vmMV, tempC, Z) {
+  const T=tempC+273, vmV=vmMV/1000;
+  const dgChem=R*T*Math.log(cIn/cOut), dgElec=Z*F*vmV;
+  return { chem:dgChem/1000, elec:dgElec/1000, total:(dgChem+dgElec)/1000 };
+}
+
+function fmt(v, d=2) { return (v>=0?'+':'')+v.toFixed(d); }
+
+function fmtCell(val, id) {
+  const el=document.getElementById(id);
+  el.textContent=fmt(val);
+  el.className = val<-0.01?'favorable':val>0.01?'unfavorable':'neutral';
+}
+
+// ---- Main update ----
+function update() {
+  const { naOut, naIn, kOut, kIn, vm, temp, xOut, xIn, xKey, x2Out, x2In, x2Key } = state;
+  const preset  = ION_PRESETS[xKey];
+  const preset2 = ION_PRESETS[x2Key];
+
+  document.getElementById('naOutDisplay').textContent = naOut;
+  document.getElementById('naInDisplay').textContent  = naIn;
+  document.getElementById('kOutDisplay').textContent  = kOut;
+  document.getElementById('kInDisplay').textContent   = kIn;
+  document.getElementById('vmLabel').textContent      = fmt(vm,0)+' mV';
+  document.getElementById('tempDisplay').textContent  = temp+'\u00b0C ('+(temp+273)+' K)';
+  document.getElementById('naOutTable').textContent   = naOut;
+  document.getElementById('naInTable').textContent    = naIn;
+  document.getElementById('kOutTable').textContent    = kOut;
+  document.getElementById('kInTable').textContent     = kIn;
+
+  const naDg =calcDeltaG(naIn, naOut, vm, temp, +1);
+  const kDg  =calcDeltaG(kIn,  kOut,  vm, temp, +1);
+  const xDg  =calcDeltaG(xIn,  xOut,  vm, temp, preset.Z);
+  const x2Dg =calcDeltaG(x2In, x2Out, vm, temp, preset2.Z);
+
+  fmtCell(naDg.total,'naDgTotal'); fmtCell(kDg.total,'kDgTotal'); fmtCell(xDg.total,'xDgTotal'); fmtCell(x2Dg.total,'x2DgTotal');
+  document.getElementById('naDgChem').textContent =fmt(naDg.chem);
+  document.getElementById('naDgElec').textContent =fmt(naDg.elec);
+  document.getElementById('kDgChem').textContent  =fmt(kDg.chem);
+  document.getElementById('kDgElec').textContent  =fmt(kDg.elec);
+  document.getElementById('xDgChem').textContent  =fmt(xDg.chem);
+  document.getElementById('xDgElec').textContent  =fmt(xDg.elec);
+  document.getElementById('x2DgChem').textContent =fmt(x2Dg.chem);
+  document.getElementById('x2DgElec').textContent =fmt(x2Dg.elec);
+
+  document.getElementById('potGradStop1').setAttribute('stop-color','#607a8a');
+  document.getElementById('potGradStop2').setAttribute('stop-color', vm<0?'#ff4444':vm>0?'#44aaff':'#607a8a');
+  document.getElementById('potBotLabel').textContent = fmt(vm,0)+' mV';
+
+  drawMembrane();
+  drawAP();
+}
+
+// ---- SVG Membrane ----
+const MEM = {
+  outerHeadY:85, innerHeadY:151, tailTopEnd:115, tailBotStart:121,
+  headR:10, step:22, xStart:5, xEnd:870
+};
+const CHANNELS=[
+  {x:287, color:'#ff7043', label:'Na\u207A channel'},
+  {x:420, color:'#42a5f5', label:'K\u207A channel' },
+  {x:553, color:'#9c6aff', label:'Na/K ATPase'     },
+];
+const CHAN_W=72;
+
+function svgEl(tag,attrs){
+  const el=document.createElementNS(ns,tag);
+  for(const[k,v]of Object.entries(attrs)) el.setAttribute(k,String(v));
+  return el;
+}
+function clearGroup(id){const g=document.getElementById(id);while(g.firstChild)g.removeChild(g.firstChild);}
+
+function drawMembrane(){
+  ['heads-outer','tails-outer','tails-inner','heads-inner','channels','ions-outside','ions-inside'].forEach(clearGroup);
+  const {outerHeadY,innerHeadY,tailTopEnd,tailBotStart,headR,step,xStart,xEnd}=MEM;
+  const outerG=document.getElementById('heads-outer'),toG=document.getElementById('tails-outer');
+  const tiG=document.getElementById('tails-inner'),innerG=document.getElementById('heads-inner');
+  const chanG=document.getElementById('channels');
+
+  function isBlocked(x){return CHANNELS.some(c=>x>=c.x-CHAN_W/2-headR&&x<=c.x+CHAN_W/2+headR);}
+
+  for(let x=xStart;x<=xEnd;x+=step){
+    if(isBlocked(x)) continue;
+    const tx1=x-5,tx2=x+5;
+    outerG.appendChild(svgEl('circle',{cx:x,cy:outerHeadY,r:headR,fill:'#3a7a9c',opacity:'0.88'}));
+    toG.appendChild(svgEl('line',{x1:tx1,y1:outerHeadY+headR,x2:tx1,y2:tailTopEnd,stroke:'#1e4a60','stroke-width':'3',opacity:'0.65'}));
+    toG.appendChild(svgEl('line',{x1:tx2,y1:outerHeadY+headR,x2:tx2,y2:tailTopEnd,stroke:'#1e4a60','stroke-width':'3',opacity:'0.65'}));
+    tiG.appendChild(svgEl('line',{x1:tx1,y1:tailBotStart,x2:tx1,y2:innerHeadY-headR,stroke:'#1e4a60','stroke-width':'3',opacity:'0.65'}));
+    tiG.appendChild(svgEl('line',{x1:tx2,y1:tailBotStart,x2:tx2,y2:innerHeadY-headR,stroke:'#1e4a60','stroke-width':'3',opacity:'0.65'}));
+    innerG.appendChild(svgEl('circle',{cx:x,cy:innerHeadY,r:headR,fill:'#3a7a9c',opacity:'0.88'}));
+  }
+
+  CHANNELS.forEach(({x,color,label})=>{
+    const ch=innerHeadY+headR-(outerHeadY-headR),cx=x-CHAN_W/2,cy=outerHeadY-headR;
+    chanG.appendChild(svgEl('rect',{x:cx,y:cy,width:CHAN_W,height:ch,rx:'5',fill:'#111e2e',stroke:color,'stroke-width':'1.5',opacity:'0.95'}));
+    chanG.appendChild(svgEl('rect',{x:cx+CHAN_W/2-4,y:cy,        width:8,height:9,rx:'2',fill:color,opacity:'0.35'}));
+    chanG.appendChild(svgEl('rect',{x:cx+CHAN_W/2-4,y:cy+ch-9,   width:8,height:9,rx:'2',fill:color,opacity:'0.35'}));
+    const words=label.split(' '), lineH=16;
+    const startY=cy+ch/2-(words.length-1)*lineH/2+4;
+    const t=svgEl('text',{x,y:startY,'text-anchor':'middle',fill:color,'font-size':'14','font-family':'Segoe UI,Arial','font-weight':'bold'});
+    words.forEach((w,i)=>{const ts=svgEl('tspan',{x,dy:i===0?'0':String(lineH)});ts.textContent=w;t.appendChild(ts);});
+    chanG.appendChild(t);
+  });
+
+  const {naOut,naIn,kOut,kIn}=state;
+  drawIons('ions-outside',naOut,kOut,5,870,4,70);
+  drawIons('ions-inside', naIn, kIn, 5,870,170,236);
+}
+
+function pseudoRand(seed){const x=Math.sin(seed)*10000;return x-Math.floor(x);}
+
+function drawIons(groupId,naConc,kConc,xMin,xMax,yMin,yMax){
+  const g=document.getElementById(groupId);
+  const maxEach=24;
+  const naCount=Math.round(Math.min(naConc/200,1)*maxEach);
+  const kCount =Math.round(Math.min(kConc/200, 1)*maxEach);
+  const margin=5,w=xMax-xMin-margin*2,h=yMax-yMin-margin*2;
+  for(let i=0;i<naCount;i++){
+    const cx=xMin+margin+pseudoRand(i*7+1)*w,cy=yMin+margin+pseudoRand(i*7+2)*h;
+    g.appendChild(svgEl('circle',{cx,cy,r:'9',fill:'#ff704388',stroke:'#ff7043','stroke-width':'1.5'}));
+    const t=svgEl('text',{x:cx,y:cy+3.5,'text-anchor':'middle',fill:'#ffeecc','font-size':'8','font-family':'Segoe UI,Arial','font-weight':'bold'});
+    t.textContent='Na'; g.appendChild(t);
+  }
+  for(let i=0;i<kCount;i++){
+    const cx=xMin+margin+pseudoRand(i*13+3)*w,cy=yMin+margin+pseudoRand(i*13+4)*h;
+    g.appendChild(svgEl('circle',{cx,cy,r:'9',fill:'#42a5f555',stroke:'#42a5f5','stroke-width':'1.5'}));
+    const t=svgEl('text',{x:cx,y:cy+3.5,'text-anchor':'middle',fill:'#cceeff','font-size':'8','font-family':'Segoe UI,Arial','font-weight':'bold'});
+    t.textContent='K'; g.appendChild(t);
+  }
+}
+
+// ---- Action Potential Plot ----
+// SVG viewBox: 0 0 270 310
+// Plot area:   x=42..258 (216px), y=18..258 (240px)
+const AP = {
+  padL:42, padR:12, padT:18, padB:52,
+  W:270, H:310,
+  vMin:-105, vMax:55,
+  tMin:0, tMax:6
+};
+AP.plotW = AP.W - AP.padL - AP.padR;
+AP.plotH = AP.H - AP.padT - AP.padB;
+
+function apMapX(t){ return AP.padL + (t-AP.tMin)/(AP.tMax-AP.tMin)*AP.plotW; }
+function apMapY(v){ return AP.padT + (AP.vMax-v)/(AP.vMax-AP.vMin)*AP.plotH; }
+
+function smooth(p){ return p*p*(3-2*p); }
+
+function apValue(t, vm){
+  const undershoot = Math.max(vm - 10, AP.vMin + 5);
+  if(t<=1.0) return vm;
+  if(t<=1.5){ const p=(t-1.0)/0.5; return vm+(40-vm)*smooth(p); }
+  if(t<=3.0){ const p=(t-1.5)/1.5; return 40+(undershoot-40)*smooth(p); }
+  if(t<=3.8) return undershoot;
+  const p=Math.min((t-3.8)/2.2,1); return undershoot+(vm-undershoot)*smooth(p);
+}
+
+function drawAP(){
+  ['ap-grid','ap-axes','ap-curve','ap-annotations','ap-labels'].forEach(clearGroup);
+  const vm=-70; // fixed canonical shape — does not track Vm slider
+  const undershoot=Math.max(vm-10, AP.vMin+5);
+  const gridG=document.getElementById('ap-grid');
+  const axesG=document.getElementById('ap-axes');
+  const curveG=document.getElementById('ap-curve');
+  const annG=document.getElementById('ap-annotations');
+  const labG=document.getElementById('ap-labels');
+
+  // Grid lines + Y tick labels
+  [-80,-60,-40,-20,0,20,40].forEach(v=>{
+    const y=apMapY(v);
+    gridG.appendChild(svgEl('line',{x1:AP.padL,y1:y,x2:AP.W-AP.padR,y2:y,stroke:'#1a2a3a','stroke-width':'0.8'}));
+    const tl=svgEl('text',{x:AP.padL-4,y:y+3.5,'text-anchor':'end',fill:'#607a8a','font-size':'7.5','font-family':'Segoe UI,Arial'});
+    tl.textContent=(v>0?'+':'')+v; labG.appendChild(tl);
+  });
+
+  // X tick labels
+  [0,1,2,3,4,5,6].forEach(t=>{
+    const x=apMapX(t);
+    gridG.appendChild(svgEl('line',{x1:x,y1:AP.padT,x2:x,y2:AP.padT+AP.plotH,stroke:'#1a2a3a','stroke-width':'0.8'}));
+    const tl=svgEl('text',{x,y:AP.padT+AP.plotH+12,'text-anchor':'middle',fill:'#607a8a','font-size':'7.5','font-family':'Segoe UI,Arial'});
+    tl.textContent=t; labG.appendChild(tl);
+  });
+
+  // Axes
+  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:AP.padT,x2:AP.padL,y2:AP.padT+AP.plotH,stroke:'#2a4060','stroke-width':'1.2'}));
+  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:AP.padT+AP.plotH,x2:AP.W-AP.padR,y2:AP.padT+AP.plotH,stroke:'#2a4060','stroke-width':'1.2'}));
+
+  // Zero mV horizontal reference
+  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:apMapY(0),x2:AP.W-AP.padR,y2:apMapY(0),stroke:'#2a4060','stroke-width':'0.8','stroke-dasharray':'2,3'}));
+
+  // Axis labels
+  const xLbl=svgEl('text',{x:AP.padL+AP.plotW/2,y:AP.H-6,'text-anchor':'middle',fill:'#8aa0b0','font-size':'8','font-family':'Segoe UI,Arial'});
+  xLbl.textContent='Time (ms)'; labG.appendChild(xLbl);
+  const yLbl=svgEl('text',{x:10,y:AP.padT+AP.plotH/2,'text-anchor':'middle',fill:'#8aa0b0','font-size':'8','font-family':'Segoe UI,Arial',transform:`rotate(-90,10,${AP.padT+AP.plotH/2})`});
+  yLbl.textContent='mV'; labG.appendChild(yLbl);
+
+  // Threshold dashed line
+  const thresh=-55;
+  const ty=apMapY(thresh);
+  annG.appendChild(svgEl('line',{x1:AP.padL,y1:ty,x2:AP.W-AP.padR,y2:ty,stroke:'#fbbf24','stroke-width':'1','stroke-dasharray':'4,3'}));
+  const thLbl=svgEl('text',{x:AP.W-AP.padR-2,y:ty-3,'text-anchor':'end',fill:'#fbbf24','font-size':'7','font-family':'Segoe UI,Arial'});
+  thLbl.textContent='Threshold'; labG.appendChild(thLbl);
+
+  // Resting Vm dashed line
+  const vy=apMapY(vm);
+  annG.appendChild(svgEl('line',{x1:AP.padL,y1:vy,x2:AP.W-AP.padR,y2:vy,stroke:'#8aa0b0','stroke-width':'1','stroke-dasharray':'3,3'}));
+  const vmLbl=svgEl('text',{x:AP.padL+3,y:vy-3,'text-anchor':'start',fill:'#8aa0b0','font-size':'7','font-family':'Segoe UI,Arial'});
+  vmLbl.textContent='Vm = '+vm+' mV'; labG.appendChild(vmLbl);
+
+  // AP curve (polyline)
+  const pts=[];
+  for(let i=0;i<=300;i++){
+    const t=AP.tMin+(i/300)*(AP.tMax-AP.tMin);
+    const v=Math.max(AP.vMin,Math.min(AP.vMax,apValue(t,vm)));
+    pts.push(apMapX(t)+','+apMapY(v));
+  }
+  const pl=svgEl('polyline',{points:pts.join(' '),fill:'none',stroke:'#7ecfff','stroke-width':'2','stroke-linejoin':'round',filter:'url(#apGlow)'});
+  curveG.appendChild(pl);
+
+  // Phase labels (positioned above the curve)
+  const phases=[
+    {t:1.25, label:'Depol.',     color:'#ff7043', yOff:-14},
+    {t:2.2,  label:'Repol.',     color:'#42a5f5', yOff:-14},
+    {t:3.4,  label:'Hyperpol.', color:'#a78bfa', yOff: 12},
+  ];
+  phases.forEach(({t,label,color,yOff})=>{
+    const v=apValue(t,vm);
+    const x=apMapX(t), y=apMapY(v)+yOff;
+    const lbl=svgEl('text',{x,y,'text-anchor':'middle',fill:color,'font-size':'7','font-family':'Segoe UI,Arial','font-weight':'bold'});
+    lbl.textContent=label; labG.appendChild(lbl);
+  });
+
+  // Peak annotation
+  const peakX=apMapX(1.5), peakY=apMapY(40);
+  const pLbl=svgEl('text',{x:peakX+3,y:peakY+1,'text-anchor':'start',fill:'#e0e8f0','font-size':'7','font-family':'Segoe UI,Arial'});
+  pLbl.textContent='+40 mV'; labG.appendChild(pLbl);
+}
+
+// ---- Init ----
+onThirdIonChange();
+onFourthIonChange();
+</script>
+</body>
+</html>
