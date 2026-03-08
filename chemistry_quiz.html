@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chemistry Stoichiometry Practice</title>
+  <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 720px;
+      width: 100%;
+      color: #e0e0e0;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      color: #7dd3fc;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 30px;
+    }
+
+    /* Score bar */
+    .score-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 10px 20px;
+      margin-bottom: 28px;
+      font-size: 0.9rem;
+    }
+
+    .score-item {
+      text-align: center;
+    }
+
+    .score-item .label {
+      color: #94a3b8;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .score-item .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #7dd3fc;
+    }
+
+    .score-item .value.correct { color: #4ade80; }
+    .score-item .value.incorrect { color: #f87171; }
+
+    /* Compound card */
+    .compound-card {
+      background: rgba(125, 211, 252, 0.08);
+      border: 1px solid rgba(125, 211, 252, 0.2);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .compound-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .compound-name {
+      font-size: 1rem;
+      color: #cbd5e1;
+    }
+
+    .compound-formula {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #7dd3fc;
+      line-height: 1.2;
+    }
+
+    .compound-mw {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* Question */
+    .question-box {
+      background: rgba(255,255,255,0.04);
+      border-left: 4px solid #7dd3fc;
+      border-radius: 0 12px 12px 0;
+      padding: 18px 22px;
+      margin-bottom: 24px;
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: #e2e8f0;
+    }
+
+    .question-box .given-value {
+      color: #fbbf24;
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+
+    .question-box .given-unit {
+      color: #fb923c;
+      font-weight: 600;
+    }
+
+    .question-box .target-unit {
+      color: #a78bfa;
+      font-weight: 700;
+    }
+
+    /* Hint */
+    .hint {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    /* Answer section */
+    .answer-section {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .answer-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 14px 18px;
+      font-size: 1.05rem;
+      background: rgba(255,255,255,0.08);
+      border: 2px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      color: #e2e8f0;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .answer-input:focus {
+      border-color: #7dd3fc;
+    }
+
+    .answer-input.correct {
+      border-color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
+    }
+
+    .answer-input.incorrect {
+      border-color: #f87171;
+      background: rgba(248, 113, 113, 0.1);
+    }
+
+    .btn {
+      padding: 14px 24px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-check {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: white;
+    }
+
+    .btn-check:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(99,102,241,0.4); }
+    .btn-check:active { transform: translateY(0); }
+
+    .btn-new {
+      background: linear-gradient(135deg, #0891b2, #0e7490);
+      color: white;
+    }
+
+    .btn-new:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(8,145,178,0.4); }
+    .btn-new:active { transform: translateY(0); }
+
+    /* Feedback */
+    .feedback {
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      display: none;
+      margin-bottom: 18px;
+    }
+
+    .feedback.correct {
+      display: block;
+      background: rgba(74, 222, 128, 0.12);
+      border: 1px solid rgba(74, 222, 128, 0.35);
+      color: #86efac;
+    }
+
+    .feedback.incorrect {
+      display: block;
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fca5a5;
+    }
+
+    .feedback strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+
+    .feedback .correct-ans {
+      color: #4ade80;
+      font-weight: 700;
+    }
+
+    .feedback .steps {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .feedback .steps div { margin-top: 4px; }
+
+    /* New question button row */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Formula sub/superscript styling */
+    sub { font-size: 0.72em; }
+    sup { font-size: 0.72em; }
+
+    /* Avogadro reference */
+    .reference-bar {
+      margin-top: 26px;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      font-size: 0.78rem;
+      color: #475569;
+      text-align: center;
+    }
+
+    /* Type selector */
+    .type-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .type-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 9px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .type-btn.active {
+      border-color: #7dd3fc;
+      background: rgba(125,211,252,0.12);
+      color: #7dd3fc;
+    }
+
+    .type-btn:hover:not(.active) {
+      border-color: rgba(255,255,255,0.25);
+      color: #cbd5e1;
+    }
+
+    .type-label {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Lewis structure box */
+    .lewis-box {
+      background: #f1f5f9;
+      border: 1px solid rgba(125, 211, 252, 0.3);
+      border-radius: 12px;
+      padding: 10px 16px 10px;
+      margin-bottom: 22px;
+      text-align: center;
+    }
+
+    .lewis-label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    #lewis-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+    }
+
+    #lewis-container svg {
+      max-width: 100%;
+      height: 210px;
+    }
+
+    .lewis-loading {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      font-style: italic;
+      padding: 20px 0;
+    }
+
+    .lewis-error {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      font-style: italic;
+      padding: 12px 0;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Stoichiometry Practice</h1>
+  <p class="subtitle">Convert between grams, moles, and molecules</p>
+
+  <!-- Score -->
+  <div class="score-bar">
+    <div class="score-item">
+      <div class="label">Attempted</div>
+      <div class="value" id="score-total">0</div>
+    </div>
+    <div class="score-item">
+      <div class="label">Correct</div>
+      <div class="value correct" id="score-correct">0</div>
+    </div>
+    <div class="score-item">
+      <div class="label">Incorrect</div>
+      <div class="value incorrect" id="score-incorrect">0</div>
+    </div>
+    <div class="score-item">
+      <div class="label">Accuracy</div>
+      <div class="value" id="score-pct">—</div>
+    </div>
+  </div>
+
+  <!-- Question type filter -->
+  <div class="type-label">Question type</div>
+  <div class="type-row">
+    <div class="type-btn active" data-type="all" onclick="setType('all', this)">All Types</div>
+    <div class="type-btn" data-type="g-mol" onclick="setType('g-mol', this)">Grams &rarr; Moles</div>
+    <div class="type-btn" data-type="mol-g" onclick="setType('mol-g', this)">Moles &rarr; Grams</div>
+    <div class="type-btn" data-type="mol-molec" onclick="setType('mol-molec', this)">Moles &rarr; Molecules</div>
+    <div class="type-btn" data-type="molec-mol" onclick="setType('molec-mol', this)">Molecules &rarr; Moles</div>
+    <div class="type-btn" data-type="g-molec" onclick="setType('g-molec', this)">Grams &rarr; Molecules</div>
+    <div class="type-btn" data-type="molec-g" onclick="setType('molec-g', this)">Molecules &rarr; Grams</div>
+  </div>
+
+  <!-- Compound display -->
+  <div class="compound-card">
+    <div class="compound-icon" id="compound-icon">⚗️</div>
+    <div>
+      <div class="compound-name" id="compound-name">Loading...</div>
+      <div class="compound-formula" id="compound-formula"></div>
+      <div class="compound-mw" id="compound-mw"></div>
+    </div>
+  </div>
+
+  <!-- Lewis Structure -->
+  <div class="lewis-box">
+    <div class="lewis-label">Structural Formula</div>
+    <div id="lewis-container">
+      <div class="lewis-loading" id="lewis-loading">Loading structure renderer...</div>
+    </div>
+  </div>
+
+  <!-- Question -->
+  <div class="question-box" id="question-text">Generating question...</div>
+
+  <!-- Answer input -->
+  <div class="answer-section">
+    <input
+      type="text"
+      class="answer-input"
+      id="answer-input"
+      placeholder="Enter your answer (e.g. 2.50, 3.01e23)"
+      autocomplete="off"
+    />
+    <button class="btn btn-check" id="check-btn" onclick="checkAnswer()">Check</button>
+  </div>
+
+  <!-- Feedback -->
+  <div class="feedback" id="feedback"></div>
+
+  <!-- New question -->
+  <div class="btn-row">
+    <button class="btn btn-new" onclick="newQuestion()">New Question</button>
+  </div>
+
+  <div class="reference-bar">
+    Avogadro's number: 6.022 &times; 10<sup>23</sup> particles/mol &nbsp;|&nbsp;
+    MW used for mole conversions
+  </div>
+</div>
+
+<script>
+// ─── Compound Library ────────────────────────────────────────────────────────
+const COMPOUNDS = [
+  { name: "Water",                formula: "H<sub>2</sub>O",                          mw: 18.015,  icon: "💧", smiles: "O" },
+  { name: "Carbon Dioxide",       formula: "CO<sub>2</sub>",                          mw: 44.010,  icon: "🌫️", smiles: "O=C=O" },
+  { name: "Ethanol",              formula: "C<sub>2</sub>H<sub>5</sub>OH",             mw: 46.068,  icon: "🍶", smiles: "CCO" },
+  { name: "Glucose",              formula: "C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>", mw: 180.156, icon: "🍬", smiles: "OCC(O)C(O)C(O)C(O)CO" },
+  { name: "Sodium Chloride",      formula: "NaCl",                                    mw: 58.440,  icon: "🧂", smiles: "[Na+].[Cl-]" },
+  { name: "Ammonia",              formula: "NH<sub>3</sub>",                           mw: 17.031,  icon: "🧪", smiles: "N" },
+  { name: "Sulfuric Acid",        formula: "H<sub>2</sub>SO<sub>4</sub>",              mw: 98.079,  icon: "⚗️", smiles: "OS(=O)(=O)O" },
+  { name: "Methane",              formula: "CH<sub>4</sub>",                           mw: 16.043,  icon: "🔥", smiles: "C" },
+  { name: "Oxygen",               formula: "O<sub>2</sub>",                            mw: 31.998,  icon: "💨", smiles: "O=O" },
+  { name: "Nitrogen",             formula: "N<sub>2</sub>",                            mw: 28.014,  icon: "💨", smiles: "N#N" },
+  { name: "Calcium Carbonate",    formula: "CaCO<sub>3</sub>",                         mw: 100.087, icon: "🪨", smiles: "[Ca+2].[O-]C(=O)[O-]" },
+  { name: "Hydrochloric Acid",    formula: "HCl",                                     mw: 36.461,  icon: "⚗️", smiles: "Cl" },
+  { name: "Sodium Hydroxide",     formula: "NaOH",                                    mw: 39.997,  icon: "🧴", smiles: "[Na+].[OH-]" },
+  { name: "Acetic Acid",          formula: "CH<sub>3</sub>COOH",                       mw: 60.052,  icon: "🍾", smiles: "CC(=O)O" },
+  { name: "Benzene",              formula: "C<sub>6</sub>H<sub>6</sub>",               mw: 78.113,  icon: "🔴", smiles: "c1ccccc1" },
+  { name: "Propane",              formula: "C<sub>3</sub>H<sub>8</sub>",               mw: 44.097,  icon: "🔥", smiles: "CCC" },
+  { name: "Sucrose",              formula: "C<sub>12</sub>H<sub>22</sub>O<sub>11</sub>",mw: 342.297, icon: "🍭", smiles: "OCC1OC(OC2(CO)OCC(O)C2O)C(O)C(O)C1O" },
+  { name: "Iron(III) Oxide",      formula: "Fe<sub>2</sub>O<sub>3</sub>",              mw: 159.690, icon: "🟤", smiles: "[Fe+3].[Fe+3].[O-2].[O-2].[O-2]" },
+  { name: "Hydrogen Peroxide",    formula: "H<sub>2</sub>O<sub>2</sub>",               mw: 34.015,  icon: "🫧", smiles: "OO" },
+  { name: "Phosphoric Acid",      formula: "H<sub>3</sub>PO<sub>4</sub>",              mw: 97.994,  icon: "⚗️", smiles: "OP(=O)(O)O" },
+  { name: "Nitric Acid",          formula: "HNO<sub>3</sub>",                          mw: 63.013,  icon: "⚗️", smiles: "O[N+](=O)[O-]" },
+  { name: "Calcium Chloride",     formula: "CaCl<sub>2</sub>",                         mw: 110.980, icon: "🧊", smiles: "[Ca+2].[Cl-].[Cl-]" },
+  { name: "Magnesium Oxide",      formula: "MgO",                                     mw: 40.304,  icon: "⬜", smiles: "[Mg+2].[O-2]" },
+  { name: "Potassium Permanganate",formula: "KMnO<sub>4</sub>",                        mw: 158.034, icon: "🟣", smiles: "[K+].[O-][Mn](=O)(=O)=O" },
+  { name: "Copper(II) Sulfate",   formula: "CuSO<sub>4</sub>",                         mw: 159.610, icon: "🔵", smiles: "[Cu+2].[O-]S(=O)(=O)[O-]" },
+  { name: "Hydrogen",             formula: "H<sub>2</sub>",                            mw: 2.016,   icon: "💨", smiles: "[H][H]" },
+  { name: "Urea",                 formula: "CO(NH<sub>2</sub>)<sub>2</sub>",            mw: 60.055,  icon: "🌱", smiles: "NC(=O)N" },
+  { name: "Acetone",              formula: "C<sub>3</sub>H<sub>6</sub>O",               mw: 58.079,  icon: "🧴", smiles: "CC(=O)C" },
+  { name: "Sodium Bicarbonate",   formula: "NaHCO<sub>3</sub>",                        mw: 84.007,  icon: "🍞", smiles: "[Na+].OC([O-])=O" },
+  { name: "Aluminum Oxide",       formula: "Al<sub>2</sub>O<sub>3</sub>",              mw: 101.960, icon: "⬜", smiles: "[Al+3].[Al+3].[O-2].[O-2].[O-2]" },
+];
+
+const AVOGADRO = 6.022e23;
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentQuestion = null;
+let selectedType = 'all';
+let answered = false;
+let scoreTotal = 0, scoreCorrect = 0, scoreIncorrect = 0;
+
+// All conversion types
+const ALL_TYPES = ['g-mol', 'mol-g', 'mol-molec', 'molec-mol', 'g-molec', 'molec-g'];
+
+// ─── Type filter ─────────────────────────────────────────────────────────────
+function setType(type, el) {
+  selectedType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  newQuestion();
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function rand(min, max, decimals = 2) {
+  const v = Math.random() * (max - min) + min;
+  return parseFloat(v.toFixed(decimals));
+}
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Format a number nicely: use scientific notation for very large/small values
+function fmt(n) {
+  if (n === 0) return "0";
+  const abs = Math.abs(n);
+  if (abs >= 1e6 || abs < 0.001) {
+    // Scientific notation
+    const exp = Math.floor(Math.log10(abs));
+    const coeff = n / Math.pow(10, exp);
+    return `${coeff.toFixed(3)} × 10<sup>${exp}</sup>`;
+  }
+  // Decide decimal places based on magnitude
+  if (abs >= 100) return n.toFixed(2);
+  if (abs >= 1)   return n.toFixed(3);
+  return n.toFixed(4);
+}
+
+function fmtPlain(n) {
+  if (n === 0) return "0";
+  const abs = Math.abs(n);
+  if (abs >= 1e6 || abs < 0.001) {
+    const exp = Math.floor(Math.log10(abs));
+    const coeff = n / Math.pow(10, exp);
+    return `${coeff.toFixed(3)}e${exp}`;
+  }
+  if (abs >= 100) return n.toFixed(2);
+  if (abs >= 1)   return n.toFixed(3);
+  return n.toFixed(4);
+}
+
+// Strip HTML tags for plain text use
+function stripHTML(s) {
+  return s.replace(/<[^>]+>/g, '');
+}
+
+// ─── Parse answer input (handles scientific notation variants) ────────────────
+function parseInput(str) {
+  str = str.trim()
+    .replace(/×/g, 'e')
+    .replace(/x/gi, 'e')
+    .replace(/\s*\*\s*10\^?/gi, 'e')
+    .replace(/\s*10\^/gi, 'e')
+    .replace(/\s/g, '');
+  // Handle "3.01e23" or "3.01E23"
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
+
+// ─── Question Generation ──────────────────────────────────────────────────────
+function generateQuestion(compound, type) {
+  const mw = compound.mw;
+  let givenValue, givenUnit, targetUnit, answer, steps;
+  const fname = `${compound.name} (${stripHTML(compound.formula)})`;
+  const fnameHTML = `${compound.name} (<span style="color:#7dd3fc">${compound.formula}</span>)`;
+
+  switch (type) {
+    case 'g-mol': {
+      givenValue = rand(1, 250, 2);
+      givenUnit = "grams";
+      targetUnit = "moles";
+      answer = givenValue / mw;
+      steps = [
+        `moles = grams ÷ molar mass`,
+        `moles = ${givenValue} g ÷ ${mw} g/mol`,
+        `moles = ${fmtPlain(answer)} mol`,
+      ];
+      break;
+    }
+    case 'mol-g': {
+      givenValue = rand(0.1, 10, 3);
+      givenUnit = "moles";
+      targetUnit = "grams";
+      answer = givenValue * mw;
+      steps = [
+        `grams = moles × molar mass`,
+        `grams = ${givenValue} mol × ${mw} g/mol`,
+        `grams = ${fmtPlain(answer)} g`,
+      ];
+      break;
+    }
+    case 'mol-molec': {
+      givenValue = rand(0.1, 5, 3);
+      givenUnit = "moles";
+      targetUnit = "molecules";
+      answer = givenValue * AVOGADRO;
+      steps = [
+        `molecules = moles × Avogadro's number`,
+        `molecules = ${givenValue} mol × 6.022 × 10²³`,
+        `molecules ≈ ${fmtPlain(answer)}`,
+      ];
+      break;
+    }
+    case 'molec-mol': {
+      const baseCoeff = rand(1.0, 9.99, 2);
+      const baseExp = Math.floor(Math.random() * 4) + 21; // 10^21 to 10^24
+      givenValue = baseCoeff * Math.pow(10, baseExp);
+      givenUnit = "molecules";
+      targetUnit = "moles";
+      answer = givenValue / AVOGADRO;
+      steps = [
+        `moles = molecules ÷ Avogadro's number`,
+        `moles = ${fmtPlain(givenValue)} ÷ 6.022 × 10²³`,
+        `moles ≈ ${fmtPlain(answer)} mol`,
+      ];
+      break;
+    }
+    case 'g-molec': {
+      givenValue = rand(1, 100, 2);
+      givenUnit = "grams";
+      targetUnit = "molecules";
+      answer = (givenValue / mw) * AVOGADRO;
+      steps = [
+        `Step 1: moles = ${givenValue} g ÷ ${mw} g/mol = ${fmtPlain(givenValue/mw)} mol`,
+        `Step 2: molecules = moles × 6.022 × 10²³`,
+        `molecules ≈ ${fmtPlain(answer)}`,
+      ];
+      break;
+    }
+    case 'molec-g': {
+      const baseCoeff = rand(1.0, 9.99, 2);
+      const baseExp = Math.floor(Math.random() * 4) + 21;
+      givenValue = baseCoeff * Math.pow(10, baseExp);
+      givenUnit = "molecules";
+      targetUnit = "grams";
+      answer = (givenValue / AVOGADRO) * mw;
+      steps = [
+        `Step 1: moles = ${fmtPlain(givenValue)} ÷ 6.022 × 10²³ = ${fmtPlain(givenValue/AVOGADRO)} mol`,
+        `Step 2: grams = moles × ${mw} g/mol`,
+        `grams ≈ ${fmtPlain(answer)} g`,
+      ];
+      break;
+    }
+  }
+
+  // Build question HTML
+  const givenFmt = fmt(givenValue);
+  let questionHTML = `How many <span class="target-unit">${targetUnit}</span> are in
+    <span class="given-value">${givenFmt}</span>
+    <span class="given-unit">${givenUnit}</span> of ${fnameHTML}?`;
+
+  if (targetUnit === "molecules") {
+    questionHTML += `<div class="hint">Tip: Express your answer in scientific notation as <em>coefficient × 10<sup>exponent</sup></em>, e.g. <strong>3.01e23</strong></div>`;
+  }
+
+  return { compound, type, givenValue, givenUnit, targetUnit, answer, questionHTML, steps };
+}
+
+// ─── New Question ─────────────────────────────────────────────────────────────
+function newQuestion() {
+  answered = false;
+
+  const compound = pick(COMPOUNDS);
+  const type = selectedType === 'all' ? pick(ALL_TYPES) : selectedType;
+
+  currentQuestion = generateQuestion(compound, type);
+
+  // Update compound card
+  document.getElementById('compound-icon').textContent = compound.icon;
+  document.getElementById('compound-name').textContent = compound.name;
+  document.getElementById('compound-formula').innerHTML = compound.formula;
+  document.getElementById('compound-mw').textContent = `Molar mass: ${compound.mw} g/mol`;
+
+  // Draw Lewis / structural formula
+  drawLewisStructure(compound.smiles);
+
+  // Update question
+  document.getElementById('question-text').innerHTML = currentQuestion.questionHTML;
+
+  // Reset input
+  const input = document.getElementById('answer-input');
+  input.value = '';
+  input.className = 'answer-input';
+  input.disabled = false;
+  input.placeholder = currentQuestion.targetUnit === 'molecules'
+    ? 'Enter answer (e.g. 3.01e23 or 3.01 × 10^23)'
+    : 'Enter your answer (e.g. 2.504)';
+
+  // Reset feedback
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  fb.innerHTML = '';
+
+  // Reset check button
+  document.getElementById('check-btn').disabled = false;
+
+  input.focus();
+}
+
+// ─── Check Answer ─────────────────────────────────────────────────────────────
+function checkAnswer() {
+  if (!currentQuestion || answered) return;
+
+  const raw = document.getElementById('answer-input').value;
+  const userVal = parseInput(raw);
+  const input = document.getElementById('answer-input');
+  const fb = document.getElementById('feedback');
+
+  if (userVal === null) {
+    fb.className = 'feedback incorrect';
+    fb.innerHTML = '<strong>Invalid input.</strong> Please enter a number. For scientific notation, use <em>3.01e23</em>.';
+    return;
+  }
+
+  answered = true;
+  scoreTotal++;
+  document.getElementById('check-btn').disabled = true;
+  input.disabled = true;
+
+  const correct = currentQuestion.answer;
+  // Allow 2% relative tolerance
+  const tolerance = Math.abs(correct) * 0.02;
+  const isCorrect = Math.abs(userVal - correct) <= Math.max(tolerance, 1e-12);
+
+  if (isCorrect) {
+    scoreCorrect++;
+    input.classList.add('correct');
+    fb.className = 'feedback correct';
+    fb.innerHTML = `<strong>Correct!</strong>
+      The answer is <span class="correct-ans">${fmt(correct)} ${currentQuestion.targetUnit}</span>.
+      <div class="steps">${currentQuestion.steps.map(s => `<div>• ${s}</div>`).join('')}</div>`;
+  } else {
+    scoreIncorrect++;
+    input.classList.add('incorrect');
+    fb.className = 'feedback incorrect';
+    fb.innerHTML = `<strong>Not quite.</strong>
+      The correct answer is <span class="correct-ans">${fmt(correct)} ${currentQuestion.targetUnit}</span>.
+      <div class="steps">${currentQuestion.steps.map(s => `<div>• ${s}</div>`).join('')}</div>`;
+  }
+
+  updateScore();
+}
+
+function updateScore() {
+  document.getElementById('score-total').textContent = scoreTotal;
+  document.getElementById('score-correct').textContent = scoreCorrect;
+  document.getElementById('score-incorrect').textContent = scoreIncorrect;
+  const pct = scoreTotal > 0 ? Math.round((scoreCorrect / scoreTotal) * 100) + '%' : '—';
+  document.getElementById('score-pct').textContent = pct;
+}
+
+// ─── Lewis Structure Renderer (RDKit.js) ──────────────────────────────────────
+let rdkitReady = false;
+let pendingSmiles = null;
+
+window.initRDKitModule({
+  locateFile: (file) => `https://unpkg.com/@rdkit/rdkit/dist/${file}`
+}).then(function(RDKit) {
+  window.RDKit = RDKit;
+  rdkitReady = true;
+  const loadingEl = document.getElementById('lewis-loading');
+  if (loadingEl) loadingEl.style.display = 'none';
+  // Draw whatever compound is already showing
+  if (pendingSmiles) {
+    drawLewisStructure(pendingSmiles);
+    pendingSmiles = null;
+  }
+}).catch(function() {
+  const container = document.getElementById('lewis-container');
+  container.innerHTML = '<div class="lewis-error">Structure renderer failed to load.</div>';
+});
+
+function drawLewisStructure(smiles) {
+  const container = document.getElementById('lewis-container');
+
+  if (!rdkitReady) {
+    // Queue it; the .then() above will draw once ready
+    pendingSmiles = smiles;
+    container.innerHTML = '<div class="lewis-loading">Loading structure renderer...</div>';
+    return;
+  }
+
+  try {
+    const mol = window.RDKit.get_mol(smiles);
+    if (!mol || !mol.is_valid()) throw new Error('invalid');
+
+    const boxWidth = container.clientWidth || 560;
+    const w = Math.min(Math.max(boxWidth - 16, 240), 640);
+    const h = 210;
+
+    const svg = mol.get_svg(w, h);
+    mol.delete();
+
+    // Swap the white background rect for transparent so our light-gray box shows through
+    const cleaned = svg.replace(
+      /(<rect[^>]+style=['"][^'"]*fill:#FFFFFF[^'"]*['"][^>]*>)/g,
+      '<rect style="fill:transparent" width="100%" height="100%">'
+    );
+
+    container.innerHTML = cleaned;
+  } catch(e) {
+    container.innerHTML = '<div class="lewis-error">Structure not available for this compound.</div>';
+  }
+}
+
+// ─── Enter key submits ────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('answer-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkAnswer();
+  });
+  newQuestion();
+});
+</script>
+</body>
+</html>
