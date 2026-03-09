@@ -191,6 +191,8 @@
     select.field-input option { background: #FFFFFF; color: #000000; }
 
     .ind { font-size: 1.1rem; width: 22px; flex-shrink: 0; text-align: center; }
+    .ind.ok-ind  { color: #1565C0; }
+    .ind.bad-ind { color: #8B0000; }
 
     /* Buttons */
     .btn {
@@ -204,11 +206,16 @@
       letter-spacing: 0.3px;
     }
 
-    .btn-check { background: #C8102E; color: #FFFFFF; flex: 1; }
-    .btn-check:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(200,16,46,0.35); }
+    .btn-check {
+      background: rgba(200,16,46,0.08);
+      color: #C8102E;
+      border: 1px solid rgba(200,16,46,0.3);
+      flex: 1;
+    }
+    .btn-check:hover { transform: translateY(-1px); background: rgba(200,16,46,0.15); }
 
-    .btn-next { background: #685C53; color: #FFFFFF; flex: 1; }
-    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(104,92,83,0.35); }
+    .btn-next { background: #C8102E; color: #FFFFFF; flex: 1; }
+    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(200,16,46,0.35); }
 
     .btn:active { transform: translateY(0) !important; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
@@ -247,12 +254,72 @@
       text-decoration: underline;
     }
     .reset-link:hover { color: #C8102E; }
+
+    /* Display mode toggle */
+    .mode-toggle-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid #685C53;
+      border-radius: 20px;
+      background: transparent;
+      color: #685C53;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: #C8102E; color: #C8102E; }
+    .mode-btn.active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+
+    /* Name-mode hide toggles */
+    .name-toggles { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .name-hide-btn {
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: 1px solid #685C53;
+      border-radius: 20px;
+      background: transparent;
+      color: #685C53;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; }
+    .name-hide-btn.active { background: #685C53; border-color: #685C53; color: #FFFFFF; }
+
+    /* Name display panel */
+    .name-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+    }
+    .name-display-main {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #000000;
+      text-align: center;
+    }
+    .name-display-codes {
+      font-size: 1.1rem;
+      color: #685C53;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .code-sep { color: #BFBFBF; }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>Amino Acid Practice</h1>
-  <p class="subtitle">Identify amino acids from their skeletal structures — including the pH shown</p>
+  <h1>Identify amino acids and their properties</h1>
+  <p class="subtitle">Select a display mode and question type, then fill in the answer fields</p>
 
   <!-- Score bar -->
   <div class="score-bar">
@@ -272,6 +339,20 @@
       <div class="label">Score</div>
       <div class="value" id="s-pct">—</div>
     </div>
+  </div>
+
+  <!-- Display mode toggle -->
+  <div class="mode-toggle-row">
+    <button class="mode-btn active" id="mode-btn-structure" onclick="setDisplayMode('structure')">Show Amino Acid Structures</button>
+    <button class="mode-btn"        id="mode-btn-name"      onclick="setDisplayMode('name')">Show Amino Acid Names</button>
+  </div>
+
+  <!-- Name-mode hide toggles (hidden by default) -->
+  <div class="name-toggles" id="name-toggles" style="display:none">
+    <span class="qtype-label">Hide from display:</span>
+    <button class="name-hide-btn" data-field="c1"   onclick="toggleNameHide('c1')">Hide 1-letter</button>
+    <button class="name-hide-btn" data-field="c3"   onclick="toggleNameHide('c3')">Hide 3-letter</button>
+    <button class="name-hide-btn" data-field="name" onclick="toggleNameHide('name')">Hide Full Name</button>
   </div>
 
   <!-- Question type selector -->
@@ -563,6 +644,8 @@ let answered     = false;      // true only when ALL active fields are correct
 let scored       = false;      // true after first checkAnswers() per question
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 let questionType = 'name';     // 'name' | 'ph' | 'properties'
+let displayMode  = 'structure'; // 'structure' | 'name'
+let nameHideFlags = { c1: false, c3: false, name: false };
 
 // fields: which inp-* IDs to check; revealPH: show badge before Check
 const QTYPE = {
@@ -578,6 +661,44 @@ function setQuestionType(type) {
   });
   nextQuestion();
 }
+
+function setDisplayMode(mode) {
+  displayMode = mode;
+  document.getElementById('mode-btn-structure').classList.toggle('active', mode === 'structure');
+  document.getElementById('mode-btn-name').classList.toggle('active', mode === 'name');
+  document.getElementById('name-toggles').style.display = mode === 'name' ? '' : 'none';
+  // Hide 'Determine name' qtype in name mode
+  document.querySelector('[data-type="name"]').style.display = mode === 'name' ? 'none' : '';
+  // If currently on 'name' qtype and switching to name mode, fall back to 'ph'
+  if (mode === 'name' && questionType === 'name') {
+    questionType = 'ph';
+    document.querySelectorAll('.qtype-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.type === 'ph')
+    );
+  }
+  nextQuestion();
+}
+
+function toggleNameHide(fieldId) {
+  nameHideFlags[fieldId] = !nameHideFlags[fieldId];
+  document.querySelector(`.name-hide-btn[data-field="${fieldId}"]`)
+    .classList.toggle('active', nameHideFlags[fieldId]);
+  nextQuestion();
+}
+
+function getActiveFields() {
+  if (displayMode === 'structure') return QTYPE[questionType].fields;
+  // Name mode: hidden name fields + question type fields
+  const fields = [];
+  if (nameHideFlags.c1)   fields.push('c1');
+  if (nameHideFlags.c3)   fields.push('c3');
+  if (nameHideFlags.name) fields.push('name');
+  if (questionType === 'ph')         fields.push('ph');
+  if (questionType === 'properties') fields.push('type');
+  return fields;
+}
+
+function getMaxPts() { return getActiveFields().length; }
 
 // ─── RDKit ────────────────────────────────────────────────────────────────────
 let rdkitReady   = false;
@@ -636,6 +757,21 @@ function drawStructure(smiles) {
   }
 }
 
+function drawNameDisplay(aa) {
+  const box = document.getElementById('struct-box');
+  const namePart = nameHideFlags.name
+    ? '' : `<div class="name-display-main">${aa.name}</div>`;
+  const codes = [];
+  if (!nameHideFlags.c1)   codes.push(`<span>${aa.code1}</span>`);
+  if (!nameHideFlags.c3)   codes.push(`<span>${aa.code3}</span>`);
+  const codeRow = codes.length
+    ? `<div class="name-display-codes">${codes.join('<span class="code-sep"> · </span>')}</div>`
+    : '';
+  const content = namePart + codeRow;
+  box.innerHTML = `<div class="name-display">${content ||
+    '<em class="struct-msg">All name fields hidden</em>'}</div>`;
+}
+
 // ─── pH helpers ───────────────────────────────────────────────────────────────
 function resolveCurrentPH() {
   const choices = [2, 7, 13];
@@ -653,28 +789,32 @@ function nextQuestion() {
   const ph  = resolveCurrentPH();
   current   = { aa, ph };
 
-  const cfg = QTYPE[questionType];
+  const cfg          = QTYPE[questionType];
+  const activeFields = getActiveFields();
 
-  // pH badge — reveal immediately if this mode gives it as context
+  // pH badge — reveal if context or name mode (no structure to read pH from)
   const badge = document.getElementById('ph-badge');
-  if (cfg.revealPH) {
-    badge.textContent = `pH ${ph}`;
-  } else {
-    badge.textContent = 'pH ?';
-  }
+  const revealPH = displayMode === 'structure' ? cfg.revealPH : (questionType !== 'ph');
+  badge.textContent = revealPH ? `pH ${ph}` : 'pH ?';
 
-  // Draw structure
-  drawStructure(aa.smiles[ph]);
+  // Draw structure or name display
+  if (displayMode === 'structure') {
+    drawStructure(aa.smiles[ph]);
+  } else {
+    drawNameDisplay(aa);
+  }
 
   // Show/hide field groups; reset each field
   ALL_FIELD_IDS.forEach(id => {
-    const active = cfg.fields.includes(id);
+    const active = activeFields.includes(id);
     document.getElementById('fg-' + id).style.display = active ? '' : 'none';
     const el = document.getElementById('inp-' + id);
     el.value     = '';
     el.className = 'field-input';
     el.disabled  = false;
-    document.getElementById('ind-' + id).textContent = '';
+    const ind = document.getElementById('ind-' + id);
+    ind.textContent = '';
+    ind.className   = 'ind';
   });
 
   // Hide feedback
@@ -685,7 +825,9 @@ function nextQuestion() {
   // Re-enable check button
   document.getElementById('btn-check').disabled = false;
 
-  document.getElementById('inp-' + cfg.fields[0]).focus();
+  if (activeFields.length > 0) {
+    document.getElementById('inp-' + activeFields[0]).focus();
+  }
 }
 
 // ─── Answer checking ──────────────────────────────────────────────────────────
@@ -700,20 +842,20 @@ function completeQuestion(pts) {
   answered = true;
   scored   = true;
 
-  const cfg  = QTYPE[questionType];
+  const maxPts = getMaxPts();
   const { aa } = current;
 
   score.total++;
   score.pts    += pts;
-  score.maxPts += cfg.maxPts;
-  if (pts === cfg.maxPts) score.correct++;
-  else if (pts >= 1)      score.partial++;
+  score.maxPts += maxPts;
+  if (pts === maxPts) score.correct++;
+  else if (pts >= 1)  score.partial++;
   updateScore();
 
   document.getElementById('ph-badge').textContent = `pH ${current.ph}`;
   document.getElementById('btn-check').disabled = true;
 
-  const n     = cfg.maxPts;
+  const n     = maxPts;
   const cls   = pts === n ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
   const title = pts === n ? `Perfect! All ${n} correct.`
               : pts >= 1  ? `${pts}/${n} correct.`
@@ -732,8 +874,8 @@ function completeQuestion(pts) {
 
 function gradeField(id) {
   if (!current || answered) return;
-  const cfg = QTYPE[questionType];
-  if (!cfg.fields.includes(id)) return;
+  const activeFields = getActiveFields();
+  if (!activeFields.includes(id)) return;
 
   const el = document.getElementById('inp-' + id);
   if (el.disabled) return;
@@ -751,32 +893,35 @@ function gradeField(id) {
   const ind = document.getElementById('ind-' + id);
 
   if (!userVal) {
-    el.className = 'field-input';
+    el.className    = 'field-input';
     ind.textContent = '';
+    ind.className   = 'ind';
     return;
   }
 
   const ok = norm(userVal) === norm(correctMap[id]);
   if (ok) {
-    el.className = 'field-input ok';
-    el.disabled  = true;
+    el.className    = 'field-input ok';
+    el.disabled     = true;
     ind.textContent = '✓';
+    ind.className   = 'ind ok-ind';
   } else {
-    el.className = 'field-input bad';
+    el.className    = 'field-input bad';
     ind.textContent = '✗';
+    ind.className   = 'ind bad-ind';
   }
 
   // Auto-complete if all active fields now correct
-  const allDone = cfg.fields.every(fid =>
+  const allDone = activeFields.every(fid =>
     document.getElementById('inp-' + fid).disabled &&
     document.getElementById('inp-' + fid).classList.contains('ok')
   );
-  if (allDone) completeQuestion(cfg.maxPts);
+  if (allDone) completeQuestion(getMaxPts());
 }
 
 function showAnswers() {
   if (!current || answered) return;
-  const cfg    = QTYPE[questionType];
+  const activeFields = getActiveFields();
   const { aa } = current;
   const correctMap = {
     c1: aa.code1, c3: aa.code3, name: aa.name,
@@ -785,19 +930,21 @@ function showAnswers() {
 
   // Count how many fields user already got correct
   let pts = 0;
-  cfg.fields.forEach(id => {
+  activeFields.forEach(id => {
     const el = document.getElementById('inp-' + id);
     if (el.disabled && el.classList.contains('ok')) pts++;
   });
 
   // Reveal remaining fields
-  cfg.fields.forEach(id => {
+  activeFields.forEach(id => {
     const el = document.getElementById('inp-' + id);
     if (!el.disabled) {
-      el.value = correctMap[id];
+      el.value     = correctMap[id];
       el.className = 'field-input ok';
       el.disabled  = true;
-      document.getElementById('ind-' + id).textContent = '✓';
+      const ind = document.getElementById('ind-' + id);
+      ind.textContent = '✓';
+      ind.className   = 'ind ok-ind';
     }
   });
 
