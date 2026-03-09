@@ -418,6 +418,16 @@
     <button class="name-hide-btn" data-field="c1"   onclick="toggleNameHide('c1')">Hide 1-letter</button>
     <button class="name-hide-btn" data-field="c3"   onclick="toggleNameHide('c3')">Hide 3-letter</button>
     <button class="name-hide-btn" data-field="name" onclick="toggleNameHide('name')">Hide Full Name</button>
+    <button class="name-hide-btn" id="name-random-btn" style="display:none" onclick="toggleNameRandom()">Randomly select</button>
+  </div>
+
+  <!-- Identify-mode name style controls -->
+  <div class="name-toggles" id="identify-name-toggles" style="display:none">
+    <span class="qtype-label">Show name as:</span>
+    <button class="name-hide-btn active" data-style="c1"   onclick="toggleIdentifyNameStyle('c1')">1-letter</button>
+    <button class="name-hide-btn active" data-style="c3"   onclick="toggleIdentifyNameStyle('c3')">3-letter</button>
+    <button class="name-hide-btn active" data-style="name" onclick="toggleIdentifyNameStyle('name')">Full name</button>
+    <button class="name-hide-btn active" id="identify-name-random-btn" onclick="toggleIdentifyNameRandom()">Randomly select</button>
   </div>
 
   <!-- Question type selector -->
@@ -729,6 +739,9 @@ let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
 let displayMode    = 'structure';       // 'structure' | 'name'
 let nameHideFlags  = { c1: false, c3: false, name: false };
+let identifyNamePool   = new Set(['c1', 'c3', 'name']); // styles allowed in identify mode
+let identifyNameRandom = true;   // randomly pick from pool each question
+let nameRandom         = false;  // randomly show one non-hidden name field in name mode
 
 // fields: which inp-* IDs to check; revealPH: show badge before Check
 const QTYPE = {
@@ -763,6 +776,8 @@ function setDisplayMode(mode) {
   document.getElementById('identify-panel').style.display   = identifyMode ? ''     : 'none';
   document.getElementById('qtype-bar').style.display        = identifyMode ? 'none' : '';
   document.getElementById('name-toggles').style.display     = identifyMode ? 'none' : '';
+  document.getElementById('identify-name-toggles').style.display = identifyMode ? '' : 'none';
+  document.getElementById('name-random-btn').style.display  = (mode === 'name') ? '' : 'none';
 
   // Hide 'Determine name' qtype button in name mode
   document.querySelector('[data-type="name"]').style.display =
@@ -785,6 +800,39 @@ function toggleNameHide(fieldId) {
   document.querySelector(`.name-hide-btn[data-field="${fieldId}"]`)
     .classList.toggle('active', nameHideFlags[fieldId]);
   renderQuestion();
+}
+
+function toggleIdentifyNameStyle(style) {
+  if (identifyNamePool.has(style) && identifyNamePool.size === 1) return; // keep ≥1
+  if (identifyNamePool.has(style)) identifyNamePool.delete(style);
+  else                             identifyNamePool.add(style);
+  document.querySelectorAll('[data-style]').forEach(b =>
+    b.classList.toggle('active', identifyNamePool.has(b.dataset.style))
+  );
+  renderQuestion();
+}
+
+function toggleIdentifyNameRandom() {
+  identifyNameRandom = !identifyNameRandom;
+  document.getElementById('identify-name-random-btn')
+    .classList.toggle('active', identifyNameRandom);
+  renderQuestion();
+}
+
+function toggleNameRandom() {
+  nameRandom = !nameRandom;
+  document.getElementById('name-random-btn')
+    .classList.toggle('active', nameRandom);
+  renderQuestion();
+}
+
+function resolveIdentifyName(aa) {
+  const pool = [...identifyNamePool];
+  if (pool.length === 0) return aa.name; // safety fallback
+  const style = identifyNameRandom
+    ? pool[Math.floor(Math.random() * pool.length)]
+    : pool[0];
+  return style === 'c1' ? aa.code1 : style === 'c3' ? aa.code3 : aa.name;
 }
 
 function getActiveFields() {
@@ -873,17 +921,31 @@ function drawStructure(smiles) {
 
 function drawNameDisplay(aa) {
   const box = document.getElementById('struct-box');
-  const namePart = nameHideFlags.name
-    ? '' : `<div class="name-display-main">${aa.name}</div>`;
-  const codes = [];
-  if (!nameHideFlags.c1)   codes.push(`<span>${aa.code1}</span>`);
-  if (!nameHideFlags.c3)   codes.push(`<span>${aa.code3}</span>`);
-  const codeRow = codes.length
-    ? `<div class="name-display-codes">${codes.join('<span class="code-sep"> · </span>')}</div>`
-    : '';
-  const content = namePart + codeRow;
-  box.innerHTML = `<div class="name-display">${content ||
-    '<em class="struct-msg">All name fields hidden</em>'}</div>`;
+
+  // Build eligible fields (those not hidden)
+  const eligible = [];
+  if (!nameHideFlags.c1)   eligible.push({ type: 'c1',   text: aa.code1, isCode: true });
+  if (!nameHideFlags.c3)   eligible.push({ type: 'c3',   text: aa.code3, isCode: true });
+  if (!nameHideFlags.name) eligible.push({ type: 'name', text: aa.name,  isCode: false });
+
+  if (eligible.length === 0) {
+    box.innerHTML = '<div class="name-display"><em class="struct-msg">All name fields hidden</em></div>';
+    return;
+  }
+
+  // If nameRandom, pick one; otherwise show all
+  const toShow = nameRandom
+    ? [eligible[Math.floor(Math.random() * eligible.length)]]
+    : eligible;
+
+  const nameField = toShow.find(f => !f.isCode);
+  const namePart = nameField
+    ? `<div class="name-display-main">${nameField.text}</div>` : '';
+  const codeItems = toShow.filter(f => f.isCode).map(f => `<span>${f.text}</span>`);
+  const codeRow = codeItems.length
+    ? `<div class="name-display-codes">${codeItems.join('<span class="code-sep"> · </span>')}</div>` : '';
+
+  box.innerHTML = `<div class="name-display">${namePart}${codeRow}</div>`;
 }
 
 // ─── Identify mode helpers ────────────────────────────────────────────────────
@@ -929,7 +991,7 @@ function renderIdentifyQuestion() {
   const options = buildIdentifyOptions(aa, ph);
   current.identifyOptions = options;
 
-  document.getElementById('identify-aa-name').textContent = aa.name;
+  document.getElementById('identify-aa-name').textContent = resolveIdentifyName(aa);
   document.getElementById('identify-ph-badge').textContent = `pH ${ph}`;
   document.getElementById('identify-btn-show').disabled = false;
 
