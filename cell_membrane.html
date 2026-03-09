@@ -7,26 +7,27 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  :focus-visible { outline: 3px solid #c8102e; outline-offset: 2px; }
+
   body {
     font-family: 'Segoe UI', Arial, sans-serif;
-    background: #0f1923;
-    color: #e0e8f0;
+    background: #ffffff;
+    color: #000000;
     min-height: 100vh;
     padding: 20px;
   }
 
-  h1 { text-align:center; font-size:1.5rem; color:#7ecfff; margin-bottom:4px; letter-spacing:1px; }
-  .subtitle { text-align:center; font-size:0.82rem; color:#607a8a; margin-bottom:16px; }
+  h1 { text-align:center; font-size:1.5rem; color:#c8102e; margin-bottom:4px; letter-spacing:1px; }
+  .subtitle { text-align:center; font-size:0.82rem; color:#685c53; margin-bottom:16px; }
   .page-wrap { max-width: 1100px; margin: 0 auto; }
 
   /* ========== MEMBRANE + AP SIDE-BY-SIDE CONTAINER ========== */
   .mem-ap-container {
     display: flex;
     gap: 14px;
-    align-items: stretch;   /* AP card stretches to match left-column height */
+    align-items: flex-start;
   }
 
-  /* Left column: outside panel + SVG membrane + inside panel (2/3 width) */
   .mem-section {
     flex: 2;
     min-width: 0;
@@ -34,7 +35,6 @@
     flex-direction: column;
   }
 
-  /* Right column: action potential plot (1/3 width) */
   .ap-section {
     flex: 1;
     min-width: 0;
@@ -44,39 +44,41 @@
 
   /* ========== CONCENTRATION PANELS ========== */
   .hpanel {
+    background: #fff8ff;
     border-radius: 10px;
-    padding: 11px 16px;
-    border: 1px solid #1e3045;
+    padding: 6px 16px;
+    border: 1px solid #685c53;
     display: flex;
     align-items: center;
     gap: 14px;
   }
 
   .outside-panel {
-    background: #07111a; border-color: #1a2f45;
+    background: #eef6ff; border-color: #a0b8d0;
     border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;
   }
   .inside-panel {
-    background: #1a0d08; border-color: #3a200e;
+    background: #fff0f0; border-color: #d0a0a0;
     border-top-left-radius: 0; border-top-right-radius: 0; border-top: none;
   }
 
   .hpanel-title { font-size:0.85rem; font-weight:700; white-space:nowrap; min-width:130px; }
-  .outside-panel .hpanel-title { color:#7ecfff; }
-  .inside-panel  .hpanel-title { color:#ff8c69; }
+  .outside-panel .hpanel-title { color:#c8102e; }
+  .inside-panel  .hpanel-title { color:#c8102e; }
 
   .hpanel-ions { display:flex; gap:14px; flex:1; align-items:center; }
   .hion-row {
     display:flex; align-items:center; gap:8px; flex:1;
-    background:rgba(255,255,255,0.04); border-radius:8px; padding:6px 10px;
+    background:rgba(0,0,0,0.04); border-radius:8px; padding:6px 10px;
   }
 
   .ion-symbol { font-size:1.1rem; font-weight:700; min-width:30px; text-align:center; }
-  .na-color { color:#ff7043; }
-  .k-color  { color:#42a5f5; }
-  .x-color  { color:#a78bfa; }
+  .na-color { color:#d4520a; }
+  .k-color  { color:#1565c0; }
+  .x-color  { color:#5b21b6; }
+  .x2-color { color:#9d174d; }
   .ion-value-big { font-size:1.3rem; font-weight:700; min-width:40px; text-align:right; }
-  .ion-unit      { font-size:0.7rem; color:#607a8a; min-width:18px; }
+  .ion-unit      { font-size:0.7rem; color:#685c53; min-width:18px; }
 
   /* ========== SLIDERS & INPUTS ========== */
   input[type="range"] {
@@ -84,65 +86,49 @@
     outline:none; cursor:pointer; flex:1; min-width:50px;
   }
   .hion-row input[type="range"] { flex:none; width:70px; min-width:40px; }
-  input[type="range"].na-slider { background:linear-gradient(to right,#ff7043,#bf360c); }
-  input[type="range"].k-slider  { background:linear-gradient(to right,#42a5f5,#1565c0); }
-  input[type="range"].vm-slider { background:linear-gradient(to right,#3a6080,#7ecfff); }
-  input[type="range"].x-slider  { background:linear-gradient(to right,#7c3aed,#a78bfa); }
+  input[type="range"].na-slider { background:linear-gradient(to right,#d4520a,#8b2800); }
+  input[type="range"].k-slider  { background:linear-gradient(to right,#1565c0,#003080); }
+  input[type="range"].vm-slider { background:linear-gradient(to right,#a0b8d0,#1565c0); }
+  input[type="range"].x-slider  { background:linear-gradient(to right,#5b21b6,#3b0f7a); }
   input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance:none; width:14px; height:14px;
-    border-radius:50%; background:#fff; border:2px solid #607a8a; cursor:pointer;
+    -webkit-appearance:none; width:20px; height:20px;
+    border-radius:50%; background:#fff; border:2px solid #685c53; cursor:pointer;
   }
 
   input[type="number"] {
-    background:#0d1820; border:1px solid #2a4060; border-radius:6px;
-    color:#e0e8f0; padding:4px 5px; font-size:0.82rem; width:58px; text-align:center;
+    background:#ffffff; border:1px solid #685c53; border-radius:6px;
+    color:#000000; padding:4px 5px; font-size:0.82rem; width:58px; text-align:center;
   }
-  input[type="number"]:focus { outline:1px solid #7ecfff; }
 
   select {
-    background:#0d1820; border:1px solid #2a4060; border-radius:6px;
-    color:#e0e8f0; padding:5px 8px; font-size:0.82rem; cursor:pointer; outline:none;
+    background:#ffffff; border:1px solid #685c53; border-radius:6px;
+    color:#000000; padding:5px 8px; font-size:0.82rem; cursor:pointer;
   }
-  select:focus { outline:1px solid #a78bfa; }
 
   /* ========== SVG MEMBRANE ========== */
   #membraneSVG {
     width:100%; display:block; flex:1;
-    border-left:1px solid #1e3045; border-right:1px solid #1e3045;
+    border-left:1px solid #a0b8d0; border-right:1px solid #a0b8d0;
   }
 
   /* ========== ACTION POTENTIAL CARD ========== */
   .ap-card {
-    background:#162030; border:1px solid #1e3045;
+    background:#fff8ff; border:1px solid #685c53;
     border-radius:10px; padding:10px 12px;
-    display:flex; flex-direction:column; flex:1;
+    display:flex; flex-direction:column;
   }
 
-  .ap-card-title {
-    font-size:0.8rem; color:#7ecfff; font-weight:700;
-    text-transform:uppercase; letter-spacing:0.7px; margin-bottom:2px;
+  .ap-btn {
+    font-size:0.78rem; font-weight:700; text-transform:uppercase; letter-spacing:0.7px;
+    color:#ffffff; background:#c8102e; border:none; border-radius:8px;
+    padding:7px 14px; cursor:pointer; width:100%; margin-bottom:4px;
   }
+  .ap-btn:hover { background:#a00d25; }
+  .ap-btn:disabled { background:#a0a0a0; cursor:default; }
 
-  .ap-card-sub {
-    font-size:0.63rem; color:#607a8a; margin-bottom:8px; line-height:1.4;
-  }
-
-  #apSVG { width:100%; flex:1; display:block; }
+  #apSVG { width:100%; display:block; }
 
   /* ========== CONTROLS (side-by-side Vm + Temp) ========== */
-  .controls-bar { margin-top:14px; }
-
-  .control-card {
-    background:#162030; border:1px solid #1e3045;
-    border-radius:10px; padding:12px 16px;
-  }
-
-  .control-card h3 {
-    font-size:0.82rem; color:#7ecfff; text-transform:uppercase;
-    letter-spacing:0.7px; margin-bottom:10px; display:flex; align-items:center;
-  }
-
-  /* Two sliders side by side */
   .ctrl-pair-row {
     display: flex;
     gap: 20px;
@@ -159,70 +145,76 @@
   }
 
   .ctrl-label {
-    font-size:0.76rem; color:#8aa0b0; white-space:nowrap; min-width:0;
+    font-size:0.76rem; color:#685c53; white-space:nowrap; min-width:0;
   }
-
-  .ctrl-value {
-    font-weight:700; color:#e0e8f0; white-space:nowrap; font-size:0.88rem;
-    min-width:80px; text-align:right;
-  }
-
-  .ctrl-hint { font-size:0.68rem; color:#607a8a; }
 
   .reset-btn {
-    margin-left:auto; background:#1e3045; border:1px solid #2a4060;
-    color:#7ecfff; padding:5px 14px; border-radius:8px; cursor:pointer;
+    margin-left:auto; background:#ffffff; border:1px solid #685c53;
+    color:#c8102e; padding:5px 14px; border-radius:8px; cursor:pointer;
     font-size:0.78rem; transition:background 0.2s; white-space:nowrap;
   }
-  .reset-btn:hover { background:#2a4060; }
+  .reset-btn:hover { background:#fff0f0; }
+
+  /* ========== DG CARD LAYOUT ========== */
+  .dg-section-title {
+    font-size:1.32rem; color:#c8102e; text-transform:uppercase;
+    letter-spacing:0.7px; margin-bottom:12px; font-weight:700; text-align:center;
+  }
+  .dg-body { display:flex; gap:16px; align-items:flex-start; }
+  .ctrl-col { display:flex; flex-direction:column; min-width:130px; }
+  .ctrl-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .ctrl-row input[type="number"] { margin-left:auto; }
+  .ctrl-slider { width:100%; margin-bottom:2px; }
+  .dg-main { flex:1; min-width:0; }
 
   /* ========== UNIFIED DG TABLE ========== */
   .dg-card {
-    margin-top:14px; background:#162030; border:1px solid #1e3045;
+    margin-top:14px; background:#fff8ff; border:1px solid #685c53;
     border-radius:10px; padding:14px 16px;
   }
 
-  .dg-card-header { margin-bottom:12px; }
-  .dg-card-header h3 {
-    font-size:0.88rem; color:#7ecfff; text-transform:uppercase;
-    letter-spacing:0.7px; margin-bottom:4px;
-  }
-  .dg-formula {
-    font-size:0.72rem; color:#607a8a; font-style:italic;
-    background:#0d1820; padding:5px 10px; border-radius:6px;
+.dg-formula {
+    font-size:0.72rem; color:#685c53; font-style:italic;
+    background:#f5f0ef; padding:5px 10px; border-radius:6px;
+    text-align:right;
   }
 
   .dg-table { width:100%; border-collapse:collapse; table-layout:fixed; }
   .dg-table th, .dg-table td {
     padding:8px 11px; text-align:center;
-    border-bottom:1px solid #1a2a3a; vertical-align:middle;
+    border-bottom:1px solid #d0c0b8; vertical-align:middle;
     overflow:hidden;
   }
-  .dg-table td:first-child { text-align:left; color:#8aa0b0; font-size:0.78rem; width:185px; }
+  .dg-table td:first-child { text-align:right; color:#685c53; font-size:0.78rem; width:185px; padding-right:4px; }
   .dg-table th:nth-child(2), .dg-table td:nth-child(2),
   .dg-table th:nth-child(3), .dg-table td:nth-child(3),
   .dg-table th:nth-child(4), .dg-table td:nth-child(4),
   .dg-table th:nth-child(5), .dg-table td:nth-child(5) { width:120px; }
-  .dg-table th { background:#0d1820; font-size:0.86rem; padding-top:9px; padding-bottom:9px; }
-  .dg-table th:first-child { text-align:left; color:#607a8a; font-size:0.73rem; }
+  .dg-table th:nth-child(2), .dg-table td:nth-child(2) { padding-left:4px; }
+  .dg-table th { background:#f5f0ef; font-size:0.86rem; padding-top:9px; padding-bottom:9px; }
+  .dg-table th:first-child { text-align:left; color:#685c53; font-size:0.73rem; padding-right:4px; }
 
-  .col-na { color:#ff7043; }
-  .col-k  { color:#42a5f5; }
-  .col-x  { color:#a78bfa; }
-  .col-x2 { color:#f472b6; }
+  .col-na { color:#d4520a; }
+  .col-k  { color:#1565c0; }
+  .col-x  { color:#5b21b6; }
+  .col-x2 { color:#9d174d; }
 
-  .dg-table .row-sep td { border-top:2px solid #2a4060; padding-top:10px; }
+  .dg-table .row-sep td { border-top:2px solid #685c53; padding-top:10px; }
+  .dg-table .row-dg-header td {
+    text-align:center; color:#c8102e; font-size:0.78rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.7px;
+    border-top:2px solid #685c53; padding-top:10px; border-bottom:none;
+  }
   .dg-table .row-total td { font-size:1.1rem; font-weight:700; }
-  .dg-table .row-total td:first-child { font-size:0.78rem; font-weight:400; }
+  .dg-table .row-total td:first-child { font-size:0.78rem; font-weight:700; }
 
-  /* Blue = favorable (colorblind-accessible) */
-  .favorable   { color:#38bdf8; }
-  .unfavorable { color:#ff6b6b; }
-  .neutral     { color:#8aa0b0; }
+  /* Blue = favorable, red = unfavorable (colorblind-accessible via text labels) */
+  .favorable   { color:#1565c0; }
+  .unfavorable { color:#c8102e; }
+  .neutral     { color:#685c53; }
 
   .conc-display { font-size:1.05rem; font-weight:700; }
 
-  /* Third-ion concentration controls — vertical stack in each cell */
   .x-conc-cell {
     display: flex;
     flex-direction: column;
@@ -232,11 +224,10 @@
   .x-conc-cell input[type="range"] { width: 52px; min-width: 52px; flex: none; }
   .x-conc-cell input[type="number"] { width: 54px; }
 
-  /* Ion selector in column header */
   .th-select-wrap { display:flex; flex-direction:column; align-items:center; gap:5px; }
   .z-badge {
-    font-size:0.66rem; color:#c4b5fd;
-    background:#2d1b6e33; border:1px solid #6d28d955;
+    font-size:0.66rem; color:#5b21b6;
+    background:#ede9fe; border:1px solid #5b21b655;
     border-radius:10px; padding:1px 8px;
   }
 </style>
@@ -255,35 +246,13 @@
 
     <div class="hpanel outside-panel">
       <div class="hpanel-title">Extracellular</div>
-      <div class="hpanel-ions">
-        <div class="hion-row">
-          <div class="ion-symbol na-color">Na<sup>+</sup></div>
-          <div class="ion-value-big na-color" id="naOutDisplay">145</div>
-          <div class="ion-unit">mM</div>
-          <input type="range" class="na-slider" id="naOutSlider" min="1" max="300" step="1" value="145">
-          <input type="number" id="naOutNum" min="1" max="300" value="145">
-        </div>
-        <div class="hion-row">
-          <div class="ion-symbol k-color">K<sup>+</sup></div>
-          <div class="ion-value-big k-color" id="kOutDisplay">4</div>
-          <div class="ion-unit">mM</div>
-          <input type="range" class="k-slider" id="kOutSlider" min="1" max="300" step="1" value="4">
-          <input type="number" id="kOutNum" min="1" max="300" value="4">
-        </div>
-      </div>
     </div>
 
-    <svg id="membraneSVG" viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="potGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" id="potGradStop1" stop-color="#607a8a"/>
-          <stop offset="100%" id="potGradStop2" stop-color="#607a8a"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0"   width="900" height="75"  fill="#07111a"/>
-      <rect x="0" y="75"  width="900" height="90"  fill="#0d1820"/>
-      <rect x="0" y="165" width="900" height="75"  fill="#1a0906"/>
-      <rect x="0" y="115" width="900" height="6"   fill="#0a1525" opacity="0.9"/>
+    <svg id="membraneSVG" viewBox="142 15 600 210" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0"   width="900" height="75"  fill="#ddeeff"/>
+      <rect x="0" y="75"  width="900" height="90"  fill="#f0e8d8"/>
+      <rect x="0" y="165" width="900" height="75"  fill="#ffe8e0"/>
+      <rect x="0" y="115" width="900" height="6"   fill="#c8b89a" opacity="0.6"/>
       <g id="ions-outside"></g>
       <g id="heads-outer"></g>
       <g id="tails-outer"></g>
@@ -291,31 +260,15 @@
       <g id="heads-inner"></g>
       <g id="channels"></g>
       <g id="ions-inside"></g>
-      <rect x="878" y="77" width="12" height="88" fill="url(#potGrad)" rx="3" opacity="0.85"/>
-      <text id="potTopLabel" x="876" y="86"  text-anchor="end" fill="#8aa0b0" font-size="9" font-family="Segoe UI,Arial">0 mV</text>
-      <text id="potBotLabel" x="876" y="160" text-anchor="end" fill="#8aa0b0" font-size="9" font-family="Segoe UI,Arial">Vm</text>
-      <line x1="0" y1="75"  x2="900" y2="75"  stroke="#2a4060" stroke-width="0.5" opacity="0.5"/>
-      <line x1="0" y1="165" x2="900" y2="165" stroke="#2a4060" stroke-width="0.5" opacity="0.5"/>
+      <g id="chan-anim-0"></g>
+      <g id="chan-anim-1"></g>
+      <g id="chan-anim-2"></g>
+      <line x1="0" y1="75"  x2="900" y2="75"  stroke="#a0a090" stroke-width="0.5" opacity="0.5"/>
+      <line x1="0" y1="165" x2="900" y2="165" stroke="#a0a090" stroke-width="0.5" opacity="0.5"/>
     </svg>
 
     <div class="hpanel inside-panel">
       <div class="hpanel-title">Intracellular</div>
-      <div class="hpanel-ions">
-        <div class="hion-row">
-          <div class="ion-symbol na-color">Na<sup>+</sup></div>
-          <div class="ion-value-big na-color" id="naInDisplay">12</div>
-          <div class="ion-unit">mM</div>
-          <input type="range" class="na-slider" id="naInSlider" min="1" max="300" step="1" value="12">
-          <input type="number" id="naInNum" min="1" max="300" value="12">
-        </div>
-        <div class="hion-row">
-          <div class="ion-symbol k-color">K<sup>+</sup></div>
-          <div class="ion-value-big k-color" id="kInDisplay">155</div>
-          <div class="ion-unit">mM</div>
-          <input type="range" class="k-slider" id="kInSlider" min="1" max="300" step="1" value="155">
-          <input type="number" id="kInNum" min="1" max="300" value="155">
-        </div>
-      </div>
     </div>
 
   </div><!-- end mem-section -->
@@ -323,24 +276,23 @@
   <!-- Right: Action potential plot (1/3) -->
   <div class="ap-section">
     <div class="ap-card">
-      <div class="ap-card-title">Action Potential</div>
-      <div class="ap-card-sub">Canonical neuronal AP shape (fixed; independent of V<sub>m</sub> slider)</div>
-      <svg id="apSVG" viewBox="0 0 270 310" preserveAspectRatio="xMidYMid meet"
+      <button id="apBtn" class="ap-btn" onclick="initiateAP()">Initiate Action Potential</button>
+      <svg id="apSVG" viewBox="0 0 270 189" preserveAspectRatio="xMidYMid meet"
            xmlns="http://www.w3.org/2000/svg">
         <defs>
           <clipPath id="apClip">
-            <rect x="42" y="18" width="216" height="240"/>
+            <rect x="42" y="18" width="216" height="146"/>
           </clipPath>
           <filter id="apGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.5" result="blur"/>
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         </defs>
-        <!-- Static axes structure drawn by JS -->
         <g id="ap-grid"></g>
         <g id="ap-axes"></g>
         <g id="ap-curve" clip-path="url(#apClip)"></g>
         <g id="ap-annotations" clip-path="url(#apClip)"></g>
+        <g id="ap-dot" clip-path="url(#apClip)"></g>
         <g id="ap-labels"></g>
       </svg>
     </div>
@@ -348,46 +300,26 @@
 
 </div><!-- end mem-ap-container -->
 
-<!-- ===== CONTROLS: Vm + Temp SIDE BY SIDE ===== -->
-<div class="controls-bar">
-  <div class="control-card">
-    <h3>Membrane Potential &amp; Temperature
-      <button class="reset-btn" onclick="resetDefaults()">Reset Defaults</button>
-    </h3>
-    <div class="ctrl-pair-row">
-      <!-- Vm -->
-      <div class="ctrl-half">
-        <span class="ctrl-label">V<sub>m</sub> (in&minus;out)</span>
-        <input type="range" class="vm-slider" id="vmSlider" min="-120" max="60" step="1" value="-70">
-        <input type="number" id="vmNum" min="-120" max="60" value="-70">
-        <span class="ctrl-value" id="vmLabel">-70 mV</span>
-      </div>
-      <!-- Temperature -->
-      <div class="ctrl-half">
-        <span class="ctrl-label">Temperature</span>
-        <input type="range" class="vm-slider" id="tempSlider" min="0" max="50" step="1" value="37">
-        <input type="number" id="tempNum" min="0" max="50" value="37">
-        <span class="ctrl-value" id="tempDisplay">37°C (310 K)</span>
-      </div>
-    </div>
-    <div class="ctrl-hint">
-      V<sub>m</sub>: resting ~-70 mV, AP peak ~+40 mV &nbsp;|&nbsp;
-      R = 8.314 J·mol⁻¹·K⁻¹ &nbsp;|&nbsp; F = 96,485 C·mol⁻¹
-    </div>
-  </div>
-</div>
-
 <!-- ===== UNIFIED ΔG TABLE ===== -->
 <div class="dg-card">
-  <div class="dg-card-header">
-    <h3>Free Energy Changes (outside &rarr; inside)</h3>
-    <div class="dg-formula">
-      &Delta;G = RT&thinsp;ln([in]/[out]) + ZF&Delta;V &nbsp;(kJ/mol) &nbsp;&nbsp;
-      <span style="color:#38bdf8;">blue</span> = favorable entry &nbsp;|&nbsp;
-      <span style="color:#ff6b6b;">red</span> = unfavorable
+  <div class="dg-section-title">Membrane Potential and Solute Concentration Parameters</div>
+  <div class="dg-body">
+    <!-- Left: stacked Vm + Temp controls -->
+    <div class="ctrl-col">
+      <div class="ctrl-row">
+        <span class="ctrl-label">V<sub>m</sub> (mV)</span>
+        <input type="number" id="vmNum" min="-120" max="60" value="-70" aria-label="Membrane potential (mV)">
+      </div>
+      <input type="range" class="vm-slider ctrl-slider" id="vmSlider" min="-120" max="60" step="1" value="-70" aria-label="Membrane potential in millivolts">
+      <div class="ctrl-row" style="margin-top:10px">
+        <span class="ctrl-label">Temp (°C)</span>
+        <input type="number" id="tempNum" min="0" max="50" value="37" aria-label="Temperature (°C)">
+      </div>
+      <input type="range" class="vm-slider ctrl-slider" id="tempSlider" min="0" max="50" step="1" value="37" aria-label="Temperature in Celsius">
+      <button class="reset-btn" onclick="resetDefaults()" style="margin-top:12px; margin-left:0; width:100%">Reset Defaults</button>
     </div>
-  </div>
-
+    <!-- Right: table + formula -->
+    <div class="dg-main">
   <table class="dg-table">
     <thead>
       <tr>
@@ -396,7 +328,7 @@
         <th class="col-k">K<sup>+</sup></th>
         <th class="col-x">
           <div class="th-select-wrap">
-            <select id="thirdIonSelect" onchange="onThirdIonChange()">
+            <select id="thirdIonSelect" onchange="onThirdIonChange()" aria-label="Third ion selector">
               <option value="Ca2+">Ca²⁺</option>
               <option value="Cl-">Cl⁻</option>
               <option value="Glucose">Glucose</option>
@@ -407,7 +339,7 @@
         </th>
         <th class="col-x2">
           <div class="th-select-wrap">
-            <select id="fourthIonSelect" onchange="onFourthIonChange()">
+            <select id="fourthIonSelect" onchange="onFourthIonChange()" aria-label="Fourth ion selector">
               <option value="Ca2+">Ca²⁺</option>
               <option value="Cl-" selected>Cl⁻</option>
               <option value="Glucose">Glucose</option>
@@ -421,42 +353,65 @@
     <tbody>
       <!-- [Out] row -->
       <tr>
-        <td>[Out] concentration (mM)</td>
-        <td><span class="conc-display na-color" id="naOutTable">145</span></td>
-        <td><span class="conc-display k-color"  id="kOutTable">4</span></td>
+        <td>Concentration, outside (mM)</td>
         <td>
           <div class="x-conc-cell">
-            <input type="range" class="x-slider" id="xOutSlider" min="0.01" max="5" step="0.01" value="1.2">
-            <input type="number" id="xOutNum" min="0.01" max="5" step="0.01" value="1.2">
+            <input type="range" class="na-slider" id="naOutSlider" min="1" max="300" step="1" value="145" aria-label="Sodium extracellular concentration">
+            <input type="number" id="naOutNum" min="1" max="300" value="145" aria-label="Sodium extracellular concentration (mM)">
           </div>
         </td>
         <td>
           <div class="x-conc-cell">
-            <input type="range" class="x-slider" id="x2OutSlider" min="1" max="200" step="1" value="110">
-            <input type="number" id="x2OutNum" min="1" max="200" step="1" value="110">
+            <input type="range" class="k-slider" id="kOutSlider" min="1" max="300" step="1" value="4" aria-label="Potassium extracellular concentration">
+            <input type="number" id="kOutNum" min="1" max="300" value="4" aria-label="Potassium extracellular concentration (mM)">
+          </div>
+        </td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="xOutSlider" min="0.01" max="5" step="0.01" value="1.2" aria-label="Third ion extracellular concentration">
+            <input type="number" id="xOutNum" min="0.01" max="5" step="0.01" value="1.2" aria-label="Third ion extracellular concentration (mM)">
+          </div>
+        </td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="x2OutSlider" min="1" max="200" step="1" value="110" aria-label="Fourth ion extracellular concentration">
+            <input type="number" id="x2OutNum" min="1" max="200" step="1" value="110" aria-label="Fourth ion extracellular concentration (mM)">
           </div>
         </td>
       </tr>
       <!-- [In] row -->
       <tr>
-        <td>[In] concentration (mM)</td>
-        <td><span class="conc-display na-color" id="naInTable">12</span></td>
-        <td><span class="conc-display k-color"  id="kInTable">155</span></td>
+        <td>Concentration, inside (mM)</td>
         <td>
           <div class="x-conc-cell">
-            <input type="range" class="x-slider" id="xInSlider" min="0.001" max="2" step="0.001" value="0.001">
-            <input type="number" id="xInNum" min="0.001" max="2" step="0.001" value="0.001">
+            <input type="range" class="na-slider" id="naInSlider" min="1" max="300" step="1" value="12" aria-label="Sodium intracellular concentration">
+            <input type="number" id="naInNum" min="1" max="300" value="12" aria-label="Sodium intracellular concentration (mM)">
           </div>
         </td>
         <td>
           <div class="x-conc-cell">
-            <input type="range" class="x-slider" id="x2InSlider" min="1" max="200" step="1" value="10">
-            <input type="number" id="x2InNum" min="1" max="200" step="1" value="10">
+            <input type="range" class="k-slider" id="kInSlider" min="1" max="300" step="1" value="155" aria-label="Potassium intracellular concentration">
+            <input type="number" id="kInNum" min="1" max="300" value="155" aria-label="Potassium intracellular concentration (mM)">
+          </div>
+        </td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="xInSlider" min="0.001" max="2" step="0.001" value="0.001" aria-label="Third ion intracellular concentration">
+            <input type="number" id="xInNum" min="0.001" max="2" step="0.001" value="0.001" aria-label="Third ion intracellular concentration (mM)">
+          </div>
+        </td>
+        <td>
+          <div class="x-conc-cell">
+            <input type="range" class="x-slider" id="x2InSlider" min="1" max="200" step="1" value="10" aria-label="Fourth ion intracellular concentration">
+            <input type="number" id="x2InNum" min="1" max="200" step="1" value="10" aria-label="Fourth ion intracellular concentration (mM)">
           </div>
         </td>
       </tr>
       <!-- ΔG rows -->
-      <tr class="row-sep row-total">
+      <tr class="row-dg-header">
+        <td colspan="5">Free Energy Changes (outside &rarr; inside)</td>
+      </tr>
+      <tr class="row-total">
         <td>&Delta;G total (kJ/mol)</td>
         <td id="naDgTotal">—</td><td id="kDgTotal">—</td><td id="xDgTotal">—</td><td id="x2DgTotal">—</td>
       </tr>
@@ -470,6 +425,13 @@
       </tr>
     </tbody>
   </table>
+      <div class="dg-formula" style="margin-top:10px">
+        &Delta;G = RT&thinsp;ln([in]/[out]) + ZF&Delta;V &nbsp;(kJ/mol) &nbsp;&nbsp;
+        <span style="color:#1565c0;">blue</span> = favorable entry &nbsp;|&nbsp;
+        <span style="color:#c8102e;">red</span> = unfavorable entry
+      </div>
+    </div><!-- end dg-main -->
+  </div><!-- end dg-body -->
 </div>
 
 </div><!-- end page-wrap -->
@@ -483,10 +445,15 @@ const ION_PRESETS = {
   'Mg2+'   : { Z:+2, out:1.2,  in:0.5,   min:0.1,   max:10,  step:0.1   },
 };
 
+// Friendly short labels for ion symbols in SVG dots
+const ION_LABELS = { 'Ca2+':'Ca', 'Cl-':'Cl', 'Glucose':'Glc', 'HCO3-':'HCO₃', 'Mg2+':'Mg' };
+
 const defaults = { naOut:145, naIn:12, kOut:4, kIn:155, vm:-70, temp:37,
                    xOut:1.2, xIn:0.001, xKey:'Ca2+',
                    x2Out:110, x2In:10, x2Key:'Cl-' };
 let state = {...defaults};
+let _ionPositions = {outside:[], inside:[]};
+let _animPlaced   = {outside:[], inside:[]};
 const R = 8.314, F = 96485;
 const ns = 'http://www.w3.org/2000/svg';
 
@@ -576,42 +543,29 @@ function fmtCell(val, id) {
   el.className = val<-0.01?'favorable':val>0.01?'unfavorable':'neutral';
 }
 
+// ---- ΔG table update (lightweight, no SVG redraws) ----
+function updateDGTable() {
+  const { vm, temp, naOut, naIn, kOut, kIn, xOut, xIn, xKey, x2Out, x2In, x2Key } = state;
+  const preset = ION_PRESETS[xKey], preset2 = ION_PRESETS[x2Key];
+  const naDg = calcDeltaG(naIn, naOut, vm, temp, +1);
+  const kDg  = calcDeltaG(kIn,  kOut,  vm, temp, +1);
+  const xDg  = calcDeltaG(xIn,  xOut,  vm, temp, preset.Z);
+  const x2Dg = calcDeltaG(x2In, x2Out, vm, temp, preset2.Z);
+  fmtCell(naDg.total,'naDgTotal'); fmtCell(kDg.total,'kDgTotal');
+  fmtCell(xDg.total,'xDgTotal');   fmtCell(x2Dg.total,'x2DgTotal');
+  document.getElementById('naDgChem').textContent = fmt(naDg.chem);
+  document.getElementById('naDgElec').textContent = fmt(naDg.elec);
+  document.getElementById('kDgChem').textContent  = fmt(kDg.chem);
+  document.getElementById('kDgElec').textContent  = fmt(kDg.elec);
+  document.getElementById('xDgChem').textContent  = fmt(xDg.chem);
+  document.getElementById('xDgElec').textContent  = fmt(xDg.elec);
+  document.getElementById('x2DgChem').textContent = fmt(x2Dg.chem);
+  document.getElementById('x2DgElec').textContent = fmt(x2Dg.elec);
+}
+
 // ---- Main update ----
 function update() {
-  const { naOut, naIn, kOut, kIn, vm, temp, xOut, xIn, xKey, x2Out, x2In, x2Key } = state;
-  const preset  = ION_PRESETS[xKey];
-  const preset2 = ION_PRESETS[x2Key];
-
-  document.getElementById('naOutDisplay').textContent = naOut;
-  document.getElementById('naInDisplay').textContent  = naIn;
-  document.getElementById('kOutDisplay').textContent  = kOut;
-  document.getElementById('kInDisplay').textContent   = kIn;
-  document.getElementById('vmLabel').textContent      = fmt(vm,0)+' mV';
-  document.getElementById('tempDisplay').textContent  = temp+'\u00b0C ('+(temp+273)+' K)';
-  document.getElementById('naOutTable').textContent   = naOut;
-  document.getElementById('naInTable').textContent    = naIn;
-  document.getElementById('kOutTable').textContent    = kOut;
-  document.getElementById('kInTable').textContent     = kIn;
-
-  const naDg =calcDeltaG(naIn, naOut, vm, temp, +1);
-  const kDg  =calcDeltaG(kIn,  kOut,  vm, temp, +1);
-  const xDg  =calcDeltaG(xIn,  xOut,  vm, temp, preset.Z);
-  const x2Dg =calcDeltaG(x2In, x2Out, vm, temp, preset2.Z);
-
-  fmtCell(naDg.total,'naDgTotal'); fmtCell(kDg.total,'kDgTotal'); fmtCell(xDg.total,'xDgTotal'); fmtCell(x2Dg.total,'x2DgTotal');
-  document.getElementById('naDgChem').textContent =fmt(naDg.chem);
-  document.getElementById('naDgElec').textContent =fmt(naDg.elec);
-  document.getElementById('kDgChem').textContent  =fmt(kDg.chem);
-  document.getElementById('kDgElec').textContent  =fmt(kDg.elec);
-  document.getElementById('xDgChem').textContent  =fmt(xDg.chem);
-  document.getElementById('xDgElec').textContent  =fmt(xDg.elec);
-  document.getElementById('x2DgChem').textContent =fmt(x2Dg.chem);
-  document.getElementById('x2DgElec').textContent =fmt(x2Dg.elec);
-
-  document.getElementById('potGradStop1').setAttribute('stop-color','#607a8a');
-  document.getElementById('potGradStop2').setAttribute('stop-color', vm<0?'#ff4444':vm>0?'#44aaff':'#607a8a');
-  document.getElementById('potBotLabel').textContent = fmt(vm,0)+' mV';
-
+  updateDGTable();
   drawMembrane();
   drawAP();
 }
@@ -622,9 +576,9 @@ const MEM = {
   headR:10, step:22, xStart:5, xEnd:870
 };
 const CHANNELS=[
-  {x:287, color:'#ff7043', label:'Na\u207A channel'},
-  {x:420, color:'#42a5f5', label:'K\u207A channel' },
-  {x:553, color:'#9c6aff', label:'Na/K ATPase'     },
+  {x:287, color:'#d4520a', label:'Na\u207A channel'},
+  {x:420, color:'#1565c0', label:'K\u207A channel' },
+  {x:553, color:'#5b21b6', label:'Na/K ATPase'     },
 ];
 const CHAN_W=72;
 
@@ -637,16 +591,14 @@ function clearGroup(id){const g=document.getElementById(id);while(g.firstChild)g
 
 function drawMembrane(){
   ['heads-outer','tails-outer','tails-inner','heads-inner','channels','ions-outside','ions-inside'].forEach(clearGroup);
+  // Note: 'chan-anim-0/1/2' are NOT cleared here — animations persist across redraws
   const {outerHeadY,innerHeadY,tailTopEnd,tailBotStart,headR,step,xStart,xEnd}=MEM;
   const outerG=document.getElementById('heads-outer'),toG=document.getElementById('tails-outer');
   const tiG=document.getElementById('tails-inner'),innerG=document.getElementById('heads-inner');
   const chanG=document.getElementById('channels');
 
-  function isBlocked(x){return CHANNELS.some(c=>x>=c.x-CHAN_W/2-headR&&x<=c.x+CHAN_W/2+headR);}
-
-  for(let x=xStart;x<=xEnd;x+=step){
-    if(isBlocked(x)) continue;
-    const tx1=x-5,tx2=x+5;
+  function drawLipidAt(x) {
+    const tx1=x-5, tx2=x+5;
     outerG.appendChild(svgEl('circle',{cx:x,cy:outerHeadY,r:headR,fill:'#3a7a9c',opacity:'0.88'}));
     toG.appendChild(svgEl('line',{x1:tx1,y1:outerHeadY+headR,x2:tx1,y2:tailTopEnd,stroke:'#1e4a60','stroke-width':'3',opacity:'0.65'}));
     toG.appendChild(svgEl('line',{x1:tx2,y1:outerHeadY+headR,x2:tx2,y2:tailTopEnd,stroke:'#1e4a60','stroke-width':'3',opacity:'0.65'}));
@@ -655,9 +607,21 @@ function drawMembrane(){
     innerG.appendChild(svgEl('circle',{cx:x,cy:innerHeadY,r:headR,fill:'#3a7a9c',opacity:'0.88'}));
   }
 
-  CHANNELS.forEach(({x,color,label})=>{
+  const SEGMENTS = [
+    {lo:5,   hi:240, fillFrom:'right'},
+    {lo:334, hi:373, fillFrom:'left' },
+    {lo:467, hi:506, fillFrom:'left' },
+    {lo:600, hi:870, fillFrom:'left' },
+  ];
+
+  for (const {lo,hi,fillFrom} of SEGMENTS) {
+    if (fillFrom==='right') { for(let x=hi; x>=lo; x-=step) drawLipidAt(x); }
+    else                    { for(let x=lo; x<=hi; x+=step) drawLipidAt(x); }
+  }
+
+  CHANNELS.forEach(({x,color,label}, idx)=>{
     const ch=innerHeadY+headR-(outerHeadY-headR),cx=x-CHAN_W/2,cy=outerHeadY-headR;
-    chanG.appendChild(svgEl('rect',{x:cx,y:cy,width:CHAN_W,height:ch,rx:'5',fill:'#111e2e',stroke:color,'stroke-width':'1.5',opacity:'0.95'}));
+    chanG.appendChild(svgEl('rect',{x:cx,y:cy,width:CHAN_W,height:ch,rx:'5',fill:'#f5f0ef',stroke:color,'stroke-width':'1.5',opacity:'0.95'}));
     chanG.appendChild(svgEl('rect',{x:cx+CHAN_W/2-4,y:cy,        width:8,height:9,rx:'2',fill:color,opacity:'0.35'}));
     chanG.appendChild(svgEl('rect',{x:cx+CHAN_W/2-4,y:cy+ch-9,   width:8,height:9,rx:'2',fill:color,opacity:'0.35'}));
     const words=label.split(' '), lineH=16;
@@ -665,41 +629,332 @@ function drawMembrane(){
     const t=svgEl('text',{x,y:startY,'text-anchor':'middle',fill:color,'font-size':'14','font-family':'Segoe UI,Arial','font-weight':'bold'});
     words.forEach((w,i)=>{const ts=svgEl('tspan',{x,dy:i===0?'0':String(lineH)});ts.textContent=w;t.appendChild(ts);});
     chanG.appendChild(t);
+
+    // Tooltip
+    const titleEl=document.createElementNS(ns,'title');
+    titleEl.textContent='Click to animate '+label;
+    chanG.appendChild(titleEl);
+
+    // Transparent hit area for click — drawn last so it sits on top
+    const hitRect=svgEl('rect',{x:cx,y:cy,width:CHAN_W,height:ch,rx:'5',fill:'transparent',cursor:'pointer','aria-label':label+': click to animate'});
+    hitRect.addEventListener('click',()=>animateChannel(idx));
+    chanG.appendChild(hitRect);
   });
 
-  const {naOut,naIn,kOut,kIn}=state;
-  drawIons('ions-outside',naOut,kOut,5,870,4,70);
-  drawIons('ions-inside', naIn, kIn, 5,870,170,236);
+  // Build ion arrays — Na+K left of ATPase, x/x2 right of ATPase
+  const {naOut,naIn,kOut,kIn,xOut,xIn,xKey,x2Out,x2In,x2Key}=state;
+  const xPreset=ION_PRESETS[xKey], x2Preset=ION_PRESETS[x2Key];
+  const xLabel  = ION_LABELS[xKey]  || xKey.replace(/[0-9+-]/g,'').slice(0,3);
+  const x2Label = ION_LABELS[x2Key] || x2Key.replace(/[0-9+-]/g,'').slice(0,3);
+
+  const ionsNaK_out=[
+    {conc:naOut, maxRef:200,          fill:'#d4520a',stroke:'#d4520a',textFill:'#000',    label:'Na',seedBase:1  },
+    {conc:kOut,  maxRef:200,          fill:'#1565c0',stroke:'#1565c0',textFill:'#ffffff',  label:'K', seedBase:100},
+  ];
+  const ionsNaK_in=[
+    {conc:naIn,  maxRef:200,          fill:'#d4520a',stroke:'#d4520a',textFill:'#000',    label:'Na',seedBase:1  },
+    {conc:kIn,   maxRef:200,          fill:'#1565c0',stroke:'#1565c0',textFill:'#ffffff',  label:'K', seedBase:100},
+  ];
+  const ionsX_out=[
+    {conc:xOut,  maxRef:xPreset.max,  fill:'#8b5cf6',stroke:'#8b5cf6',textFill:'#ffffff',  label:xLabel, seedBase:200},
+    {conc:x2Out, maxRef:x2Preset.max, fill:'#9d174d',stroke:'#9d174d',textFill:'#ffffff',  label:x2Label,seedBase:300},
+  ];
+  const ionsX_in=[
+    {conc:xIn,   maxRef:xPreset.max,  fill:'#8b5cf6',stroke:'#8b5cf6',textFill:'#ffffff',  label:xLabel, seedBase:200},
+    {conc:x2In,  maxRef:x2Preset.max, fill:'#9d174d',stroke:'#9d174d',textFill:'#ffffff',  label:x2Label,seedBase:300},
+  ];
+
+  const pl_out = drawIons('ions-outside', ionsNaK_out, 150, 517, 22,  65);
+  const pr_out = drawIons('ions-outside', ionsX_out,   591, 730, 22,  65, 5);
+  const pl_in  = drawIons('ions-inside',  ionsNaK_in,  150, 517, 175, 222);
+  const pr_in  = drawIons('ions-inside',  ionsX_in,    591, 730, 175, 222, 5);
+  _ionPositions.outside = [...pl_out, ...pr_out];
+  _ionPositions.inside  = [...pl_in,  ...pr_in];
+  _animPlaced = {outside:[], inside:[]};
 }
 
 function pseudoRand(seed){const x=Math.sin(seed)*10000;return x-Math.floor(x);}
 
-function drawIons(groupId,naConc,kConc,xMin,xMax,yMin,yMax){
-  const g=document.getElementById(groupId);
-  const maxEach=24;
-  const naCount=Math.round(Math.min(naConc/200,1)*maxEach);
-  const kCount =Math.round(Math.min(kConc/200, 1)*maxEach);
-  const margin=5,w=xMax-xMin-margin*2,h=yMax-yMin-margin*2;
-  for(let i=0;i<naCount;i++){
-    const cx=xMin+margin+pseudoRand(i*7+1)*w,cy=yMin+margin+pseudoRand(i*7+2)*h;
-    g.appendChild(svgEl('circle',{cx,cy,r:'9',fill:'#ff704388',stroke:'#ff7043','stroke-width':'1.5'}));
-    const t=svgEl('text',{x:cx,y:cy+3.5,'text-anchor':'middle',fill:'#ffeecc','font-size':'8','font-family':'Segoe UI,Arial','font-weight':'bold'});
-    t.textContent='Na'; g.appendChild(t);
+function findFreeSpot(cx, cy, allPlaced, xMin, xMax, yMin, yMax) {
+  const minDist=20, m=10;
+  const cl = (v,lo,hi) => Math.max(lo+m, Math.min(hi-m, v));
+  const free = (x,y) => allPlaced.every(p => Math.hypot(x-p.cx,y-p.cy) >= minDist);
+  const ox=cl(cx,xMin,xMax), oy=cl(cy,yMin,yMax);
+  if (free(ox,oy)) return {cx:ox,cy:oy};
+  for (let ring=1; ring<=8; ring++) {
+    for (let dx=-ring; dx<=ring; dx++) {
+      for (let dy=-ring; dy<=ring; dy++) {
+        if (Math.abs(dx)!==ring && Math.abs(dy)!==ring) continue;
+        const tx=cl(cx+dx*minDist,xMin,xMax), ty=cl(cy+dy*minDist,yMin,yMax);
+        if (free(tx,ty)) return {cx:tx,cy:ty};
+      }
+    }
   }
-  for(let i=0;i<kCount;i++){
-    const cx=xMin+margin+pseudoRand(i*13+3)*w,cy=yMin+margin+pseudoRand(i*13+4)*h;
-    g.appendChild(svgEl('circle',{cx,cy,r:'9',fill:'#42a5f555',stroke:'#42a5f5','stroke-width':'1.5'}));
-    const t=svgEl('text',{x:cx,y:cy+3.5,'text-anchor':'middle',fill:'#cceeff','font-size':'8','font-family':'Segoe UI,Arial','font-weight':'bold'});
-    t.textContent='K'; g.appendChild(t);
+  return {cx:ox,cy:oy};
+}
+
+function drawIons(groupId, ions, xMin, xMax, yMin, yMax, maxEach=16) {
+  const g = document.getElementById(groupId);
+  const r = 9, minDist = 20;
+  const margin = r + 1, w = xMax - xMin - margin*2, h = yMax - yMin - margin*2;
+  const placed = [];
+  ions.forEach(({conc,maxRef,fill,stroke,textFill,label,seedBase}) => {
+    const count = Math.round(Math.min(conc/maxRef,1)*maxEach);
+    let placed_this = 0;
+    for (let attempt = 0; placed_this < count && attempt < count*30; attempt++) {
+      const seed = seedBase + attempt*113;
+      const cx = xMin+margin+pseudoRand(seed+1)*w;
+      const cy = yMin+margin+pseudoRand(seed+2)*h;
+      if (placed.every(p => Math.hypot(cx-p.cx,cy-p.cy) >= minDist)) {
+        placed.push({cx,cy});
+        g.appendChild(svgEl('circle',{cx,cy,r:'9',fill,stroke,'stroke-width':'1.5'}));
+        const t=svgEl('text',{x:cx,y:cy+3.5,'text-anchor':'middle',fill:textFill,'font-size':'8','font-family':'Segoe UI,Arial','font-weight':'bold'});
+        t.textContent=label; g.appendChild(t);
+        placed_this++;
+      }
+    }
+  });
+  return placed;
+}
+
+// ---- Channel click animations ----
+const _animating = [false, false, false];
+
+function animateChannel(idx) {
+  if (_animating[idx]) return;
+  _animating[idx] = true;
+  clearGroup('chan-anim-'+idx);
+  const chan = CHANNELS[idx];
+  const duration = 1000;
+  const start = performance.now();
+
+  const particles = {
+    0: [
+      {color:'#d4520a', label:'Na', textColor:'#000000', x:chan.x, fromY:40, toY:200, delay:0}
+    ],
+    1: [
+      {color:'#1565c0', label:'K',  textColor:'#ffffff', x:chan.x, fromY:200, toY:40, delay:0}
+    ],
+    2: [
+      {color:'#d4520a', label:'Na', textColor:'#000000', x:chan.x-16, fromY:200, toY:40,  delay:0  },
+      {color:'#d4520a', label:'Na', textColor:'#000000', x:chan.x,    fromY:200, toY:40,  delay:120},
+      {color:'#d4520a', label:'Na', textColor:'#000000', x:chan.x+16, fromY:200, toY:40,  delay:240},
+      {color:'#1565c0', label:'K',  textColor:'#ffffff', x:chan.x-8,  fromY:40,  toY:200, delay:60 },
+      {color:'#1565c0', label:'K',  textColor:'#ffffff', x:chan.x+8,  fromY:40,  toY:200, delay:180},
+    ]
+  }[idx];
+
+  const REGION_BOUNDS = {
+    outside: {xMin:150,xMax:730,yMin:22, yMax:65 },
+    inside:  {xMin:150,xMax:730,yMin:175,yMax:222},
+  };
+  particles.forEach(p => {
+    if (idx === 0 || idx === 1) {
+      // Na / K channels: fixed straight-down path
+      p.finalX = p.x;      // same x throughout — no drift
+      p.finalY = p.toY;    // deterministic landing (200 for Na, 40 for K)
+    } else {
+      const region = p.toY < 120 ? 'outside' : 'inside';
+      const b = REGION_BOUNDS[region];
+      const combined = [..._ionPositions[region], ..._animPlaced[region]];
+      const spot = findFreeSpot(p.x, p.toY, combined, b.xMin, b.xMax, b.yMin, b.yMax);
+      p.finalX = spot.cx;
+      p.finalY = spot.cy;
+      _animPlaced[region].push(spot);
+    }
+  });
+
+  const animG = document.getElementById('chan-anim-'+idx);
+  const els = particles.map(p => {
+    const circ = svgEl('circle',{cx:p.x,cy:p.fromY,r:'9',fill:p.color+'88',stroke:p.color,'stroke-width':'1.5'});
+    const txt  = svgEl('text',  {x:p.x,y:p.fromY+3.5,'text-anchor':'middle',fill:p.textColor,'font-size':'8','font-family':'Segoe UI,Arial','font-weight':'bold'});
+    txt.textContent = p.label;
+    animG.appendChild(circ);
+    animG.appendChild(txt);
+    return {...p, circ, txt};
+  });
+
+  function animSmooth(t){ return t*t*(3-2*t); }
+
+  function frame(now) {
+    const elapsed = now - start;
+    let alive = false;
+    els.forEach(el => {
+      const t = (elapsed - (el.delay||0)) / duration;
+      if (t < 0) { alive = true; return; }
+      const p = animSmooth(Math.min(t, 1));
+      if (t < 1) {
+        const y = el.fromY + (el.finalY - el.fromY) * p;
+        const x = el.x + (el.finalX - el.x) * p;
+        el.circ.setAttribute('cx', x);
+        el.circ.setAttribute('cy', y);
+        el.txt.setAttribute('x', x);
+        el.txt.setAttribute('y', y+3.5);
+        alive = true;
+      } else {
+        el.circ.setAttribute('cx', el.finalX);
+        el.circ.setAttribute('cy', el.finalY);
+        el.txt.setAttribute('x', el.finalX);
+        el.txt.setAttribute('y', el.finalY+3.5);
+      }
+    });
+    if (alive) requestAnimationFrame(frame);
+    else { _animating[idx] = false; }
   }
+  requestAnimationFrame(frame);
+}
+
+// ---- AP button animation ----
+let _apAnimating = false;
+
+function initiateAP() {
+  if (_apAnimating) return;
+  _apAnimating = true;
+  const btn = document.getElementById('apBtn');
+  btn.disabled = true;
+
+  // Clear any existing channel animations in groups 0, 1, and 2
+  clearGroup('chan-anim-0');
+  clearGroup('chan-anim-1');
+  clearGroup('chan-anim-2');
+  _animating[0] = false;
+  _animating[1] = false;
+  _animating[2] = false;
+
+  const naX = CHANNELS[0].x;  // 287
+  const kX  = CHANNELS[1].x;  // 420
+  const atpX = CHANNELS[2].x; // 553
+  const REGION_BOUNDS = {
+    outside: {xMin:150, xMax:730, yMin:22,  yMax:65 },
+    inside:  {xMin:150, xMax:730, yMin:175, yMax:222},
+  };
+
+  // Local placed-spots tracker (copy existing positions)
+  const placed = {
+    outside: [..._ionPositions.outside],
+    inside:  [..._ionPositions.inside],
+  };
+
+  // Build schedule with pre-computed landing spots
+  const TRAVEL_NA = 600, TRAVEL_K = 750;
+  const TRAVEL_ATPASE = 3000;
+  const rawSchedule = [
+    {startAt:0,    fromY:40,  toY:200, x:naX,      color:'#d4520a', label:'Na', textColor:'#000000', region:'inside',  travel:TRAVEL_NA,     grpId:'chan-anim-0'},
+    {startAt:800,  fromY:40,  toY:200, x:naX,      color:'#d4520a', label:'Na', textColor:'#000000', region:'inside',  travel:TRAVEL_NA,     grpId:'chan-anim-0'},
+    {startAt:1800, fromY:200, toY:40,  x:kX,       color:'#1565c0', label:'K',  textColor:'#ffffff', region:'outside', travel:TRAVEL_K,      grpId:'chan-anim-1'},
+    {startAt:2700, fromY:200, toY:40,  x:kX,       color:'#1565c0', label:'K',  textColor:'#ffffff', region:'outside', travel:TRAVEL_K,      grpId:'chan-anim-1'},
+    {startAt:3600, fromY:200, toY:40,  x:kX,       color:'#1565c0', label:'K',  textColor:'#ffffff', region:'outside', travel:TRAVEL_K,      grpId:'chan-anim-1'},
+    {startAt:4500, fromY:200, toY:40,  x:kX,       color:'#1565c0', label:'K',  textColor:'#ffffff', region:'outside', travel:TRAVEL_K,      grpId:'chan-anim-1'},
+    {startAt:0,    fromY:200, toY:40,  x:atpX-16,  color:'#d4520a', label:'Na', textColor:'#000000', region:'outside', travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:600,  fromY:200, toY:40,  x:atpX,     color:'#d4520a', label:'Na', textColor:'#000000', region:'outside', travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:1200, fromY:200, toY:40,  x:atpX+16,  color:'#d4520a', label:'Na', textColor:'#000000', region:'outside', travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:300,  fromY:40,  toY:200, x:atpX-8,   color:'#1565c0', label:'K',  textColor:'#ffffff', region:'inside',  travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:900,  fromY:40,  toY:200, x:atpX+8,   color:'#1565c0', label:'K',  textColor:'#ffffff', region:'inside',  travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    // Second ATPase cycle — starts at ~4000 ms
+    {startAt:4000, fromY:200, toY:40,  x:atpX-16,  color:'#d4520a', label:'Na', textColor:'#000000', region:'outside', travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:4600, fromY:200, toY:40,  x:atpX,     color:'#d4520a', label:'Na', textColor:'#000000', region:'outside', travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:5200, fromY:200, toY:40,  x:atpX+16,  color:'#d4520a', label:'Na', textColor:'#000000', region:'outside', travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:4300, fromY:40,  toY:200, x:atpX-8,   color:'#1565c0', label:'K',  textColor:'#ffffff', region:'inside',  travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+    {startAt:4900, fromY:40,  toY:200, x:atpX+8,   color:'#1565c0', label:'K',  textColor:'#ffffff', region:'inside',  travel:TRAVEL_ATPASE, grpId:'chan-anim-2'},
+  ];
+
+  // Pre-assign landing spots
+  const schedule = rawSchedule.map(p => {
+    if (p.grpId === 'chan-anim-0' || p.grpId === 'chan-anim-1') {
+      return {...p, finalX: p.x, finalY: p.toY};
+    }
+    const b = REGION_BOUNDS[p.region];
+    const spot = findFreeSpot(p.x, p.toY, placed[p.region], b.xMin, b.xMax, b.yMin, b.yMax);
+    placed[p.region].push(spot);
+    return {...p, finalX: spot.cx, finalY: spot.cy};
+  });
+
+  const started = new Set();
+  const active  = [];
+  const apStart = performance.now();
+  const endTime = 8000;
+
+  function elapsedToApT(elapsed) {
+    if (elapsed <= 1000) return elapsed / 1000;
+    if (elapsed <= 5000) return 1 + (elapsed - 1000) / 2000;
+    return 3 + (elapsed - 5000) / 1000;
+  }
+
+  // Create AP tracking dot
+  const apDotG = document.getElementById('ap-dot');
+  const apDot = svgEl('circle', {cx: apMapX(0), cy: apMapY(-70), r:'5', fill:'#c8102e', stroke:'none'});
+  apDotG.appendChild(apDot);
+
+  function animSmooth(t) { return t*t*(3-2*t); }
+
+  function apFrame(now) {
+    const elapsed = now - apStart;
+
+    // Update AP dot position and Vm
+    const apT = Math.min(elapsedToApT(elapsed), AP.tMax);
+    const v = apValue(apT, -70);
+    apDot.setAttribute('cx', apMapX(apT));
+    apDot.setAttribute('cy', apMapY(v));
+    const vmInt = Math.round(v);
+    state.vm = vmInt;
+    document.getElementById('vmSlider').value = vmInt;
+    document.getElementById('vmNum').value    = vmInt;
+    updateDGTable();
+
+    // Spawn newly due particles
+    schedule.forEach((p, i) => {
+      if (started.has(i) || elapsed < p.startAt) return;
+      started.add(i);
+      const g = document.getElementById(p.grpId);
+      const circ = svgEl('circle', {cx:p.x, cy:p.fromY, r:'9', fill:p.color+'88', stroke:p.color, 'stroke-width':'1.5'});
+      const txt  = svgEl('text',   {x:p.x, y:p.fromY+3.5, 'text-anchor':'middle', fill:p.textColor, 'font-size':'8', 'font-family':'Segoe UI,Arial', 'font-weight':'bold'});
+      txt.textContent = p.label;
+      g.appendChild(circ);
+      g.appendChild(txt);
+      active.push({...p, circ, txt, startTime: now});
+    });
+
+    // Animate active particles
+    active.forEach(ion => {
+      const t = (now - ion.startTime) / ion.travel;
+      const pr = animSmooth(Math.min(t, 1));
+      const cx = ion.x     + (ion.finalX - ion.x)     * pr;
+      const cy = ion.fromY + (ion.finalY - ion.fromY)  * pr;
+      ion.circ.setAttribute('cx', cx);
+      ion.circ.setAttribute('cy', cy);
+      ion.txt.setAttribute('x', cx);
+      ion.txt.setAttribute('y', cy + 3.5);
+    });
+
+    if (elapsed < endTime) {
+      requestAnimationFrame(apFrame);
+    } else {
+      // Snap all to final positions
+      active.forEach(ion => {
+        ion.circ.setAttribute('cx', ion.finalX);
+        ion.circ.setAttribute('cy', ion.finalY);
+        ion.txt.setAttribute('x', ion.finalX);
+        ion.txt.setAttribute('y', ion.finalY + 3.5);
+      });
+      clearGroup('ap-dot');
+      state.vm = -70;
+      document.getElementById('vmSlider').value = -70;
+      document.getElementById('vmNum').value    = -70;
+      _apAnimating = false;
+      btn.disabled = false;
+      update();
+    }
+  }
+
+  requestAnimationFrame(apFrame);
 }
 
 // ---- Action Potential Plot ----
-// SVG viewBox: 0 0 270 310
-// Plot area:   x=42..258 (216px), y=18..258 (240px)
+// SVG viewBox: 0 0 270 189
+// Plot area:   x=42..258 (216px), y=18..164 (146px)
 const AP = {
-  padL:42, padR:12, padT:18, padB:52,
-  W:270, H:310,
+  padL:42, padR:12, padT:18, padB:25,
+  W:270, H:189,
   vMin:-105, vMax:55,
   tMin:0, tMax:6
 };
@@ -722,7 +977,7 @@ function apValue(t, vm){
 
 function drawAP(){
   ['ap-grid','ap-axes','ap-curve','ap-annotations','ap-labels'].forEach(clearGroup);
-  const vm=-70; // fixed canonical shape — does not track Vm slider
+  const vm=-70;
   const undershoot=Math.max(vm-10, AP.vMin+5);
   const gridG=document.getElementById('ap-grid');
   const axesG=document.getElementById('ap-axes');
@@ -733,43 +988,43 @@ function drawAP(){
   // Grid lines + Y tick labels
   [-80,-60,-40,-20,0,20,40].forEach(v=>{
     const y=apMapY(v);
-    gridG.appendChild(svgEl('line',{x1:AP.padL,y1:y,x2:AP.W-AP.padR,y2:y,stroke:'#1a2a3a','stroke-width':'0.8'}));
-    const tl=svgEl('text',{x:AP.padL-4,y:y+3.5,'text-anchor':'end',fill:'#607a8a','font-size':'7.5','font-family':'Segoe UI,Arial'});
+    gridG.appendChild(svgEl('line',{x1:AP.padL,y1:y,x2:AP.W-AP.padR,y2:y,stroke:'#e0dbd8','stroke-width':'0.8'}));
+    const tl=svgEl('text',{x:AP.padL-4,y:y+3.5,'text-anchor':'end',fill:'#685c53','font-size':'7.5','font-family':'Segoe UI,Arial'});
     tl.textContent=(v>0?'+':'')+v; labG.appendChild(tl);
   });
 
   // X tick labels
   [0,1,2,3,4,5,6].forEach(t=>{
     const x=apMapX(t);
-    gridG.appendChild(svgEl('line',{x1:x,y1:AP.padT,x2:x,y2:AP.padT+AP.plotH,stroke:'#1a2a3a','stroke-width':'0.8'}));
-    const tl=svgEl('text',{x,y:AP.padT+AP.plotH+12,'text-anchor':'middle',fill:'#607a8a','font-size':'7.5','font-family':'Segoe UI,Arial'});
+    gridG.appendChild(svgEl('line',{x1:x,y1:AP.padT,x2:x,y2:AP.padT+AP.plotH,stroke:'#e0dbd8','stroke-width':'0.8'}));
+    const tl=svgEl('text',{x,y:AP.padT+AP.plotH+12,'text-anchor':'middle',fill:'#685c53','font-size':'7.5','font-family':'Segoe UI,Arial'});
     tl.textContent=t; labG.appendChild(tl);
   });
 
   // Axes
-  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:AP.padT,x2:AP.padL,y2:AP.padT+AP.plotH,stroke:'#2a4060','stroke-width':'1.2'}));
-  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:AP.padT+AP.plotH,x2:AP.W-AP.padR,y2:AP.padT+AP.plotH,stroke:'#2a4060','stroke-width':'1.2'}));
+  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:AP.padT,x2:AP.padL,y2:AP.padT+AP.plotH,stroke:'#685c53','stroke-width':'1.2'}));
+  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:AP.padT+AP.plotH,x2:AP.W-AP.padR,y2:AP.padT+AP.plotH,stroke:'#685c53','stroke-width':'1.2'}));
 
   // Zero mV horizontal reference
-  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:apMapY(0),x2:AP.W-AP.padR,y2:apMapY(0),stroke:'#2a4060','stroke-width':'0.8','stroke-dasharray':'2,3'}));
+  axesG.appendChild(svgEl('line',{x1:AP.padL,y1:apMapY(0),x2:AP.W-AP.padR,y2:apMapY(0),stroke:'#685c53','stroke-width':'0.8','stroke-dasharray':'2,3'}));
 
   // Axis labels
-  const xLbl=svgEl('text',{x:AP.padL+AP.plotW/2,y:AP.H-6,'text-anchor':'middle',fill:'#8aa0b0','font-size':'8','font-family':'Segoe UI,Arial'});
+  const xLbl=svgEl('text',{x:AP.padL+AP.plotW/2,y:AP.H-6,'text-anchor':'middle',fill:'#685c53','font-size':'8','font-family':'Segoe UI,Arial'});
   xLbl.textContent='Time (ms)'; labG.appendChild(xLbl);
-  const yLbl=svgEl('text',{x:10,y:AP.padT+AP.plotH/2,'text-anchor':'middle',fill:'#8aa0b0','font-size':'8','font-family':'Segoe UI,Arial',transform:`rotate(-90,10,${AP.padT+AP.plotH/2})`});
+  const yLbl=svgEl('text',{x:10,y:AP.padT+AP.plotH/2,'text-anchor':'middle',fill:'#685c53','font-size':'8','font-family':'Segoe UI,Arial',transform:`rotate(-90,10,${AP.padT+AP.plotH/2})`});
   yLbl.textContent='mV'; labG.appendChild(yLbl);
 
   // Threshold dashed line
   const thresh=-55;
   const ty=apMapY(thresh);
-  annG.appendChild(svgEl('line',{x1:AP.padL,y1:ty,x2:AP.W-AP.padR,y2:ty,stroke:'#fbbf24','stroke-width':'1','stroke-dasharray':'4,3'}));
-  const thLbl=svgEl('text',{x:AP.W-AP.padR-2,y:ty-3,'text-anchor':'end',fill:'#fbbf24','font-size':'7','font-family':'Segoe UI,Arial'});
+  annG.appendChild(svgEl('line',{x1:AP.padL,y1:ty,x2:AP.W-AP.padR,y2:ty,stroke:'#c8102e','stroke-width':'1','stroke-dasharray':'4,3'}));
+  const thLbl=svgEl('text',{x:AP.W-AP.padR-2,y:ty-3,'text-anchor':'end',fill:'#c8102e','font-size':'7','font-family':'Segoe UI,Arial'});
   thLbl.textContent='Threshold'; labG.appendChild(thLbl);
 
   // Resting Vm dashed line
   const vy=apMapY(vm);
-  annG.appendChild(svgEl('line',{x1:AP.padL,y1:vy,x2:AP.W-AP.padR,y2:vy,stroke:'#8aa0b0','stroke-width':'1','stroke-dasharray':'3,3'}));
-  const vmLbl=svgEl('text',{x:AP.padL+3,y:vy-3,'text-anchor':'start',fill:'#8aa0b0','font-size':'7','font-family':'Segoe UI,Arial'});
+  annG.appendChild(svgEl('line',{x1:AP.padL,y1:vy,x2:AP.W-AP.padR,y2:vy,stroke:'#685c53','stroke-width':'1','stroke-dasharray':'3,3'}));
+  const vmLbl=svgEl('text',{x:AP.padL+3,y:vy+10,'text-anchor':'start',fill:'#685c53','font-size':'7','font-family':'Segoe UI,Arial'});
   vmLbl.textContent='Vm = '+vm+' mV'; labG.appendChild(vmLbl);
 
   // AP curve (polyline)
@@ -779,25 +1034,12 @@ function drawAP(){
     const v=Math.max(AP.vMin,Math.min(AP.vMax,apValue(t,vm)));
     pts.push(apMapX(t)+','+apMapY(v));
   }
-  const pl=svgEl('polyline',{points:pts.join(' '),fill:'none',stroke:'#7ecfff','stroke-width':'2','stroke-linejoin':'round',filter:'url(#apGlow)'});
+  const pl=svgEl('polyline',{points:pts.join(' '),fill:'none',stroke:'#1565c0','stroke-width':'2','stroke-linejoin':'round',filter:'url(#apGlow)'});
   curveG.appendChild(pl);
-
-  // Phase labels (positioned above the curve)
-  const phases=[
-    {t:1.25, label:'Depol.',     color:'#ff7043', yOff:-14},
-    {t:2.2,  label:'Repol.',     color:'#42a5f5', yOff:-14},
-    {t:3.4,  label:'Hyperpol.', color:'#a78bfa', yOff: 12},
-  ];
-  phases.forEach(({t,label,color,yOff})=>{
-    const v=apValue(t,vm);
-    const x=apMapX(t), y=apMapY(v)+yOff;
-    const lbl=svgEl('text',{x,y,'text-anchor':'middle',fill:color,'font-size':'7','font-family':'Segoe UI,Arial','font-weight':'bold'});
-    lbl.textContent=label; labG.appendChild(lbl);
-  });
 
   // Peak annotation
   const peakX=apMapX(1.5), peakY=apMapY(40);
-  const pLbl=svgEl('text',{x:peakX+3,y:peakY+1,'text-anchor':'start',fill:'#e0e8f0','font-size':'7','font-family':'Segoe UI,Arial'});
+  const pLbl=svgEl('text',{x:peakX+3,y:peakY+1,'text-anchor':'start',fill:'#000000','font-size':'7','font-family':'Segoe UI,Arial'});
   pLbl.textContent='+40 mV'; labG.appendChild(pLbl);
 }
 
