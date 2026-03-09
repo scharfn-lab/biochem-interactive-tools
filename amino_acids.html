@@ -349,7 +349,7 @@
       </div>
 
       <div class="btn-row">
-        <button class="btn btn-check" id="btn-check" onclick="checkAnswers()">Check Answers</button>
+        <button class="btn btn-check" id="btn-check" onclick="showAnswers()">Show Answers</button>
         <button class="btn btn-next" onclick="nextQuestion()">Next →</button>
       </div>
     </div>
@@ -695,69 +695,31 @@ function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
 }
 
-function checkAnswers() {
-  if (!current || answered) return;
+function completeQuestion(pts) {
+  if (answered) return;
+  answered = true;
+  scored   = true;
 
-  const { aa }  = current;
-  const cfg     = QTYPE[questionType];
+  const cfg  = QTYPE[questionType];
+  const { aa } = current;
 
-  const allFieldDefs = [
-    { id: 'c1',   correct: aa.code1,            user: document.getElementById('inp-c1').value.trim().toUpperCase() },
-    { id: 'c3',   correct: aa.code3,            user: capitalize(document.getElementById('inp-c3').value.trim()) },
-    { id: 'name', correct: aa.name,             user: capitalize(document.getElementById('inp-name').value.trim()) },
-    { id: 'type', correct: aa.type,             user: document.getElementById('inp-type').value },
-    { id: 'ph',   correct: String(current.ph),  user: document.getElementById('inp-ph').value }
-  ];
+  score.total++;
+  score.pts    += pts;
+  score.maxPts += cfg.maxPts;
+  if (pts === cfg.maxPts) score.correct++;
+  else if (pts >= 1)      score.partial++;
+  updateScore();
 
-  const fields = allFieldDefs.filter(f => cfg.fields.includes(f.id));
-
-  function isMatch(f) { return norm(f.user) === norm(f.correct); }
-
-  let pts = 0;
-  fields.forEach(f => {
-    const el  = document.getElementById('inp-' + f.id);
-    const ind = document.getElementById('ind-' + f.id);
-    const ok  = isMatch(f);
-    if (ok) {
-      el.className = 'field-input ok';
-      el.disabled  = true;
-      ind.textContent = '✓';
-      pts++;
-    } else {
-      el.className = 'field-input bad';
-      el.disabled  = false;
-      ind.textContent = '✗';
-    }
-  });
-
-  // Record score on first attempt only
-  if (!scored) {
-    scored = true;
-    score.total++;
-    score.pts    += pts;
-    score.maxPts += cfg.maxPts;
-    if (pts === cfg.maxPts) score.correct++;
-    else if (pts >= 1)      score.partial++;
-    updateScore();
-  }
-
-  // Always reveal pH badge after checking
   document.getElementById('ph-badge').textContent = `pH ${current.ph}`;
+  document.getElementById('btn-check').disabled = true;
 
-  // All correct → lock and end question
-  if (pts === cfg.maxPts) {
-    answered = true;
-    document.getElementById('btn-check').disabled = true;
-  }
-
-  // Feedback
-  const fb  = document.getElementById('feedback');
-  const n   = cfg.maxPts;
-  const cls = pts === n ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
+  const n     = cfg.maxPts;
+  const cls   = pts === n ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
   const title = pts === n ? `Perfect! All ${n} correct.`
-              : pts >= 1  ? `${pts}/${n} correct — keep going!`
-              :              `Not quite — 0/${n} correct.`;
+              : pts >= 1  ? `${pts}/${n} correct.`
+              :              `0/${n} correct.`;
 
+  const fb = document.getElementById('feedback');
   fb.className = `feedback show ${cls}`;
   fb.innerHTML = `
     <div class="fb-title">${title}</div>
@@ -766,6 +728,80 @@ function checkAnswers() {
       <b>${aa.name}</b> &nbsp;·&nbsp; <b>${TYPE_LABELS[aa.type]}</b> &nbsp;·&nbsp;
       <b>pH ${current.ph}</b>
     </div>`;
+}
+
+function gradeField(id) {
+  if (!current || answered) return;
+  const cfg = QTYPE[questionType];
+  if (!cfg.fields.includes(id)) return;
+
+  const el = document.getElementById('inp-' + id);
+  if (el.disabled) return;
+
+  const { aa } = current;
+  const correctMap = {
+    c1: aa.code1, c3: aa.code3, name: aa.name,
+    type: aa.type, ph: String(current.ph)
+  };
+  let userVal;
+  if      (id === 'c1')                  userVal = el.value.trim().toUpperCase();
+  else if (id === 'type' || id === 'ph') userVal = el.value;
+  else                                   userVal = capitalize(el.value.trim());
+
+  const ind = document.getElementById('ind-' + id);
+
+  if (!userVal) {
+    el.className = 'field-input';
+    ind.textContent = '';
+    return;
+  }
+
+  const ok = norm(userVal) === norm(correctMap[id]);
+  if (ok) {
+    el.className = 'field-input ok';
+    el.disabled  = true;
+    ind.textContent = '✓';
+  } else {
+    el.className = 'field-input bad';
+    ind.textContent = '✗';
+  }
+
+  // Auto-complete if all active fields now correct
+  const allDone = cfg.fields.every(fid =>
+    document.getElementById('inp-' + fid).disabled &&
+    document.getElementById('inp-' + fid).classList.contains('ok')
+  );
+  if (allDone) completeQuestion(cfg.maxPts);
+}
+
+function showAnswers() {
+  if (!current || answered) return;
+  const cfg    = QTYPE[questionType];
+  const { aa } = current;
+  const correctMap = {
+    c1: aa.code1, c3: aa.code3, name: aa.name,
+    type: aa.type, ph: String(current.ph)
+  };
+
+  // Count how many fields user already got correct
+  let pts = 0;
+  cfg.fields.forEach(id => {
+    const el = document.getElementById('inp-' + id);
+    if (el.disabled && el.classList.contains('ok')) pts++;
+  });
+
+  // Reveal remaining fields
+  cfg.fields.forEach(id => {
+    const el = document.getElementById('inp-' + id);
+    if (!el.disabled) {
+      el.value = correctMap[id];
+      el.className = 'field-input ok';
+      el.disabled  = true;
+      document.getElementById('ind-' + id).textContent = '✓';
+    }
+  });
+
+  completeQuestion(pts);
 }
 
 // ─── Score ────────────────────────────────────────────────────────────────────
@@ -786,14 +822,21 @@ function resetScore() {
 
 // ─── Keyboard ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  ['inp-c1','inp-c3','inp-name'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
+  ['c1','c3','name'].forEach(id => {
+    const el = document.getElementById('inp-' + id);
+    el.addEventListener('blur',    () => gradeField(id));
+    el.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
-        if (!answered) checkAnswers();
-        else nextQuestion();
+        if (!answered) gradeField(id);
+        else           nextQuestion();
       }
     });
   });
+
+  ['type','ph'].forEach(id => {
+    document.getElementById('inp-' + id).addEventListener('change', () => gradeField(id));
+  });
+
   nextQuestion();  // starts in 'name' mode, which shows c1/c3/name
 });
 </script>
