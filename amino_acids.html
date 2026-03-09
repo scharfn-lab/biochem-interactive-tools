@@ -292,6 +292,70 @@
     .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; }
     .name-hide-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
+    /* Identify-mode panel */
+    .identify-header {
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .identify-question {
+      font-size: 1.05rem;
+      color: #000;
+      line-height: 1.5;
+    }
+    .identify-question strong { color: #C8102E; }
+
+    .identify-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .identify-cell {
+      border: 2px solid #685C53;
+      border-radius: 10px;
+      background: #f1f5f9;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      min-height: 140px;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .identify-cell:hover:not(.locked) {
+      border-color: #C8102E;
+      background: #f8f0f0;
+    }
+    .identify-cell.correct {
+      border-color: #1565C0;
+      background: #FFCDFF;
+    }
+    .identify-cell.wrong {
+      border-color: #C8102E;
+      background: #FFEBEE;
+    }
+    .identify-cell.revealed {
+      border-color: #1565C0;
+      background: #FFCDFF;
+      opacity: 0.85;
+    }
+    .identify-cell.locked { cursor: default; }
+
+    .identify-cell .cell-verdict {
+      position: absolute;
+      top: 4px; right: 6px;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    @media (max-width: 620px) {
+      .identify-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
     /* Name display panel */
     .name-display {
       display: flex;
@@ -345,6 +409,7 @@
   <div class="mode-toggle-row">
     <button class="mode-btn active" id="mode-btn-structure" onclick="setDisplayMode('structure')">Show Amino Acid Structures</button>
     <button class="mode-btn"        id="mode-btn-name"      onclick="setDisplayMode('name')">Show Amino Acid Names</button>
+    <button class="mode-btn"        id="mode-btn-identify"  onclick="setDisplayMode('identify')">Determine Amino Acid Structure</button>
   </div>
 
   <!-- Name-mode hide toggles -->
@@ -356,7 +421,7 @@
   </div>
 
   <!-- Question type selector -->
-  <div class="qtype-bar">
+  <div class="qtype-bar" id="qtype-bar">
     <span class="qtype-label">Question type:</span>
     <button class="qtype-btn active" data-type="name"       onclick="toggleQuestionType('name')">Determine name</button>
     <button class="qtype-btn"        data-type="ph"         onclick="toggleQuestionType('ph')">Determine pH</button>
@@ -433,6 +498,24 @@
         <button class="btn btn-check" id="btn-check" onclick="showAnswers()">Show Answers</button>
         <button class="btn btn-next" onclick="nextQuestion()">Next Amino Acid →</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Identify mode panel -->
+  <div id="identify-panel" style="display:none">
+    <div class="identify-header">
+      <p class="identify-question">
+        Which structure correctly represents
+        <strong id="identify-aa-name"></strong> at
+        <span class="ph-badge" id="identify-ph-badge">pH ?</span>?
+      </p>
+    </div>
+    <div class="identify-grid" id="identify-grid">
+      <!-- 8 .identify-cell divs built by JS -->
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-check" id="identify-btn-show" onclick="showAnswers()">Show Answer</button>
+      <button class="btn btn-next"  onclick="nextQuestion()">Next Amino Acid →</button>
     </div>
   </div>
 
@@ -669,10 +752,22 @@ function toggleQuestionType(type) {
 
 function setDisplayMode(mode) {
   displayMode = mode;
-  document.getElementById('mode-btn-structure').classList.toggle('active', mode === 'structure');
-  document.getElementById('mode-btn-name').classList.toggle('active', mode === 'name');
-  // Hide 'Determine name' qtype button in name mode (name fields controlled by hide toggles)
-  document.querySelector('[data-type="name"]').style.display = mode === 'name' ? 'none' : '';
+
+  ['structure','name','identify'].forEach(m => {
+    document.getElementById('mode-btn-' + m).classList.toggle('active', m === mode);
+  });
+
+  const identifyMode = mode === 'identify';
+
+  document.querySelector('.main-grid').style.display        = identifyMode ? 'none' : '';
+  document.getElementById('identify-panel').style.display   = identifyMode ? ''     : 'none';
+  document.getElementById('qtype-bar').style.display        = identifyMode ? 'none' : '';
+  document.getElementById('name-toggles').style.display     = identifyMode ? 'none' : '';
+
+  // Hide 'Determine name' qtype button in name mode
+  document.querySelector('[data-type="name"]').style.display =
+    (mode === 'name') ? 'none' : '';
+
   // If 'name' qtype was active and switching to name mode, remove it
   if (mode === 'name' && activeQtypeSet.has('name')) {
     activeQtypeSet.delete('name');
@@ -681,6 +776,7 @@ function setDisplayMode(mode) {
       b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
     );
   }
+
   renderQuestion();
 }
 
@@ -692,6 +788,7 @@ function toggleNameHide(fieldId) {
 }
 
 function getActiveFields() {
+  if (displayMode === 'identify') return [];
   const fields = new Set();
   if (displayMode === 'structure') {
     // Union of all active qtype fields
@@ -713,7 +810,10 @@ function getActiveFields() {
   return [...fields];
 }
 
-function getMaxPts() { return getActiveFields().length; }
+function getMaxPts() {
+  if (displayMode === 'identify') return 1;
+  return getActiveFields().length;
+}
 
 // ─── RDKit ────────────────────────────────────────────────────────────────────
 let rdkitReady   = false;
@@ -726,7 +826,9 @@ window.initRDKitModule({
   rdkitReady = true;
   const msg = document.getElementById('struct-msg');
   if (msg) msg.style.display = 'none';
-  if (pendingSmiles !== null) {
+  if (displayMode === 'identify') {
+    renderIdentifyQuestion();
+  } else if (pendingSmiles !== null) {
     drawStructure(pendingSmiles);
     pendingSmiles = null;
   }
@@ -735,41 +837,38 @@ window.initRDKitModule({
     '<div class="struct-msg">Structure renderer failed to load.</div>';
 });
 
+function drawStructureInto(smiles, container, w, h) {
+  if (!rdkitReady) {
+    container.innerHTML = '<div class="struct-msg" style="font-size:0.75rem">Loading…</div>';
+    return;
+  }
+  try {
+    const mol = window.RDKit.get_mol(smiles);
+    if (!mol || !mol.is_valid()) throw new Error('invalid');
+    let svg;
+    try {
+      svg = mol.get_svg_with_highlights(JSON.stringify({ width: w, height: h, addStereoAnnotation: false }));
+    } catch {
+      svg = mol.get_svg(w, h);
+    }
+    mol.delete();
+    container.innerHTML = svg.replace(
+      /(<rect[^>]*)(fill:#FFFFFF|fill:white)([^>]*>)/gi,
+      '$1fill:transparent$3'
+    );
+  } catch {
+    container.innerHTML = '<div class="struct-msg" style="font-size:0.75rem">Unavailable</div>';
+  }
+}
+
 function drawStructure(smiles) {
   const box = document.getElementById('struct-box');
-
   if (!rdkitReady) {
     pendingSmiles = smiles;
     box.innerHTML = '<div class="struct-msg">Loading structure renderer…</div>';
     return;
   }
-
-  try {
-    const mol = window.RDKit.get_mol(smiles);
-    if (!mol || !mol.is_valid()) throw new Error('invalid');
-
-    const w = Math.min(Math.max((box.clientWidth || 400) - 16, 200), 560);
-    const h = 230;
-
-    // Try with stereo annotations; fall back to plain SVG
-    let svg;
-    try {
-      const details = JSON.stringify({ width: w, height: h, addStereoAnnotation: false });
-      svg = mol.get_svg_with_highlights(details);
-    } catch {
-      svg = mol.get_svg(w, h);
-    }
-    mol.delete();
-
-    // Transparent background so the light panel shows through
-    const cleaned = svg.replace(
-      /(<rect[^>]*)(fill:#FFFFFF|fill:white)([^>]*>)/gi,
-      '$1fill:transparent$3'
-    );
-    box.innerHTML = cleaned;
-  } catch(e) {
-    box.innerHTML = '<div class="struct-msg">Structure unavailable.</div>';
-  }
+  drawStructureInto(smiles, box, Math.min(Math.max((box.clientWidth || 400) - 16, 200), 560), 230);
 }
 
 function drawNameDisplay(aa) {
@@ -785,6 +884,102 @@ function drawNameDisplay(aa) {
   const content = namePart + codeRow;
   box.innerHTML = `<div class="name-display">${content ||
     '<em class="struct-msg">All name fields hidden</em>'}</div>`;
+}
+
+// ─── Identify mode helpers ────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildIdentifyOptions(targetAA, targetPH) {
+  const PHs = [2, 7, 13];
+  const otherPHs = PHs.filter(p => p !== targetPH);
+
+  let samePool = shuffle(AA.filter(a => a.type === targetAA.type && a !== targetAA));
+  let diffPool = shuffle(AA.filter(a => a.type !== targetAA.type));
+
+  const samePick = samePool.slice(0, 3);
+  const diffNeeded = 6 - samePick.length;
+  const diffPick = diffPool.slice(0, diffNeeded);
+
+  const distractors = shuffle([...samePick, ...diffPick]);
+
+  const distractorOptions = distractors.map((aa, i) => ({
+    aa,
+    ph: i < 3 ? targetPH : otherPHs[Math.floor(Math.random() * otherPHs.length)],
+    isCorrect: false
+  }));
+
+  const nearMissPH = otherPHs[Math.floor(Math.random() * otherPHs.length)];
+
+  return shuffle([
+    { aa: targetAA, ph: targetPH, isCorrect: true },
+    { aa: targetAA, ph: nearMissPH, isCorrect: false },
+    ...distractorOptions
+  ]);
+}
+
+function renderIdentifyQuestion() {
+  const { aa, ph } = current;
+  const options = buildIdentifyOptions(aa, ph);
+  current.identifyOptions = options;
+
+  document.getElementById('identify-aa-name').textContent = aa.name;
+  document.getElementById('identify-ph-badge').textContent = `pH ${ph}`;
+  document.getElementById('identify-btn-show').disabled = false;
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  fb.innerHTML = '';
+
+  const grid = document.getElementById('identify-grid');
+  grid.innerHTML = '';
+  options.forEach((opt, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'identify-cell';
+    cell.dataset.index = i;
+    cell.onclick = () => handleIdentifyClick(i);
+    drawStructureInto(opt.aa.smiles[opt.ph], cell, 160, 130);
+    grid.appendChild(cell);
+  });
+}
+
+function handleIdentifyClick(index) {
+  if (!current || answered) return;
+  const options = current.identifyOptions;
+  const chosen  = options[index];
+  const cells   = document.querySelectorAll('.identify-cell');
+
+  cells.forEach(c => c.classList.add('locked'));
+  document.getElementById('identify-btn-show').disabled = true;
+
+  const correctIdx = options.findIndex(o => o.isCorrect);
+
+  if (chosen.isCorrect) {
+    cells[index].classList.add('correct');
+    const v = document.createElement('span');
+    v.className = 'cell-verdict';
+    v.textContent = '✓';
+    cells[index].appendChild(v);
+    completeQuestion(1);
+  } else {
+    cells[index].classList.add('wrong');
+    const vw = document.createElement('span');
+    vw.className = 'cell-verdict';
+    vw.textContent = '✗';
+    cells[index].appendChild(vw);
+    cells[correctIdx].classList.add('revealed');
+    const vc = document.createElement('span');
+    vc.className = 'cell-verdict';
+    vc.textContent = '✓';
+    cells[correctIdx].appendChild(vc);
+    completeQuestion(0);
+  }
 }
 
 // ─── pH helpers ───────────────────────────────────────────────────────────────
@@ -808,6 +1003,11 @@ function renderQuestion() {
   if (!current) return;
   answered = false;
   scored   = false;
+
+  if (displayMode === 'identify') {
+    renderIdentifyQuestion();
+    return;
+  }
 
   const { aa, ph } = current;
   const activeFields = getActiveFields();
@@ -936,6 +1136,21 @@ function gradeField(id) {
 
 function showAnswers() {
   if (!current || answered) return;
+
+  if (displayMode === 'identify') {
+    const correctIdx = current.identifyOptions.findIndex(o => o.isCorrect);
+    const cells = document.querySelectorAll('.identify-cell');
+    cells.forEach(c => c.classList.add('locked'));
+    document.getElementById('identify-btn-show').disabled = true;
+    cells[correctIdx].classList.add('revealed');
+    const v = document.createElement('span');
+    v.className = 'cell-verdict';
+    v.textContent = '✓';
+    cells[correctIdx].appendChild(v);
+    completeQuestion(0);
+    return;
+  }
+
   const activeFields = getActiveFields();
   const { aa } = current;
   const correctMap = {
