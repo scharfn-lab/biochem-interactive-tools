@@ -347,8 +347,8 @@
     <button class="mode-btn"        id="mode-btn-name"      onclick="setDisplayMode('name')">Show Amino Acid Names</button>
   </div>
 
-  <!-- Name-mode hide toggles (hidden by default) -->
-  <div class="name-toggles" id="name-toggles" style="display:none">
+  <!-- Name-mode hide toggles -->
+  <div class="name-toggles" id="name-toggles">
     <span class="qtype-label">Hide from display:</span>
     <button class="name-hide-btn" data-field="c1"   onclick="toggleNameHide('c1')">Hide 1-letter</button>
     <button class="name-hide-btn" data-field="c3"   onclick="toggleNameHide('c3')">Hide 3-letter</button>
@@ -358,9 +358,9 @@
   <!-- Question type selector -->
   <div class="qtype-bar">
     <span class="qtype-label">Question type:</span>
-    <button class="qtype-btn active" data-type="name"       onclick="setQuestionType('name')">Determine name</button>
-    <button class="qtype-btn"        data-type="ph"         onclick="setQuestionType('ph')">Determine pH</button>
-    <button class="qtype-btn"        data-type="properties" onclick="setQuestionType('properties')">Determine properties</button>
+    <button class="qtype-btn active" data-type="name"       onclick="toggleQuestionType('name')">Determine name</button>
+    <button class="qtype-btn"        data-type="ph"         onclick="toggleQuestionType('ph')">Determine pH</button>
+    <button class="qtype-btn"        data-type="properties" onclick="toggleQuestionType('properties')">Determine properties</button>
   </div>
 
   <!-- Main grid -->
@@ -643,9 +643,9 @@ let current      = null;       // { aa, ph }
 let answered     = false;      // true only when ALL active fields are correct
 let scored       = false;      // true after first checkAnswers() per question
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
-let questionType = 'name';     // 'name' | 'ph' | 'properties'
-let displayMode  = 'structure'; // 'structure' | 'name'
-let nameHideFlags = { c1: false, c3: false, name: false };
+let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
+let displayMode    = 'structure';       // 'structure' | 'name'
+let nameHideFlags  = { c1: false, c3: false, name: false };
 
 // fields: which inp-* IDs to check; revealPH: show badge before Check
 const QTYPE = {
@@ -654,10 +654,15 @@ const QTYPE = {
   properties: { fields: ['type'],           revealPH: true,  maxPts: 1 }
 };
 
-function setQuestionType(type) {
-  questionType = type;
+function toggleQuestionType(type) {
+  if (activeQtypeSet.has(type)) {
+    if (activeQtypeSet.size === 1) return; // must keep at least one active
+    activeQtypeSet.delete(type);
+  } else {
+    activeQtypeSet.add(type);
+  }
   document.querySelectorAll('.qtype-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.type === type);
+    b.classList.toggle('active', activeQtypeSet.has(b.dataset.type));
   });
   nextQuestion();
 }
@@ -666,14 +671,14 @@ function setDisplayMode(mode) {
   displayMode = mode;
   document.getElementById('mode-btn-structure').classList.toggle('active', mode === 'structure');
   document.getElementById('mode-btn-name').classList.toggle('active', mode === 'name');
-  document.getElementById('name-toggles').style.display = mode === 'name' ? '' : 'none';
-  // Hide 'Determine name' qtype in name mode
+  // Hide 'Determine name' qtype button in name mode (name fields controlled by hide toggles)
   document.querySelector('[data-type="name"]').style.display = mode === 'name' ? 'none' : '';
-  // If currently on 'name' qtype and switching to name mode, fall back to 'ph'
-  if (mode === 'name' && questionType === 'name') {
-    questionType = 'ph';
+  // If 'name' qtype was active and switching to name mode, remove it
+  if (mode === 'name' && activeQtypeSet.has('name')) {
+    activeQtypeSet.delete('name');
+    if (activeQtypeSet.size === 0) activeQtypeSet.add('ph');
     document.querySelectorAll('.qtype-btn').forEach(b =>
-      b.classList.toggle('active', b.dataset.type === 'ph')
+      b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
     );
   }
   nextQuestion();
@@ -687,15 +692,25 @@ function toggleNameHide(fieldId) {
 }
 
 function getActiveFields() {
-  if (displayMode === 'structure') return QTYPE[questionType].fields;
-  // Name mode: hidden name fields + question type fields
-  const fields = [];
-  if (nameHideFlags.c1)   fields.push('c1');
-  if (nameHideFlags.c3)   fields.push('c3');
-  if (nameHideFlags.name) fields.push('name');
-  if (questionType === 'ph')         fields.push('ph');
-  if (questionType === 'properties') fields.push('type');
-  return fields;
+  const fields = new Set();
+  if (displayMode === 'structure') {
+    // Union of all active qtype fields
+    activeQtypeSet.forEach(type => QTYPE[type].fields.forEach(f => fields.add(f)));
+    // Hide flags remove name fields from the answer area
+    if (nameHideFlags.c1)   fields.delete('c1');
+    if (nameHideFlags.c3)   fields.delete('c3');
+    if (nameHideFlags.name) fields.delete('name');
+  } else {
+    // Name mode: hidden name fields become answer fields
+    if (nameHideFlags.c1)   fields.add('c1');
+    if (nameHideFlags.c3)   fields.add('c3');
+    if (nameHideFlags.name) fields.add('name');
+    // Add non-name qtype fields
+    activeQtypeSet.forEach(type => {
+      if (type !== 'name') QTYPE[type].fields.forEach(f => fields.add(f));
+    });
+  }
+  return [...fields];
 }
 
 function getMaxPts() { return getActiveFields().length; }
@@ -789,13 +804,11 @@ function nextQuestion() {
   const ph  = resolveCurrentPH();
   current   = { aa, ph };
 
-  const cfg          = QTYPE[questionType];
   const activeFields = getActiveFields();
 
-  // pH badge — reveal if context or name mode (no structure to read pH from)
+  // Reveal pH whenever 'Determine pH' is not an active question type
   const badge = document.getElementById('ph-badge');
-  const revealPH = displayMode === 'structure' ? cfg.revealPH : (questionType !== 'ph');
-  badge.textContent = revealPH ? `pH ${ph}` : 'pH ?';
+  badge.textContent = !activeQtypeSet.has('ph') ? `pH ${ph}` : 'pH ?';
 
   // Draw structure or name display
   if (displayMode === 'structure') {
