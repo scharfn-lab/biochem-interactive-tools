@@ -183,7 +183,7 @@
     }
 
     .field-input:focus { border-color: #C8102E; }
-    .field-input.ok  { border-color: #C8102E; background: #FFCDFF; }
+    .field-input.ok  { border-color: #C8102E; background: #DBEAFE; }
     .field-input.bad { border-color: #C8102E; background: #FFEBEE; }
     .field-input:disabled { opacity: 0.7; cursor: not-allowed; }
 
@@ -236,7 +236,7 @@
       max-height: 300px;
     }
 
-    .feedback.all-correct { background: #FFCDFF; border: 1px solid #685C53; color: #000000; }
+    .feedback.all-correct { background: #DBEAFE; border: 1px solid #685C53; color: #000000; }
     .feedback.partial     { background: #F5E6FF; border: 1px solid #685C53; color: #000000; }
     .feedback.wrong       { background: #FFEBEE; border: 1px solid #C8102E; color: #000000; }
 
@@ -332,7 +332,7 @@
     }
     .identify-cell.correct {
       border-color: #1565C0;
-      background: #FFCDFF;
+      background: #DBEAFE;
     }
     .identify-cell.wrong {
       border-color: #C8102E;
@@ -340,7 +340,7 @@
     }
     .identify-cell.revealed {
       border-color: #1565C0;
-      background: #FFCDFF;
+      background: #DBEAFE;
       opacity: 0.85;
     }
     .identify-cell.locked { cursor: default; }
@@ -1045,7 +1045,7 @@ function handleIdentifyClick(index) {
     const fb = document.getElementById('feedback');
     fb.className = 'feedback show wrong';
     fb.innerHTML = `<div class="fb-title">Incorrect — keep trying!</div>
-      <div class="fb-answers"><b>${current.aa.name}</b> &nbsp;·&nbsp; <b>pH ${current.ph}</b></div>`;
+      <div class="fb-answers">The structure you selected is <b>${chosen.aa.code3}</b> at pH <b>${chosen.ph}</b></div>`;
   }
 }
 
