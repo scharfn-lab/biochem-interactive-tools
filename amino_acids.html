@@ -93,7 +93,7 @@
     }
 
     .qtype-btn:hover { border-color: #C8102E; color: #C8102E; }
-    .qtype-btn.active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+    .qtype-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Main grid */
     .main-grid {
@@ -259,7 +259,7 @@
     .mode-toggle-row {
       display: flex;
       gap: 8px;
-      margin-bottom: 14px;
+      margin-bottom: 20px;
     }
     .mode-btn {
       flex: 1;
@@ -274,7 +274,7 @@
       transition: all 0.15s;
     }
     .mode-btn:hover { border-color: #C8102E; color: #C8102E; }
-    .mode-btn.active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+    .mode-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Name-mode hide toggles */
     .name-toggles { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -290,7 +290,7 @@
       transition: all 0.15s;
     }
     .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; }
-    .name-hide-btn.active { background: #685C53; border-color: #685C53; color: #FFFFFF; }
+    .name-hide-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Name display panel */
     .name-display {
@@ -431,7 +431,7 @@
 
       <div class="btn-row">
         <button class="btn btn-check" id="btn-check" onclick="showAnswers()">Show Answers</button>
-        <button class="btn btn-next" onclick="nextQuestion()">Next →</button>
+        <button class="btn btn-next" onclick="nextQuestion()">Next Amino Acid →</button>
       </div>
     </div>
   </div>
@@ -664,7 +664,7 @@ function toggleQuestionType(type) {
   document.querySelectorAll('.qtype-btn').forEach(b => {
     b.classList.toggle('active', activeQtypeSet.has(b.dataset.type));
   });
-  nextQuestion();
+  renderQuestion();
 }
 
 function setDisplayMode(mode) {
@@ -681,14 +681,14 @@ function setDisplayMode(mode) {
       b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
     );
   }
-  nextQuestion();
+  renderQuestion();
 }
 
 function toggleNameHide(fieldId) {
   nameHideFlags[fieldId] = !nameHideFlags[fieldId];
   document.querySelector(`.name-hide-btn[data-field="${fieldId}"]`)
     .classList.toggle('active', nameHideFlags[fieldId]);
-  nextQuestion();
+  renderQuestion();
 }
 
 function getActiveFields() {
@@ -797,35 +797,38 @@ function resolveCurrentPH() {
 const ALL_FIELD_IDS = ['c1','c3','name','type','ph'];
 
 function nextQuestion() {
+  current = {
+    aa: AA[Math.floor(Math.random() * AA.length)],
+    ph: resolveCurrentPH()
+  };
+  renderQuestion();
+}
+
+function renderQuestion() {
+  if (!current) return;
   answered = false;
   scored   = false;
 
-  const aa  = AA[Math.floor(Math.random() * AA.length)];
-  const ph  = resolveCurrentPH();
-  current   = { aa, ph };
-
+  const { aa, ph } = current;
   const activeFields = getActiveFields();
 
   // Reveal pH whenever 'Determine pH' is not an active question type
-  const badge = document.getElementById('ph-badge');
-  badge.textContent = !activeQtypeSet.has('ph') ? `pH ${ph}` : 'pH ?';
+  document.getElementById('ph-badge').textContent =
+    !activeQtypeSet.has('ph') ? `pH ${ph}` : 'pH ?';
 
   // Draw structure or name display
-  if (displayMode === 'structure') {
-    drawStructure(aa.smiles[ph]);
-  } else {
-    drawNameDisplay(aa);
-  }
+  if (displayMode === 'structure') drawStructure(aa.smiles[ph]);
+  else drawNameDisplay(aa);
 
   // Show/hide field groups; reset each field
   ALL_FIELD_IDS.forEach(id => {
     const active = activeFields.includes(id);
     document.getElementById('fg-' + id).style.display = active ? '' : 'none';
-    const el = document.getElementById('inp-' + id);
-    el.value     = '';
-    el.className = 'field-input';
-    el.disabled  = false;
+    const el  = document.getElementById('inp-' + id);
     const ind = document.getElementById('ind-' + id);
+    el.value        = '';
+    el.className    = 'field-input';
+    el.disabled     = false;
     ind.textContent = '';
     ind.className   = 'ind';
   });
@@ -838,9 +841,8 @@ function nextQuestion() {
   // Re-enable check button
   document.getElementById('btn-check').disabled = false;
 
-  if (activeFields.length > 0) {
+  if (activeFields.length > 0)
     document.getElementById('inp-' + activeFields[0]).focus();
-  }
 }
 
 // ─── Answer checking ──────────────────────────────────────────────────────────
