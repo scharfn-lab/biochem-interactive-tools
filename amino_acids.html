@@ -427,7 +427,6 @@
     <button class="name-hide-btn active" data-style="c1"   onclick="toggleIdentifyNameStyle('c1')">1-letter</button>
     <button class="name-hide-btn active" data-style="c3"   onclick="toggleIdentifyNameStyle('c3')">3-letter</button>
     <button class="name-hide-btn active" data-style="name" onclick="toggleIdentifyNameStyle('name')">Full name</button>
-    <button class="name-hide-btn active" id="identify-name-random-btn" onclick="toggleIdentifyNameRandom()">Randomly select</button>
   </div>
 
   <!-- Question type selector -->
@@ -740,7 +739,7 @@ let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select
 let displayMode    = 'structure';       // 'structure' | 'name'
 let nameHideFlags  = { c1: false, c3: false, name: false };
 let identifyNamePool   = new Set(['c1', 'c3', 'name']); // styles allowed in identify mode
-let identifyNameRandom = true;   // randomly pick from pool each question
+let identifyHadWrong   = false;  // true if any wrong pick this question
 let nameRandom         = false;  // randomly show one non-hidden name field in name mode
 
 // fields: which inp-* IDs to check; revealPH: show badge before Check
@@ -786,7 +785,20 @@ function setDisplayMode(mode) {
   // If 'name' qtype was active and switching to name mode, remove it
   if (mode === 'name' && activeQtypeSet.has('name')) {
     activeQtypeSet.delete('name');
-    if (activeQtypeSet.size === 0) activeQtypeSet.add('ph');
+    if (activeQtypeSet.size === 0) activeQtypeSet.add('properties');
+    document.querySelectorAll('.qtype-btn').forEach(b =>
+      b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
+    );
+  }
+
+  // Hide 'Determine pH' qtype button in name mode
+  document.querySelector('[data-type="ph"]').style.display =
+    (mode === 'name') ? 'none' : '';
+
+  // If 'ph' qtype was active and switching to name mode, remove it
+  if (mode === 'name' && activeQtypeSet.has('ph')) {
+    activeQtypeSet.delete('ph');
+    if (activeQtypeSet.size === 0) activeQtypeSet.add('properties');
     document.querySelectorAll('.qtype-btn').forEach(b =>
       b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
     );
@@ -809,14 +821,7 @@ function toggleIdentifyNameStyle(style) {
   document.querySelectorAll('[data-style]').forEach(b =>
     b.classList.toggle('active', identifyNamePool.has(b.dataset.style))
   );
-  renderQuestion();
-}
-
-function toggleIdentifyNameRandom() {
-  identifyNameRandom = !identifyNameRandom;
-  document.getElementById('identify-name-random-btn')
-    .classList.toggle('active', identifyNameRandom);
-  renderQuestion();
+  if (current) document.getElementById('identify-aa-name').textContent = resolveIdentifyName(current.aa);
 }
 
 function toggleNameRandom() {
@@ -828,10 +833,8 @@ function toggleNameRandom() {
 
 function resolveIdentifyName(aa) {
   const pool = [...identifyNamePool];
-  if (pool.length === 0) return aa.name; // safety fallback
-  const style = identifyNameRandom
-    ? pool[Math.floor(Math.random() * pool.length)]
-    : pool[0];
+  if (pool.length === 0) return aa.name;
+  const style = pool[Math.floor(Math.random() * pool.length)];
   return style === 'c1' ? aa.code1 : style === 'c3' ? aa.code3 : aa.name;
 }
 
@@ -995,6 +998,8 @@ function renderIdentifyQuestion() {
   document.getElementById('identify-ph-badge').textContent = `pH ${ph}`;
   document.getElementById('identify-btn-show').disabled = false;
 
+  identifyHadWrong = false;
+
   const fb = document.getElementById('feedback');
   fb.className = 'feedback';
   fb.innerHTML = '';
@@ -1016,31 +1021,31 @@ function handleIdentifyClick(index) {
   const options = current.identifyOptions;
   const chosen  = options[index];
   const cells   = document.querySelectorAll('.identify-cell');
+  const cell    = cells[index];
 
-  cells.forEach(c => c.classList.add('locked'));
-  document.getElementById('identify-btn-show').disabled = true;
-
-  const correctIdx = options.findIndex(o => o.isCorrect);
+  // Ignore clicks on already-eliminated cells
+  if (cell.classList.contains('locked')) return;
 
   if (chosen.isCorrect) {
-    cells[index].classList.add('correct');
+    cell.classList.add('correct');
+    cells.forEach(c => c.classList.add('locked'));
+    document.getElementById('identify-btn-show').disabled = true;
     const v = document.createElement('span');
     v.className = 'cell-verdict';
     v.textContent = '✓';
-    cells[index].appendChild(v);
-    completeQuestion(1);
+    cell.appendChild(v);
+    completeQuestion(identifyHadWrong ? 0 : 1);
   } else {
-    cells[index].classList.add('wrong');
+    identifyHadWrong = true;
+    cell.classList.add('wrong', 'locked');
     const vw = document.createElement('span');
     vw.className = 'cell-verdict';
     vw.textContent = '✗';
-    cells[index].appendChild(vw);
-    cells[correctIdx].classList.add('revealed');
-    const vc = document.createElement('span');
-    vc.className = 'cell-verdict';
-    vc.textContent = '✓';
-    cells[correctIdx].appendChild(vc);
-    completeQuestion(0);
+    cell.appendChild(vw);
+    const fb = document.getElementById('feedback');
+    fb.className = 'feedback show wrong';
+    fb.innerHTML = `<div class="fb-title">Incorrect — keep trying!</div>
+      <div class="fb-answers"><b>${current.aa.name}</b> &nbsp;·&nbsp; <b>pH ${current.ph}</b></div>`;
   }
 }
 
