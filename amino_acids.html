@@ -62,6 +62,39 @@
     .score-item .value.red    { color: #C8102E; }
     .score-item .value.muted  { color: #685C53; }
 
+    /* Question type selector */
+    .qtype-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .qtype-label {
+      font-size: 0.75rem;
+      color: #685C53;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+
+    .qtype-btn {
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: 1px solid #685C53;
+      border-radius: 20px;
+      background: transparent;
+      color: #685C53;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      letter-spacing: 0.2px;
+    }
+
+    .qtype-btn:hover { border-color: #C8102E; color: #C8102E; }
+    .qtype-btn.active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+
     /* Main grid */
     .main-grid {
       display: grid;
@@ -241,6 +274,14 @@
     </div>
   </div>
 
+  <!-- Question type selector -->
+  <div class="qtype-bar">
+    <span class="qtype-label">Question type:</span>
+    <button class="qtype-btn active" data-type="name"       onclick="setQuestionType('name')">Determine name</button>
+    <button class="qtype-btn"        data-type="ph"         onclick="setQuestionType('ph')">Determine pH</button>
+    <button class="qtype-btn"        data-type="properties" onclick="setQuestionType('properties')">Determine properties</button>
+  </div>
+
   <!-- Main grid -->
   <div class="main-grid">
     <!-- Structure viewer -->
@@ -253,7 +294,7 @@
 
     <!-- Answer fields -->
     <div class="answer-panel">
-      <div class="field-group">
+      <div class="field-group" id="fg-c1">
         <div class="field-label">1-Letter Code</div>
         <div class="field-row">
           <input class="field-input" id="inp-c1" type="text" maxlength="2"
@@ -262,7 +303,7 @@
         </div>
       </div>
 
-      <div class="field-group">
+      <div class="field-group" id="fg-c3">
         <div class="field-label">3-Letter Code</div>
         <div class="field-row">
           <input class="field-input" id="inp-c3" type="text" maxlength="4"
@@ -271,7 +312,7 @@
         </div>
       </div>
 
-      <div class="field-group">
+      <div class="field-group" id="fg-name">
         <div class="field-label">Full Name</div>
         <div class="field-row">
           <input class="field-input" id="inp-name" type="text"
@@ -280,7 +321,7 @@
         </div>
       </div>
 
-      <div class="field-group">
+      <div class="field-group" id="fg-type">
         <div class="field-label">Type</div>
         <div class="field-row">
           <select class="field-input" id="inp-type">
@@ -294,7 +335,7 @@
         </div>
       </div>
 
-      <div class="field-group">
+      <div class="field-group" id="fg-ph">
         <div class="field-label">pH Shown</div>
         <div class="field-row">
           <select class="field-input" id="inp-ph">
@@ -517,10 +558,26 @@ const TYPE_LABELS = {
 };
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let current  = null;       // { aa, ph }
-let answered = false;      // true only when ALL fields are correct
-let scored   = false;      // true after first checkAnswers() per question
-let score    = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
+let current      = null;       // { aa, ph }
+let answered     = false;      // true only when ALL active fields are correct
+let scored       = false;      // true after first checkAnswers() per question
+let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
+let questionType = 'name';     // 'name' | 'ph' | 'properties'
+
+// fields: which inp-* IDs to check; revealPH: show badge before Check
+const QTYPE = {
+  name:       { fields: ['c1','c3','name'], revealPH: true,  maxPts: 3 },
+  ph:         { fields: ['ph'],             revealPH: false, maxPts: 1 },
+  properties: { fields: ['type'],           revealPH: true,  maxPts: 1 }
+};
+
+function setQuestionType(type) {
+  questionType = type;
+  document.querySelectorAll('.qtype-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === type);
+  });
+  nextQuestion();
+}
 
 // ─── RDKit ────────────────────────────────────────────────────────────────────
 let rdkitReady   = false;
@@ -561,7 +618,7 @@ function drawStructure(smiles) {
     // Try with stereo annotations; fall back to plain SVG
     let svg;
     try {
-      const details = JSON.stringify({ width: w, height: h, addStereoAnnotation: true });
+      const details = JSON.stringify({ width: w, height: h, addStereoAnnotation: false });
       svg = mol.get_svg_with_highlights(details);
     } catch {
       svg = mol.get_svg(w, h);
@@ -586,31 +643,37 @@ function resolveCurrentPH() {
 }
 
 // ─── Quiz flow ────────────────────────────────────────────────────────────────
+const ALL_FIELD_IDS = ['c1','c3','name','type','ph'];
+
 function nextQuestion() {
   answered = false;
   scored   = false;
 
-  const aa = AA[Math.floor(Math.random() * AA.length)];
-  const ph = resolveCurrentPH();
-  current  = { aa, ph };
+  const aa  = AA[Math.floor(Math.random() * AA.length)];
+  const ph  = resolveCurrentPH();
+  current   = { aa, ph };
 
-  // Reset pH badge to hidden state
+  const cfg = QTYPE[questionType];
+
+  // pH badge — reveal immediately if this mode gives it as context
   const badge = document.getElementById('ph-badge');
-  badge.textContent = 'pH ?';
-  badge.classList.remove('revealed');
+  if (cfg.revealPH) {
+    badge.textContent = `pH ${ph}`;
+  } else {
+    badge.textContent = 'pH ?';
+  }
 
   // Draw structure
   drawStructure(aa.smiles[ph]);
 
-  // Reset all fields
-  ['c1','c3','name','type','ph'].forEach(id => {
+  // Show/hide field groups; reset each field
+  ALL_FIELD_IDS.forEach(id => {
+    const active = cfg.fields.includes(id);
+    document.getElementById('fg-' + id).style.display = active ? '' : 'none';
     const el = document.getElementById('inp-' + id);
     el.value     = '';
     el.className = 'field-input';
     el.disabled  = false;
-  });
-
-  ['c1','c3','name','type','ph'].forEach(id => {
     document.getElementById('ind-' + id).textContent = '';
   });
 
@@ -622,7 +685,7 @@ function nextQuestion() {
   // Re-enable check button
   document.getElementById('btn-check').disabled = false;
 
-  document.getElementById('inp-c1').focus();
+  document.getElementById('inp-' + cfg.fields[0]).focus();
 }
 
 // ─── Answer checking ──────────────────────────────────────────────────────────
@@ -635,14 +698,18 @@ function capitalize(s) {
 function checkAnswers() {
   if (!current || answered) return;
 
-  const { aa } = current;
-  const fields = [
-    { id: 'c1',   correct: aa.code1,       user: document.getElementById('inp-c1').value.trim().toUpperCase() },
-    { id: 'c3',   correct: aa.code3,       user: capitalize(document.getElementById('inp-c3').value.trim()) },
-    { id: 'name', correct: aa.name,        user: capitalize(document.getElementById('inp-name').value.trim()) },
-    { id: 'type', correct: aa.type,        user: document.getElementById('inp-type').value },
-    { id: 'ph',   correct: String(current.ph), user: document.getElementById('inp-ph').value }
+  const { aa }  = current;
+  const cfg     = QTYPE[questionType];
+
+  const allFieldDefs = [
+    { id: 'c1',   correct: aa.code1,            user: document.getElementById('inp-c1').value.trim().toUpperCase() },
+    { id: 'c3',   correct: aa.code3,            user: capitalize(document.getElementById('inp-c3').value.trim()) },
+    { id: 'name', correct: aa.name,             user: capitalize(document.getElementById('inp-name').value.trim()) },
+    { id: 'type', correct: aa.type,             user: document.getElementById('inp-type').value },
+    { id: 'ph',   correct: String(current.ph),  user: document.getElementById('inp-ph').value }
   ];
+
+  const fields = allFieldDefs.filter(f => cfg.fields.includes(f.id));
 
   function isMatch(f) { return norm(f.user) === norm(f.correct); }
 
@@ -668,29 +735,28 @@ function checkAnswers() {
     scored = true;
     score.total++;
     score.pts    += pts;
-    score.maxPts += 5;
-    if (pts === 5)      score.correct++;
-    else if (pts >= 1)  score.partial++;
+    score.maxPts += cfg.maxPts;
+    if (pts === cfg.maxPts) score.correct++;
+    else if (pts >= 1)      score.partial++;
     updateScore();
   }
 
-  // Reveal pH badge on first check
-  const badge = document.getElementById('ph-badge');
-  badge.textContent = `pH ${current.ph}`;
-  badge.classList.add('revealed');
+  // Always reveal pH badge after checking
+  document.getElementById('ph-badge').textContent = `pH ${current.ph}`;
 
-  // All correct → lock everything and end question
-  if (pts === 5) {
+  // All correct → lock and end question
+  if (pts === cfg.maxPts) {
     answered = true;
     document.getElementById('btn-check').disabled = true;
   }
 
   // Feedback
   const fb  = document.getElementById('feedback');
-  const cls = pts === 5 ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
-  const title = pts === 5 ? 'Perfect! All 5 correct.'
-              : pts >= 1  ? `${pts}/5 correct — keep going!`
-              :              'Not quite — 0/5 correct.';
+  const n   = cfg.maxPts;
+  const cls = pts === n ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
+  const title = pts === n ? `Perfect! All ${n} correct.`
+              : pts >= 1  ? `${pts}/${n} correct — keep going!`
+              :              `Not quite — 0/${n} correct.`;
 
   fb.className = `feedback show ${cls}`;
   fb.innerHTML = `
@@ -728,7 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-  nextQuestion();
+  nextQuestion();  // starts in 'name' mode, which shows c1/c3/name
 });
 </script>
 </body>
