@@ -10,7 +10,7 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      background: linear-gradient(135deg, #0d0d0d 0%, #1a0800 100%);
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -20,13 +20,13 @@
     .container {
       background: rgba(255,255,255,0.05);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid rgba(200,16,46,0.35);
       border-radius: 20px;
       padding: 36px 40px;
       max-width: 920px;
       width: 100%;
       color: #e0e0e0;
-      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.6);
       align-self: flex-start;
       margin: 20px 0;
     }
@@ -34,7 +34,7 @@
     h1 {
       text-align: center;
       font-size: 1.8rem;
-      color: #7dd3fc;
+      color: #FFCD00;
       margin-bottom: 6px;
       letter-spacing: 1px;
     }
@@ -42,7 +42,7 @@
     .subtitle {
       text-align: center;
       font-size: 0.85rem;
-      color: #94a3b8;
+      color: #a89a8e;
       margin-bottom: 28px;
     }
 
@@ -58,47 +58,10 @@
     }
 
     .score-item { text-align: center; }
-    .score-item .label { color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .score-item .value { font-size: 1.35rem; font-weight: 700; color: #7dd3fc; }
-    .score-item .value.green { color: #4ade80; }
-    .score-item .value.yellow { color: #fbbf24; }
-
-    /* pH row */
-    .ph-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .ph-label {
-      font-size: 0.78rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
-
-    .ph-btn {
-      padding: 6px 16px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      border: 2px solid rgba(255,255,255,0.12);
-      border-radius: 20px;
-      background: rgba(255,255,255,0.04);
-      color: #94a3b8;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .ph-btn.active {
-      border-color: #7dd3fc;
-      background: rgba(125,211,252,0.12);
-      color: #7dd3fc;
-    }
-
-    .ph-btn:hover:not(.active) { border-color: rgba(255,255,255,0.25); color: #cbd5e1; }
+    .score-item .label { color: #a89a8e; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .score-item .value { font-size: 1.35rem; font-weight: 700; color: #e0e0e0; }
+    .score-item .value.gold   { color: #FFCD00; }
+    .score-item .value.muted  { color: #a89a8e; }
 
     /* Main grid */
     .main-grid {
@@ -113,7 +76,7 @@
     /* Structure panel */
     .structure-panel {
       background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(125,211,252,0.2);
+      border: 1px solid rgba(200,16,46,0.25);
       border-radius: 14px;
       padding: 16px;
       display: flex;
@@ -125,13 +88,20 @@
     .ph-badge {
       font-size: 0.78rem;
       font-weight: 700;
-      color: #7dd3fc;
-      background: rgba(125,211,252,0.1);
-      border: 1px solid rgba(125,211,252,0.3);
+      color: #C8102E;
+      background: rgba(200,16,46,0.1);
+      border: 1px solid rgba(200,16,46,0.35);
       border-radius: 20px;
       padding: 4px 14px;
       margin-bottom: 12px;
       letter-spacing: 0.5px;
+      transition: color 0.3s, background 0.3s, border-color 0.3s;
+    }
+
+    .ph-badge.revealed {
+      color: #FFCD00;
+      background: rgba(255,205,0,0.10);
+      border-color: rgba(255,205,0,0.4);
     }
 
     #struct-box {
@@ -167,7 +137,7 @@
 
     .field-label {
       font-size: 0.78rem;
-      color: #94a3b8;
+      color: #a89a8e;
       text-transform: uppercase;
       letter-spacing: 0.4px;
     }
@@ -186,13 +156,13 @@
       transition: border-color 0.2s, background 0.2s;
     }
 
-    .field-input:focus { border-color: #7dd3fc; }
-    .field-input.ok  { border-color: #4ade80; background: rgba(74,222,128,0.08); }
-    .field-input.bad { border-color: #f87171; background: rgba(248,113,113,0.08); }
+    .field-input:focus { border-color: #FFCD00; }
+    .field-input.ok  { border-color: #FFCD00; background: rgba(255,205,0,0.08); }
+    .field-input.bad { border-color: #C8102E; background: rgba(200,16,46,0.10); }
     .field-input:disabled { opacity: 0.7; cursor: not-allowed; }
 
     select.field-input { cursor: pointer; }
-    select.field-input option { background: #1e2a3a; color: #e2e8f0; }
+    select.field-input option { background: #1a0800; color: #e2e8f0; }
 
     .ind { font-size: 1.1rem; width: 22px; flex-shrink: 0; text-align: center; }
 
@@ -208,11 +178,11 @@
       letter-spacing: 0.3px;
     }
 
-    .btn-check { background: linear-gradient(135deg,#3b82f6,#6366f1); color: white; flex: 1; }
-    .btn-check:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(99,102,241,0.4); }
+    .btn-check { background: linear-gradient(135deg, #C8102E, #8b0a1e); color: white; flex: 1; }
+    .btn-check:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(200,16,46,0.45); }
 
-    .btn-next { background: linear-gradient(135deg,#0891b2,#0e7490); color: white; flex: 1; }
-    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(8,145,178,0.4); }
+    .btn-next { background: linear-gradient(135deg, #685C53, #4a4040); color: white; flex: 1; }
+    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(104,92,83,0.4); }
 
     .btn:active { transform: translateY(0) !important; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
@@ -233,31 +203,31 @@
       max-height: 300px;
     }
 
-    .feedback.all-correct { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: #86efac; }
-    .feedback.partial     { background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.3);  color: #fde68a; }
-    .feedback.wrong       { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); color: #fca5a5; }
+    .feedback.all-correct { background: rgba(255,205,0,0.10);  border: 1px solid rgba(255,205,0,0.4);  color: #FFCD00; }
+    .feedback.partial     { background: rgba(200,16,46,0.08);  border: 1px solid rgba(200,16,46,0.3);  color: #e8b4a0; }
+    .feedback.wrong       { background: rgba(200,16,46,0.12);  border: 1px solid rgba(200,16,46,0.4);  color: #f4a0a8; }
 
     .feedback .fb-title { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-    .feedback .fb-answers { font-size: 0.85rem; color: #94a3b8; margin-top: 6px; }
+    .feedback .fb-answers { font-size: 0.85rem; color: #a89a8e; margin-top: 6px; }
     .feedback .fb-answers b { color: #e2e8f0; }
-    .feedback .fb-note { margin-top: 8px; font-size: 0.8rem; color: #7dd3fc; font-style: italic; }
+    .feedback .fb-note { margin-top: 8px; font-size: 0.8rem; color: #FFCD00; font-style: italic; }
 
     .reset-link {
       display: block;
       text-align: center;
       margin-top: 16px;
       font-size: 0.78rem;
-      color: #475569;
+      color: #685C53;
       cursor: pointer;
       text-decoration: underline;
     }
-    .reset-link:hover { color: #7dd3fc; }
+    .reset-link:hover { color: #FFCD00; }
   </style>
 </head>
 <body>
 <div class="container">
   <h1>Amino Acid Practice</h1>
-  <p class="subtitle">Identify amino acids from their skeletal structures at different pH values</p>
+  <p class="subtitle">Identify amino acids from their skeletal structures — including the pH shown</p>
 
   <!-- Score bar -->
   <div class="score-bar">
@@ -267,11 +237,11 @@
     </div>
     <div class="score-item">
       <div class="label">All Correct</div>
-      <div class="value green" id="s-correct">0</div>
+      <div class="value gold" id="s-correct">0</div>
     </div>
     <div class="score-item">
       <div class="label">Partial</div>
-      <div class="value yellow" id="s-partial">0</div>
+      <div class="value muted" id="s-partial">0</div>
     </div>
     <div class="score-item">
       <div class="label">Score</div>
@@ -279,20 +249,11 @@
     </div>
   </div>
 
-  <!-- pH mode -->
-  <div class="ph-row">
-    <span class="ph-label">Show at pH:</span>
-    <button class="ph-btn" onclick="setPH(2, this)">pH 2</button>
-    <button class="ph-btn" onclick="setPH(7, this)">pH 7</button>
-    <button class="ph-btn" onclick="setPH(13, this)">pH 13</button>
-    <button class="ph-btn active" onclick="setPH('random', this)">Random</button>
-  </div>
-
   <!-- Main grid -->
   <div class="main-grid">
     <!-- Structure viewer -->
     <div class="structure-panel">
-      <div class="ph-badge" id="ph-badge">pH 7</div>
+      <div class="ph-badge" id="ph-badge">pH ?</div>
       <div id="struct-box">
         <div class="struct-msg" id="struct-msg">Loading structure renderer…</div>
       </div>
@@ -341,6 +302,19 @@
         </div>
       </div>
 
+      <div class="field-group">
+        <div class="field-label">pH Shown</div>
+        <div class="field-row">
+          <select class="field-input" id="inp-ph">
+            <option value="">— Select pH —</option>
+            <option value="2">pH 2 (fully protonated)</option>
+            <option value="7">pH 7 (physiological / zwitterion)</option>
+            <option value="13">pH 13 (fully deprotonated)</option>
+          </select>
+          <span class="ind" id="ind-ph"></span>
+        </div>
+      </div>
+
       <div class="btn-row">
         <button class="btn btn-check" id="btn-check" onclick="checkAnswers()">Check Answers</button>
         <button class="btn btn-next" onclick="nextQuestion()">Next →</button>
@@ -356,9 +330,9 @@
 
 <script>
 // ─── Amino Acid Database ──────────────────────────────────────────────────────
-// SMILES represent each protonation state.
+// SMILES with L-amino acid stereochemistry via [C@@H]/[C@H].
 // pH 2  → NH₃⁺, COOH backbone (fully protonated)
-// pH 7  → NH₃⁺, COO⁻ backbone (zwitterion) + ionizable side chains deprotonated if pKa < 7
+// pH 7  → NH₃⁺, COO⁻ backbone (zwitterion) + ionizable side chains at physiological state
 // pH 13 → NH₂, COO⁻ backbone (fully deprotonated) + ionizable side chains deprotonated
 const AA = [
   {
@@ -372,173 +346,173 @@ const AA = [
   },
   {
     name: "Alanine", code1: "A", code3: "Ala", type: "nonpolar",
-    note: "Simplest chiral amino acid; methyl side chain.",
+    note: "Simplest chiral amino acid (S); methyl side chain.",
     smiles: {
-      2:  "CC([NH3+])C(=O)O",
-      7:  "CC([NH3+])C(=O)[O-]",
-      13: "CC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](C)C(=O)O",
+      7:  "[NH3+][C@@H](C)C(=O)[O-]",
+      13: "N[C@@H](C)C(=O)[O-]"
     }
   },
   {
     name: "Valine", code1: "V", code3: "Val", type: "nonpolar",
-    note: "Branched-chain; isopropyl side chain.",
+    note: "Branched-chain (S); isopropyl side chain.",
     smiles: {
-      2:  "CC(C)C([NH3+])C(=O)O",
-      7:  "CC(C)C([NH3+])C(=O)[O-]",
-      13: "CC(C)C(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](C(C)C)C(=O)O",
+      7:  "[NH3+][C@@H](C(C)C)C(=O)[O-]",
+      13: "N[C@@H](C(C)C)C(=O)[O-]"
     }
   },
   {
     name: "Leucine", code1: "L", code3: "Leu", type: "nonpolar",
-    note: "Branched-chain; isobutyl side chain.",
+    note: "Branched-chain (S); isobutyl side chain.",
     smiles: {
-      2:  "CC(C)CC([NH3+])C(=O)O",
-      7:  "CC(C)CC([NH3+])C(=O)[O-]",
-      13: "CC(C)CC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CC(C)C)C(=O)O",
+      7:  "[NH3+][C@@H](CC(C)C)C(=O)[O-]",
+      13: "N[C@@H](CC(C)C)C(=O)[O-]"
     }
   },
   {
     name: "Isoleucine", code1: "I", code3: "Ile", type: "nonpolar",
-    note: "Branched-chain; sec-butyl side chain; two chiral centers.",
+    note: "Branched-chain; two chiral centers (2S,3S); sec-butyl side chain.",
     smiles: {
-      2:  "CCC(C)C([NH3+])C(=O)O",
-      7:  "CCC(C)C([NH3+])C(=O)[O-]",
-      13: "CCC(C)C(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H]([C@H](CC)C)C(=O)O",
+      7:  "[NH3+][C@@H]([C@H](CC)C)C(=O)[O-]",
+      13: "N[C@@H]([C@H](CC)C)C(=O)[O-]"
     }
   },
   {
     name: "Proline", code1: "P", code3: "Pro", type: "nonpolar",
-    note: "Secondary amine in a pyrrolidine ring; constrains backbone flexibility.",
+    note: "Secondary amine in a pyrrolidine ring (S); constrains backbone flexibility.",
     smiles: {
-      2:  "OC(=O)C1CCC[NH2+]1",
-      7:  "[O-]C(=O)C1CCC[NH2+]1",
-      13: "[O-]C(=O)C1CCCN1"
+      2:  "OC(=O)[C@@H]1CCC[NH2+]1",
+      7:  "[O-]C(=O)[C@@H]1CCC[NH2+]1",
+      13: "[O-]C(=O)[C@@H]1CCCN1"
     }
   },
   {
     name: "Phenylalanine", code1: "F", code3: "Phe", type: "nonpolar",
-    note: "Aromatic benzyl side chain; no ionizable group.",
+    note: "Aromatic benzyl side chain (S); no ionizable group.",
     smiles: {
-      2:  "[NH3+]C(Cc1ccccc1)C(=O)O",
-      7:  "[NH3+]C(Cc1ccccc1)C(=O)[O-]",
-      13: "NC(Cc1ccccc1)C(=O)[O-]"
+      2:  "[NH3+][C@@H](Cc1ccccc1)C(=O)O",
+      7:  "[NH3+][C@@H](Cc1ccccc1)C(=O)[O-]",
+      13: "N[C@@H](Cc1ccccc1)C(=O)[O-]"
     }
   },
   {
     name: "Tryptophan", code1: "W", code3: "Trp", type: "nonpolar",
-    note: "Largest amino acid; indole side chain absorbs UV at 280 nm.",
+    note: "Largest amino acid (S); indole side chain absorbs UV at 280 nm.",
     smiles: {
-      2:  "[NH3+]C(Cc1c[nH]c2ccccc12)C(=O)O",
-      7:  "[NH3+]C(Cc1c[nH]c2ccccc12)C(=O)[O-]",
-      13: "NC(Cc1c[nH]c2ccccc12)C(=O)[O-]"
+      2:  "[NH3+][C@@H](Cc1c[nH]c2ccccc12)C(=O)O",
+      7:  "[NH3+][C@@H](Cc1c[nH]c2ccccc12)C(=O)[O-]",
+      13: "N[C@@H](Cc1c[nH]c2ccccc12)C(=O)[O-]"
     }
   },
   {
     name: "Methionine", code1: "M", code3: "Met", type: "nonpolar",
-    note: "Contains sulfur as a thioether; universal N-terminal residue (start codon AUG).",
+    note: "Contains sulfur as a thioether (S); universal N-terminal residue (AUG start codon).",
     smiles: {
-      2:  "CSCCC([NH3+])C(=O)O",
-      7:  "CSCCC([NH3+])C(=O)[O-]",
-      13: "CSCCC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CCSC)C(=O)O",
+      7:  "[NH3+][C@@H](CCSC)C(=O)[O-]",
+      13: "N[C@@H](CCSC)C(=O)[O-]"
     }
   },
   {
     name: "Serine", code1: "S", code3: "Ser", type: "polar",
-    note: "Hydroxymethyl side chain; common phosphorylation site.",
+    note: "Hydroxymethyl side chain (S); common phosphorylation site.",
     smiles: {
-      2:  "OCC([NH3+])C(=O)O",
-      7:  "OCC([NH3+])C(=O)[O-]",
-      13: "OCC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CO)C(=O)O",
+      7:  "[NH3+][C@@H](CO)C(=O)[O-]",
+      13: "N[C@@H](CO)C(=O)[O-]"
     }
   },
   {
     name: "Threonine", code1: "T", code3: "Thr", type: "polar",
-    note: "β-Hydroxyl group; two chiral centers; phosphorylation site.",
+    note: "β-Hydroxyl group; two chiral centers (2S,3R); phosphorylation site.",
     smiles: {
-      2:  "CC(O)C([NH3+])C(=O)O",
-      7:  "CC(O)C([NH3+])C(=O)[O-]",
-      13: "CC(O)C(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H]([C@@H](O)C)C(=O)O",
+      7:  "[NH3+][C@@H]([C@@H](O)C)C(=O)[O-]",
+      13: "N[C@@H]([C@@H](O)C)C(=O)[O-]"
     }
   },
   {
     name: "Cysteine", code1: "C", code3: "Cys", type: "polar",
-    note: "Thiol side chain (pKa ~8.3); forms disulfide bonds; at pH 13, thiolate (S⁻).",
+    note: "Thiol side chain, R config at α-C (thiol raises CIP priority above carboxyl); pKa ~8.3; forms disulfide bonds.",
     smiles: {
-      2:  "SCC([NH3+])C(=O)O",
-      7:  "SCC([NH3+])C(=O)[O-]",
-      13: "[S-]CC(N)C(=O)[O-]"
+      2:  "[NH3+][C@H](CS)C(=O)O",
+      7:  "[NH3+][C@H](CS)C(=O)[O-]",
+      13: "N[C@H](C[S-])C(=O)[O-]"
     }
   },
   {
     name: "Asparagine", code1: "N", code3: "Asn", type: "polar",
-    note: "Amide side chain; no ionizable group; common N-linked glycosylation site.",
+    note: "Amide side chain (S); no ionizable group; common N-linked glycosylation site.",
     smiles: {
-      2:  "NC(=O)CC([NH3+])C(=O)O",
-      7:  "NC(=O)CC([NH3+])C(=O)[O-]",
-      13: "NC(=O)CC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CC(N)=O)C(=O)O",
+      7:  "[NH3+][C@@H](CC(N)=O)C(=O)[O-]",
+      13: "N[C@@H](CC(N)=O)C(=O)[O-]"
     }
   },
   {
     name: "Glutamine", code1: "Q", code3: "Gln", type: "polar",
-    note: "Amide side chain (one carbon longer than Asn); no ionizable group.",
+    note: "Amide side chain (S); one carbon longer than Asn; no ionizable group.",
     smiles: {
-      2:  "NC(=O)CCC([NH3+])C(=O)O",
-      7:  "NC(=O)CCC([NH3+])C(=O)[O-]",
-      13: "NC(=O)CCC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CCC(N)=O)C(=O)O",
+      7:  "[NH3+][C@@H](CCC(N)=O)C(=O)[O-]",
+      13: "N[C@@H](CCC(N)=O)C(=O)[O-]"
     }
   },
   {
     name: "Tyrosine", code1: "Y", code3: "Tyr", type: "polar",
-    note: "Phenol side chain (pKa ~10.5); deprotonated at pH 13 (phenolate, O⁻); absorbs UV at 280 nm.",
+    note: "Phenol side chain (S), pKa ~10.5; deprotonated at pH 13 (phenolate, O⁻); absorbs UV at 280 nm.",
     smiles: {
-      2:  "Oc1ccc(CC([NH3+])C(=O)O)cc1",
-      7:  "Oc1ccc(CC([NH3+])C(=O)[O-])cc1",
-      13: "[O-]c1ccc(CC(N)C(=O)[O-])cc1"
+      2:  "[NH3+][C@@H](Cc1ccc(O)cc1)C(=O)O",
+      7:  "[NH3+][C@@H](Cc1ccc(O)cc1)C(=O)[O-]",
+      13: "N[C@@H](Cc1ccc([O-])cc1)C(=O)[O-]"
     }
   },
   {
     name: "Aspartate", code1: "D", code3: "Asp", type: "acidic",
-    note: "Side chain carboxyl pKa ~3.9; negatively charged (COO⁻) at pH 7 and above.",
+    note: "Side chain carboxyl pKa ~3.9 (S); negatively charged (COO⁻) at pH 7 and above.",
     smiles: {
-      2:  "OC(=O)CC([NH3+])C(=O)O",
-      7:  "[O-]C(=O)CC([NH3+])C(=O)[O-]",
-      13: "[O-]C(=O)CC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CC(=O)O)C(=O)O",
+      7:  "[NH3+][C@@H](CC(=O)[O-])C(=O)[O-]",
+      13: "N[C@@H](CC(=O)[O-])C(=O)[O-]"
     }
   },
   {
     name: "Glutamate", code1: "E", code3: "Glu", type: "acidic",
-    note: "Side chain carboxyl pKa ~4.1; negatively charged (COO⁻) at pH 7 and above.",
+    note: "Side chain carboxyl pKa ~4.1 (S); negatively charged (COO⁻) at pH 7 and above.",
     smiles: {
-      2:  "OC(=O)CCC([NH3+])C(=O)O",
-      7:  "[O-]C(=O)CCC([NH3+])C(=O)[O-]",
-      13: "[O-]C(=O)CCC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CCC(=O)O)C(=O)O",
+      7:  "[NH3+][C@@H](CCC(=O)[O-])C(=O)[O-]",
+      13: "N[C@@H](CCC(=O)[O-])C(=O)[O-]"
     }
   },
   {
     name: "Lysine", code1: "K", code3: "Lys", type: "basic",
-    note: "ε-Amino group pKa ~10.5; positively charged (NH₃⁺) at pH 7; neutral (NH₂) at pH 13.",
+    note: "ε-Amino group pKa ~10.5 (S); positively charged (NH₃⁺) at pH 7; neutral (NH₂) at pH 13.",
     smiles: {
-      2:  "[NH3+]CCCCC([NH3+])C(=O)O",
-      7:  "[NH3+]CCCCC([NH3+])C(=O)[O-]",
-      13: "NCCCCC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CCCC[NH3+])C(=O)O",
+      7:  "[NH3+][C@@H](CCCC[NH3+])C(=O)[O-]",
+      13: "N[C@@H](CCCCN)C(=O)[O-]"
     }
   },
   {
     name: "Arginine", code1: "R", code3: "Arg", type: "basic",
-    note: "Guanidinium pKa ~12.5; remains positively charged at pH 7; deprotonated near pH 13.",
+    note: "Guanidinium pKa ~12.5 (S); remains positively charged at pH 7; deprotonated near pH 13.",
     smiles: {
-      2:  "NC(=[NH2+])NCCCC([NH3+])C(=O)O",
-      7:  "NC(=[NH2+])NCCCC([NH3+])C(=O)[O-]",
-      13: "NC(=N)NCCCC(N)C(=O)[O-]"
+      2:  "[NH3+][C@@H](CCCNC(=[NH2+])N)C(=O)O",
+      7:  "[NH3+][C@@H](CCCNC(=[NH2+])N)C(=O)[O-]",
+      13: "N[C@@H](CCCNC(=N)N)C(=O)[O-]"
     }
   },
   {
     name: "Histidine", code1: "H", code3: "His", type: "basic",
-    note: "Imidazole pKa ~6.0; protonated (imidazolium) at pH 2, mostly neutral at pH 7, neutral at pH 13.",
+    note: "Imidazole pKa ~6.0 (S); protonated (imidazolium) at pH 2, mostly neutral at pH 7.",
     smiles: {
-      2:  "[NH3+]C(Cc1c[nH+]cn1)C(=O)O",
-      7:  "[NH3+]C(Cc1c[nH]cn1)C(=O)[O-]",
-      13: "NC(Cc1c[nH]cn1)C(=O)[O-]"
+      2:  "[NH3+][C@@H](Cc1c[nH+]cn1)C(=O)O",
+      7:  "[NH3+][C@@H](Cc1c[nH]cn1)C(=O)[O-]",
+      13: "N[C@@H](Cc1c[nH]cn1)C(=O)[O-]"
     }
   }
 ];
@@ -551,13 +525,13 @@ const TYPE_LABELS = {
 };
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let current = null;       // { aa, ph }
-let phMode  = 'random';   // 'random' | 2 | 7 | 13
-let answered = false;
-let score = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
+let current  = null;       // { aa, ph }
+let answered = false;      // true only when ALL fields are correct
+let scored   = false;      // true after first checkAnswers() per question
+let score    = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 
 // ─── RDKit ────────────────────────────────────────────────────────────────────
-let rdkitReady = false;
+let rdkitReady   = false;
 let pendingSmiles = null;
 
 window.initRDKitModule({
@@ -591,13 +565,21 @@ function drawStructure(smiles) {
 
     const w = Math.min(Math.max((box.clientWidth || 400) - 16, 200), 560);
     const h = 230;
-    const svg = mol.get_svg(w, h);
+
+    // Try with stereo annotations; fall back to plain SVG
+    let svg;
+    try {
+      const details = JSON.stringify({ width: w, height: h, addStereoAnnotation: true });
+      svg = mol.get_svg_with_highlights(details);
+    } catch {
+      svg = mol.get_svg(w, h);
+    }
     mol.delete();
 
-    // Transparent background so our light panel shows through
+    // Transparent background so the light panel shows through
     const cleaned = svg.replace(
-      /(<rect[^>]+style=['"][^'"]*fill:#FFFFFF[^'"]*['"][^>]*>)/g,
-      '<rect style="fill:transparent" width="100%" height="100%">'
+      /(<rect[^>]*)(fill:#FFFFFF|fill:white)([^>]*>)/gi,
+      '$1fill:transparent$3'
     );
     box.innerHTML = cleaned;
   } catch(e) {
@@ -605,52 +587,45 @@ function drawStructure(smiles) {
   }
 }
 
-// ─── pH mode ──────────────────────────────────────────────────────────────────
-function setPH(mode, btn) {
-  phMode = mode;
-  document.querySelectorAll('.ph-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  // Redraw current AA at new pH (if not yet answered, just switch pH display)
-  if (current) {
-    const ph = resolveCurrentPH(current.aa);
-    current.ph = ph;
-    document.getElementById('ph-badge').textContent = `pH ${ph}`;
-    drawStructure(current.aa.smiles[ph]);
-  }
+// ─── pH helpers ───────────────────────────────────────────────────────────────
+function resolveCurrentPH() {
+  const choices = [2, 7, 13];
+  return choices[Math.floor(Math.random() * 3)];
 }
 
-function resolveCurrentPH(aa) {
-  if (phMode === 'random') {
-    const choices = [2, 7, 13];
-    return choices[Math.floor(Math.random() * 3)];
-  }
-  return Number(phMode);
+function phNote(ph) {
+  if (ph === 2)  return 'pH 2 — backbone fully protonated: –NH₃⁺ and –COOH.';
+  if (ph === 7)  return 'pH 7 — physiological zwitterion: –NH₃⁺ and –COO⁻.';
+  if (ph === 13) return 'pH 13 — backbone fully deprotonated: –NH₂ and –COO⁻.';
+  return '';
 }
 
 // ─── Quiz flow ────────────────────────────────────────────────────────────────
 function nextQuestion() {
   answered = false;
+  scored   = false;
 
   const aa = AA[Math.floor(Math.random() * AA.length)];
-  const ph = resolveCurrentPH(aa);
+  const ph = resolveCurrentPH();
   current  = { aa, ph };
 
-  // Update pH badge
-  document.getElementById('ph-badge').textContent = `pH ${ph}`;
+  // Reset pH badge to hidden state
+  const badge = document.getElementById('ph-badge');
+  badge.textContent = 'pH ?';
+  badge.classList.remove('revealed');
 
   // Draw structure
   drawStructure(aa.smiles[ph]);
 
-  // Reset fields
-  ['c1','c3','name','type'].forEach(id => {
+  // Reset all fields
+  ['c1','c3','name','type','ph'].forEach(id => {
     const el = document.getElementById('inp-' + id);
-    el.value = '';
+    el.value     = '';
     el.className = 'field-input';
     el.disabled  = false;
-    if (el.tagName === 'SELECT') el.value = '';
   });
 
-  ['c1','c3','name','type'].forEach(id => {
+  ['c1','c3','name','type','ph'].forEach(id => {
     document.getElementById('ind-' + id).textContent = '';
   });
 
@@ -668,64 +643,80 @@ function nextQuestion() {
 // ─── Answer checking ──────────────────────────────────────────────────────────
 function norm(s) { return s.trim().toLowerCase(); }
 
+function capitalize(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+}
+
 function checkAnswers() {
   if (!current || answered) return;
-  answered = true;
 
   const { aa } = current;
   const fields = [
-    { id: 'c1',   correct: aa.code1,  user: document.getElementById('inp-c1').value.trim().toUpperCase() },
-    { id: 'c3',   correct: aa.code3,  user: capitalize(document.getElementById('inp-c3').value.trim()) },
-    { id: 'name', correct: aa.name,   user: capitalize(document.getElementById('inp-name').value.trim()) },
-    { id: 'type', correct: aa.type,   user: document.getElementById('inp-type').value }
+    { id: 'c1',   correct: aa.code1,       user: document.getElementById('inp-c1').value.trim().toUpperCase() },
+    { id: 'c3',   correct: aa.code3,       user: capitalize(document.getElementById('inp-c3').value.trim()) },
+    { id: 'name', correct: aa.name,        user: capitalize(document.getElementById('inp-name').value.trim()) },
+    { id: 'type', correct: aa.type,        user: document.getElementById('inp-type').value },
+    { id: 'ph',   correct: String(current.ph), user: document.getElementById('inp-ph').value }
   ];
 
-  // Special matching: case-insensitive for text fields
-  function isMatch(f) {
-    return norm(f.user) === norm(f.correct);
-  }
+  function isMatch(f) { return norm(f.user) === norm(f.correct); }
 
   let pts = 0;
   fields.forEach(f => {
     const el  = document.getElementById('inp-' + f.id);
     const ind = document.getElementById('ind-' + f.id);
     const ok  = isMatch(f);
-    el.className = 'field-input ' + (ok ? 'ok' : 'bad');
-    el.disabled  = true;
-    ind.textContent = ok ? '✓' : '✗';
-    if (ok) pts++;
+    if (ok) {
+      el.className = 'field-input ok';
+      el.disabled  = true;
+      ind.textContent = '✓';
+      pts++;
+    } else {
+      el.className = 'field-input bad';
+      el.disabled  = false;
+      ind.textContent = '✗';
+    }
   });
 
-  // Score
-  score.total++;
-  score.pts += pts;
-  score.maxPts += 4;
-  if (pts === 4)      score.correct++;
-  else if (pts >= 1)  score.partial++;
-  updateScore();
+  // Record score on first attempt only
+  if (!scored) {
+    scored = true;
+    score.total++;
+    score.pts    += pts;
+    score.maxPts += 5;
+    if (pts === 5)      score.correct++;
+    else if (pts >= 1)  score.partial++;
+    updateScore();
+  }
+
+  // Reveal pH badge on first check
+  const badge = document.getElementById('ph-badge');
+  badge.textContent = `pH ${current.ph}`;
+  badge.classList.add('revealed');
+
+  // All correct → lock everything and end question
+  if (pts === 5) {
+    answered = true;
+    document.getElementById('btn-check').disabled = true;
+  }
 
   // Feedback
-  const allOk = pts === 4;
-  const fb = document.getElementById('feedback');
-  let cls = pts === 4 ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
-  let title = pts === 4 ? `Perfect! All 4 correct.`
-            : pts >= 1  ? `${pts}/4 correct — almost there!`
-            :              `Not quite — 0/4 correct.`;
+  const fb  = document.getElementById('feedback');
+  const cls = pts === 5 ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
+  const title = pts === 5 ? 'Perfect! All 5 correct.'
+              : pts >= 1  ? `${pts}/5 correct — keep going!`
+              :              'Not quite — 0/5 correct.';
 
   fb.className = `feedback show ${cls}`;
   fb.innerHTML = `
     <div class="fb-title">${title}</div>
     <div class="fb-answers">
       <b>${aa.code1}</b> &nbsp;·&nbsp; <b>${aa.code3}</b> &nbsp;·&nbsp;
-      <b>${aa.name}</b> &nbsp;·&nbsp; <b>${TYPE_LABELS[aa.type]}</b>
+      <b>${aa.name}</b> &nbsp;·&nbsp; <b>${TYPE_LABELS[aa.type]}</b> &nbsp;·&nbsp;
+      <b>pH ${current.ph}</b>
     </div>
-    <div class="fb-note">${aa.note}</div>`;
-
-  document.getElementById('btn-check').disabled = true;
-}
-
-function capitalize(s) {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+    <div class="fb-note">${aa.note}</div>
+    <div class="fb-note">${phNote(current.ph)}</div>`;
 }
 
 // ─── Score ────────────────────────────────────────────────────────────────────
