@@ -344,6 +344,34 @@
       opacity: 0.85;
     }
     .identify-cell.locked { cursor: default; }
+    .identify-cell.locked.post-answer:not(.correct) {
+      cursor: pointer;
+    }
+    .identify-cell.locked.post-answer:not(.correct):hover {
+      border-color: #685C53;
+      background: #f8f0f0;
+    }
+
+    /* Name-mode structure pH selector buttons */
+    #name-ph-btns { display: flex; }
+    .name-ph-btn {
+      padding: 4px 14px;
+      border: 1.5px solid #685C53;
+      border-radius: 6px;
+      background: #F0F0F0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #282828;
+    }
+    .name-ph-btn.active {
+      background: #D0012B;
+      border-color: #D0012B;
+      color: #FFFFFF;
+    }
+    .name-ph-btn:hover:not(.active) {
+      background: #E6E0CC;
+    }
 
     .identify-cell .cell-verdict {
       position: absolute;
@@ -442,6 +470,17 @@
     <!-- Structure viewer -->
     <div class="structure-panel">
       <div class="ph-badge" id="ph-badge">pH ?</div>
+
+      <!-- Name-mode structure toggle (shown only in name mode) -->
+      <div id="name-struct-controls" style="display:none; text-align:center; margin-bottom:6px">
+        <button id="name-struct-toggle" class="btn btn-check" onclick="toggleNameStructure()">Show structure</button>
+        <div id="name-ph-btns" style="display:none; justify-content:center; gap:6px; margin-top:8px">
+          <button class="name-ph-btn" data-ph="2"  onclick="setNameStructPH(2)">pH 2</button>
+          <button class="name-ph-btn active" data-ph="7"  onclick="setNameStructPH(7)">pH 7</button>
+          <button class="name-ph-btn" data-ph="13" onclick="setNameStructPH(13)">pH 13</button>
+        </div>
+      </div>
+
       <div id="struct-box">
         <div class="struct-msg" id="struct-msg">Loading structure renderer…</div>
       </div>
@@ -741,6 +780,8 @@ let nameHideFlags  = { c1: false, c3: false, name: false };
 let identifyNamePool   = new Set(['c1', 'c3', 'name']); // styles allowed in identify mode
 let identifyHadWrong   = false;  // true if any wrong pick this question
 let nameRandom         = false;  // randomly show one non-hidden name field in name mode
+let nameShowingStructure = false;  // true when name mode is showing structure view
+let nameStructPH         = 7;      // active pH in name-mode structure view
 
 // fields: which inp-* IDs to check; revealPH: show badge before Check
 const QTYPE = {
@@ -804,6 +845,19 @@ function setDisplayMode(mode) {
     );
   }
 
+  const nameMode = mode === 'name';
+  document.getElementById('ph-badge').style.display             = nameMode ? 'none' : '';
+  document.getElementById('name-struct-controls').style.display = nameMode ? ''     : 'none';
+  if (nameMode) {
+    nameShowingStructure = false;
+    nameStructPH = 7;
+    document.getElementById('name-struct-toggle').textContent = 'Show structure';
+    document.getElementById('name-ph-btns').style.display     = 'none';
+    document.querySelectorAll('.name-ph-btn').forEach(b =>
+      b.classList.toggle('active', parseInt(b.dataset.ph) === 7)
+    );
+  }
+
   renderQuestion();
 }
 
@@ -829,6 +883,30 @@ function toggleNameRandom() {
   document.getElementById('name-random-btn')
     .classList.toggle('active', nameRandom);
   renderQuestion();
+}
+
+function toggleNameStructure() {
+  if (!current) return;
+  nameShowingStructure = !nameShowingStructure;
+  const btn    = document.getElementById('name-struct-toggle');
+  const phBtns = document.getElementById('name-ph-btns');
+  if (nameShowingStructure) {
+    btn.textContent      = 'Show name';
+    phBtns.style.display = '';
+    drawStructure(current.aa.smiles[nameStructPH]);
+  } else {
+    btn.textContent      = 'Show structure';
+    phBtns.style.display = 'none';
+    drawNameDisplay(current.aa);
+  }
+}
+
+function setNameStructPH(ph) {
+  nameStructPH = ph;
+  document.querySelectorAll('.name-ph-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.ph) === ph)
+  );
+  drawStructure(current.aa.smiles[ph]);
 }
 
 function resolveIdentifyName(aa) {
@@ -1017,13 +1095,23 @@ function renderIdentifyQuestion() {
 }
 
 function handleIdentifyClick(index) {
-  if (!current || answered) return;
+  if (!current) return;
   const options = current.identifyOptions;
   const chosen  = options[index];
   const cells   = document.querySelectorAll('.identify-cell');
   const cell    = cells[index];
 
-  // Ignore clicks on already-eliminated cells
+  // Post-answer exploration — show info for any non-correct cell
+  if (answered) {
+    if (chosen.isCorrect) return;
+    const fb = document.getElementById('feedback');
+    fb.className = 'feedback show wrong';
+    fb.innerHTML = `<div class="fb-title">That structure is:</div>
+      <div class="fb-answers">The structure you selected is <b>${chosen.aa.code3}</b> at pH <b>${chosen.ph}</b></div>`;
+    return;
+  }
+
+  // Mid-question: ignore already-eliminated cells
   if (cell.classList.contains('locked')) return;
 
   if (chosen.isCorrect) {
@@ -1083,6 +1171,17 @@ function renderQuestion() {
   document.getElementById('ph-badge').textContent =
     !activeQtypeSet.has('ph') ? `pH ${ph}` : 'pH ?';
 
+  // Reset name-structure toggle on new question
+  if (displayMode === 'name') {
+    nameShowingStructure = false;
+    nameStructPH = 7;
+    document.getElementById('name-struct-toggle').textContent = 'Show structure';
+    document.getElementById('name-ph-btns').style.display     = 'none';
+    document.querySelectorAll('.name-ph-btn').forEach(b =>
+      b.classList.toggle('active', parseInt(b.dataset.ph) === 7)
+    );
+  }
+
   // Draw structure or name display
   if (displayMode === 'structure') drawStructure(aa.smiles[ph]);
   else drawNameDisplay(aa);
@@ -1136,6 +1235,9 @@ function completeQuestion(pts) {
 
   document.getElementById('ph-badge').textContent = `pH ${current.ph}`;
   document.getElementById('btn-check').disabled = true;
+  if (displayMode === 'identify') {
+    document.querySelectorAll('.identify-cell').forEach(c => c.classList.add('post-answer'));
+  }
 
   const n     = maxPts;
   const cls   = pts === n ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
