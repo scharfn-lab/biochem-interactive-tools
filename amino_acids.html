@@ -380,6 +380,15 @@
       font-weight: 700;
     }
 
+    .identify-cell .cell-label {
+      position: absolute;
+      bottom: 4px; left: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #C8102E;
+      line-height: 1.2;
+    }
+
     @media (max-width: 620px) {
       .identify-grid { grid-template-columns: repeat(2, 1fr); }
     }
@@ -1130,6 +1139,10 @@ function handleIdentifyClick(index) {
     vw.className = 'cell-verdict';
     vw.textContent = '✗';
     cell.appendChild(vw);
+    const lbl = document.createElement('span');
+    lbl.className = 'cell-label';
+    lbl.textContent = `${chosen.aa.code3} pH ${chosen.ph}`;
+    cell.appendChild(lbl);
     const fb = document.getElementById('feedback');
     fb.className = 'feedback show wrong';
     fb.innerHTML = `<div class="fb-title">Incorrect — keep trying!</div>
