@@ -269,6 +269,19 @@
     #angle-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
     #angle-toggle:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
 
+    #bturn-type1, #bturn-type2 {
+      padding: 5px 14px;
+      border-radius: 6px;
+      border: 1px solid #685C53;
+      background: #FFFFFF;
+      color: #685C53;
+      font-size: 0.82em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #bturn-type1:hover, #bturn-type2:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
+    #bturn-type1:active, #bturn-type2:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+
     .rot-btn {
       width: 30px;
       height: 30px;
@@ -378,7 +391,11 @@
       <div></div>
     </div>
   </div>
-  <button id="angle-toggle" onclick="toggleAngles()">Hide ϕ/ψ Angles</button>
+  <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+    <button id="angle-toggle" onclick="toggleAngles()">Hide ϕ/ψ Angles</button>
+    <button id="bturn-type1" onclick="setBetaTurnTypeI()">Show β turn (Type I)</button>
+    <button id="bturn-type2" onclick="setBetaTurnTypeII()">Show β turn (Type II)</button>
+  </div>
   <div id="dipeptide-legend">
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#0277BD;"></div>N (nitrogen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#b0bec5;"></div>C (carbon)</div>
@@ -552,10 +569,12 @@ function updateUI() {
 function setAngles(p, q) {
   phi = Math.max(-180, Math.min(180, p));
   psi = Math.max(-180, Math.min(180, q));
-  // Sync central residue; extra residues share the same angles until independently controlled
-  residueAngles.central.phi = phi;  residueAngles.central.psi = psi;
+  betaTurnMode = false;                             // clear β-turn mode on any slider move
+  residueAngles.aa1.phi     = phi;  residueAngles.aa1.psi     = psi;
   residueAngles.nTerm.phi   = phi;  residueAngles.nTerm.psi   = psi;
+  residueAngles.central.phi = phi;  residueAngles.central.psi = psi;
   residueAngles.cTerm.phi   = phi;  residueAngles.cTerm.psi   = psi;
+  residueAngles.aa5.phi     = phi;  residueAngles.aa5.psi     = psi;
   renderPlot();
   updateUI();
   renderDipeptide();
@@ -702,12 +721,15 @@ function buildDipeptide(phiDeg, psiDeg) {
 
 // ── Per-residue angle data (extensible: each residue can have independent ϕ/ψ later) ──
 const residueAngles = {
+  aa1:     { phi: -120, psi: 130 },   // outermost N-terminal residue (AA1)
   nTerm:   { phi: -120, psi: 130 },
   central: { phi: -120, psi: 130 },
   cTerm:   { phi: -120, psi: 130 },
+  aa5:     { phi: -120, psi: 130 },   // outermost C-terminal residue (AA5)
 };
 let showNterm = false;
 let showCterm = false;
+let betaTurnMode = false;             // true while a β-turn preset is active
 
 // Build extra N-terminal residue atoms from the base dipeptide atoms
 function buildNtermAtoms(atoms) {
@@ -734,7 +756,13 @@ function buildNtermAtoms(atoms) {
   // Ha_prev: Hα on Ca_prev; opposite side from Cb_p (tetrahedral)
   // dihedral(C_pp,N_p,Ca_prev,Ha_prev) = nPhi + 120°
   const Ha_prev = placeAtom(C_pp, N_p, Ca_prev, 1.090, 110.5, nPhi + 120);
-  return { N_p, H_Np, Ha_prev, Cb_p, C_pp, O_pp, Ca_pp };
+  // Extend Ca_pp to a full Cα driven by residueAngles.aa1.phi
+  const { phi: aa1Phi } = residueAngles.aa1;
+  const N_pp  = placeAtom(N_p, C_pp, Ca_pp, 1.458, 110.5, aa1Phi);
+  const Cb_pp = placeAtom(N_p, C_pp, Ca_pp, 1.521, 110.5, aa1Phi + 120);
+  const Ha_pp = placeAtom(N_p, C_pp, Ca_pp, 1.090, 110.5, aa1Phi - 120);
+  const H_Npp = placeAtom(C_pp, Ca_pp, N_pp, 1.010, 120.0, 0);
+  return { N_p, H_Np, Ha_prev, Cb_p, C_pp, O_pp, Ca_pp, N_pp, Cb_pp, Ha_pp, H_Npp };
 }
 
 // Build extra C-terminal residue atoms from the base dipeptide atoms
@@ -755,7 +783,13 @@ function buildCtermAtoms(atoms) {
   const Ca_n2 = placeAtom(Ca_next, C_n, N_n2, 1.458, 121.7, 180);
   // Ha_next: Hα on Ca_next; dihedral C–N_next–Ca_next–Ha_next = cPhi + 120° (tetrahedral)
   const Ha_next = placeAtom(C, N_next, Ca_next, 1.090, 110.5, cPhi + 120);
-  return { C_n, O_n, Cb_n, N_n2, H_Nn2, Ca_n2, Ha_next };
+  // Extend Ca_n2 to a full Cα driven by residueAngles.aa5.phi
+  const { phi: aa5Phi } = residueAngles.aa5;
+  const C_n2  = placeAtom(C_n, N_n2, Ca_n2, 1.525, 111.2, aa5Phi);
+  const Cb_n2 = placeAtom(C_n, N_n2, Ca_n2, 1.521, 110.5, aa5Phi - 120);
+  const Ha_n2 = placeAtom(C_n, N_n2, Ca_n2, 1.090, 110.5, aa5Phi + 120);
+  const O_n2  = placeAtom(N_n2, Ca_n2, C_n2, 1.229, 120.8, 0);
+  return { C_n, O_n, Cb_n, N_n2, H_Nn2, Ca_n2, Ha_next, C_n2, O_n2, Cb_n2, Ha_n2 };
 }
 
 // ── Extra residue atom styles ───────────────────────────────────
@@ -767,16 +801,24 @@ const NTERM_ATOM_STYLE = {
   Cb_p:    { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
   C_pp:    { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
   O_pp:    { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
-  Ca_pp:   { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+  Ca_pp:   { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  N_pp:    { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  H_Npp:   { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Cb_pp:   { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha_pp:   { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
 };
 const NTERM_BOND_DEFS = [
-  ['Ca_pp',   'C_pp',   'stub'],
+  ['Ca_pp',   'C_pp',   'single'],
   ['C_pp',    'O_pp',   'double'],
   ['C_pp',    'N_p',    'peptide'],
   ['N_p',     'H_Np',   'hbond'],
   ['N_p',     'Ca_prev','single'],
   ['Ca_prev', 'Ha_prev','hbond'],
   ['Ca_prev', 'Cb_p',   'stub'],
+  ['Ca_pp',   'N_pp',   'single'],
+  ['Ca_pp',   'Cb_pp',  'stub'],
+  ['Ca_pp',   'Ha_pp',  'hbond'],
+  ['N_pp',    'H_Npp',  'hbond'],
 ];
 
 const CTERM_ATOM_STYLE = {
@@ -787,7 +829,11 @@ const CTERM_ATOM_STYLE = {
   Cb_n:     { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
   N_n2:     { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
   H_Nn2:    { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
-  Ca_n2:    { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+  Ca_n2:    { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  C_n2:     { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O_n2:     { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Cb_n2:    { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha_n2:    { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
 };
 const CTERM_BOND_DEFS = [
   ['Ca_next', 'Ha_next','hbond'],
@@ -796,7 +842,11 @@ const CTERM_BOND_DEFS = [
   ['C_n',     'O_n',   'double'],
   ['C_n',     'N_n2',  'peptide'],
   ['N_n2',    'H_Nn2', 'hbond'],
-  ['N_n2',    'Ca_n2', 'stub'],
+  ['N_n2',    'Ca_n2', 'single'],
+  ['Ca_n2',   'C_n2',  'single'],
+  ['Ca_n2',   'Cb_n2', 'stub'],
+  ['Ca_n2',   'Ha_n2', 'hbond'],
+  ['C_n2',    'O_n2',  'double'],
 ];
 
 // ── View rotation ──────────────────────────────────────────────
@@ -845,8 +895,10 @@ const BOND_COLOR = {
   single:  { color:'#455A64', width:3 },
   double:  { color:'#ef5350', width:3 },
   peptide: { color:'#616161', width:3.5 },
-  hbond:   { color:'#757575', width:2 },
-  phi:     { color:'#ffa726', width:5 },
+  hbond:        { color:'#757575', width:2 },
+  helix_hbond:  { color:'#66BB6A', width:1.5 },
+  bturn_hbond:  { color:'#29B6F6', width:1.5 },   // cyan dashed — β-turn i→i+3 H-bond
+  phi:          { color:'#ffa726', width:5 },
   psi:     { color:'#26c6da', width:5 },
   stub:    { color:'#37474F', width:2.5 },
 };
@@ -869,6 +921,12 @@ function drawBond(p2a, p2b, type, depth, rA=0, rB=0) {
     dc.globalAlpha = alpha;
     dc.beginPath(); dc.moveTo(ax+ox,ay+oy); dc.lineTo(bx+ox,by+oy); dc.stroke();
     dc.beginPath(); dc.moveTo(ax-ox,ay-oy); dc.lineTo(bx-ox,by-oy); dc.stroke();
+  } else if (type === 'helix_hbond' || type === 'bturn_hbond') {
+    dc.strokeStyle = bc.color; dc.lineWidth = bc.width;
+    dc.globalAlpha = alpha;
+    dc.setLineDash([5, 4]);
+    dc.beginPath(); dc.moveTo(ax, ay); dc.lineTo(bx, by); dc.stroke();
+    dc.setLineDash([]);
   } else {
     dc.strokeStyle = bc.color; dc.lineWidth = bc.width;
     dc.globalAlpha = alpha;
@@ -966,6 +1024,21 @@ function renderDipeptide() {
   const bondDefs  = [...BOND_DEFS];
   if (showNterm) { Object.assign(atomStyle, NTERM_ATOM_STYLE); bondDefs.push(...NTERM_BOND_DEFS); }
   if (showCterm) { Object.assign(atomStyle, CTERM_ATOM_STYLE); bondDefs.push(...CTERM_BOND_DEFS); }
+
+  // Alpha-helix H-bond: O_pp ··· H_Nn2 (true i+4, residues 1→5)
+  // Both atoms only exist when the N-term and C-term extra residues are shown
+  {
+    const reg = getRegion(phi, psi);
+    // α-helix H-bond (i→i+4): suppressed while a β-turn preset is active
+    if (!betaTurnMode && showNterm && showCterm && reg.level === 'favored' &&
+        (reg.name === 'alpha-helix' || reg.name === 'left-hand helix')) {
+      bondDefs.push(['O_pp', 'H_Nn2', 'helix_hbond']);
+    }
+    // β-turn H-bond (i→i+3): O of AA2 ··· H-N of AA5
+    if (betaTurnMode && showNterm && showCterm) {
+      bondDefs.push(['O_prev', 'H_Nn2', 'bturn_hbond']);
+    }
+  }
 
   // Scale and center
   const SCALE = dipScale;
@@ -1223,6 +1296,32 @@ function toggleCterm() {
   btn.textContent = showCterm ? 'Remove C-terminal AA' : 'Add C-terminal AA';
   btn.classList.toggle('active', showCterm);
   renderDipeptide();
+}
+
+function setBetaTurnTypeI() {
+  if (!showNterm) toggleNterm();
+  if (!showCterm) toggleCterm();
+  betaTurnMode = true;
+  phi = -60; psi = -30;
+  residueAngles.aa1.phi     = phi;   residueAngles.aa1.psi     = psi;
+  residueAngles.nTerm.phi   = phi;   residueAngles.nTerm.psi   = psi;
+  residueAngles.central.phi = phi;   residueAngles.central.psi = psi;
+  residueAngles.cTerm.phi   = -90;   residueAngles.cTerm.psi   = 0;
+  residueAngles.aa5.phi     = -90;   residueAngles.aa5.psi     = 0;
+  renderPlot(); updateUI(); renderDipeptide();
+}
+
+function setBetaTurnTypeII() {
+  if (!showNterm) toggleNterm();
+  if (!showCterm) toggleCterm();
+  betaTurnMode = true;
+  phi = -60; psi = 120;
+  residueAngles.aa1.phi     = phi;   residueAngles.aa1.psi     = psi;
+  residueAngles.nTerm.phi   = phi;   residueAngles.nTerm.psi   = psi;
+  residueAngles.central.phi = phi;   residueAngles.central.psi = psi;
+  residueAngles.cTerm.phi   = 80;    residueAngles.cTerm.psi   = 0;
+  residueAngles.aa5.phi     = 80;    residueAngles.aa5.psi     = 0;
+  renderPlot(); updateUI(); renderDipeptide();
 }
 
 // ── Init ───────────────────────────────────────────────────────
