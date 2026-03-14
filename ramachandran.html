@@ -269,6 +269,19 @@
     #angle-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
     #angle-toggle:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
 
+    #nterm-extra-toggle, #cterm-extra-toggle {
+      padding: 5px 14px;
+      border-radius: 6px;
+      border: 1px solid #685C53;
+      background: #FFFFFF;
+      color: #685C53;
+      font-size: 0.82em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #nterm-extra-toggle:hover, #cterm-extra-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
+    #nterm-extra-toggle.active, #cterm-extra-toggle.active { background: #FFCDD2; border-color: #C8102E; color: #000000; }
+
     #bturn-type1, #bturn-type2 {
       padding: 5px 14px;
       border-radius: 6px;
@@ -369,6 +382,12 @@
     <button id="nterm-toggle" onclick="toggleNterm()">Add N-terminal AA</button>
     <button id="plane-toggle" onclick="togglePlanes()">Show Peptide Planes</button>
     <button id="cterm-toggle" onclick="toggleCterm()">Add C-terminal AA</button>
+  </div>
+  <div id="nterm-extra-row" style="display:none; text-align:center; margin-top:4px;">
+    <button id="nterm-extra-toggle" onclick="toggleNtermExtra()">Add 2 More N-term AAs</button>
+  </div>
+  <div id="cterm-extra-row" style="display:none; text-align:center; margin-top:4px;">
+    <button id="cterm-extra-toggle" onclick="toggleCtermExtra()">Add 2 More C-term AAs</button>
   </div>
   <div id="dipeptide-wrapper">
     <canvas id="dipeptide" width="500" height="290"></canvas>
@@ -570,11 +589,10 @@ function setAngles(p, q) {
   phi = Math.max(-180, Math.min(180, p));
   psi = Math.max(-180, Math.min(180, q));
   betaTurnMode = false;                             // clear β-turn mode on any slider move
-  residueAngles.aa1.phi     = phi;  residueAngles.aa1.psi     = psi;
-  residueAngles.nTerm.phi   = phi;  residueAngles.nTerm.psi   = psi;
-  residueAngles.central.phi = phi;  residueAngles.central.psi = psi;
-  residueAngles.cTerm.phi   = phi;  residueAngles.cTerm.psi   = psi;
-  residueAngles.aa5.phi     = phi;  residueAngles.aa5.psi     = psi;
+  for (const key of Object.keys(residueAngles)) {
+    residueAngles[key].phi = phi;
+    residueAngles[key].psi = psi;
+  }
   renderPlot();
   updateUI();
   renderDipeptide();
@@ -716,137 +734,277 @@ function buildDipeptide(phiDeg, psiDeg) {
   // H_N placed after rotation so it uses updated Ca_prev and C_prev
   const H_N = placeAtom(Ca_prev, C_prev, N, 1.010, 119.0, 0);
 
-  return { Ca_prev, C_prev, O_prev, N, H_N, Ca, Ha, Cb, C, O, N_next, H_N2, Ca_next };
+  return { Ca4: Ca_prev, C4: C_prev, O4: O_prev, N5: N, HN5: H_N, Ca5: Ca, Ha5: Ha, Cb5: Cb, C5: C, O5: O, N6: N_next, HN6: H_N2, Ca6: Ca_next };
 }
 
-// ── Per-residue angle data (extensible: each residue can have independent ϕ/ψ later) ──
+// ── Per-residue angle data ──────────────────────────────────────
 const residueAngles = {
-  aa1:     { phi: -120, psi: 130 },   // outermost N-terminal residue (AA1)
-  nTerm:   { phi: -120, psi: 130 },
-  central: { phi: -120, psi: 130 },
-  cTerm:   { phi: -120, psi: 130 },
-  aa5:     { phi: -120, psi: 130 },   // outermost C-terminal residue (AA5)
+  aa1: { phi: -120, psi: 130 },
+  aa2: { phi: -120, psi: 130 },
+  aa3: { phi: -120, psi: 130 },   // outermost of core N-term (AA3 when showNterm)
+  aa4: { phi: -120, psi: 130 },   // inner N-term (AA4)
+  aa5: { phi: -120, psi: 130 },   // central residue — always synced with global ϕ/ψ
+  aa6: { phi: -120, psi: 130 },   // inner C-term (AA6)
+  aa7: { phi: -120, psi: 130 },   // outermost of core C-term (AA7 when showCterm)
+  aa8: { phi: -120, psi: 130 },
+  aa9: { phi: -120, psi: 130 },
 };
-let showNterm = false;
-let showCterm = false;
-let betaTurnMode = false;             // true while a β-turn preset is active
+let showNterm      = false;
+let showNtermExtra = false;
+let showCterm      = false;
+let showCtermExtra = false;
+let betaTurnMode   = false;             // true while a β-turn preset is active
 
 // Build extra N-terminal residue atoms from the base dipeptide atoms
 function buildNtermAtoms(atoms) {
-  const { N, C_prev, Ca_prev } = atoms;
-  const { phi: nPhi, psi: nPsi } = residueAngles.nTerm;
-  // N_p: amide N of residue -1; psi_nterm = dihedral(N_p,Ca_prev,C_prev,N) = nPsi
-  // By reversal identity: dihedral(N,C_prev,Ca_prev,N_p) = nPsi
-  const N_p   = placeAtom(N, C_prev, Ca_prev, 1.458, 111.2, nPsi);
-  // C_pp: carbonyl C of residue -2; phi_nterm = dihedral(C_pp,N_p,Ca_prev,C_prev) = nPhi
-  // By reversal identity: dihedral(C_prev,Ca_prev,N_p,C_pp) = nPhi
-  const C_pp  = placeAtom(C_prev, Ca_prev, N_p, 1.329, 121.7, nPhi);
-  // Ca_pp: Cα stub of residue -2; trans ω = dihedral(Ca_pp,C_pp,N_p,Ca_prev) = 180°
-  // By reversal: dihedral(Ca_prev,N_p,C_pp,Ca_pp) = 180°
-  const Ca_pp = placeAtom(Ca_prev, N_p, C_pp, 1.525, 116.2, 180);
-  // O_pp: carbonyl O; in trans peptide plane, O is syn to Ca_prev across C_pp-N_p
-  // dihedral(Ca_prev,N_p,C_pp,O_pp) = 0°  (Ca_pp is at 180°, O is anti to Ca_pp)
-  const O_pp  = placeAtom(Ca_prev, N_p, C_pp, 1.229, 120.8, 0);
-  // H_Np: amide H on N_p; syn to Ca_pp across C_pp-N_p (standard trans amide)
-  // dihedral(Ca_pp,C_pp,N_p,H_Np) = 0°
-  const H_Np  = placeAtom(Ca_pp, C_pp, N_p, 1.010, 119.0, 0);
-  // Cb_p: side-chain of Ca_prev; 120° offset from C_prev in the phi frame
-  // dihedral(C_pp,N_p,Ca_prev,Cb_p) = nPhi - 120°
-  const Cb_p  = placeAtom(C_pp, N_p, Ca_prev, 1.521, 110.5, nPhi - 120);
-  // Ha_prev: Hα on Ca_prev; opposite side from Cb_p (tetrahedral)
-  // dihedral(C_pp,N_p,Ca_prev,Ha_prev) = nPhi + 120°
-  const Ha_prev = placeAtom(C_pp, N_p, Ca_prev, 1.090, 110.5, nPhi + 120);
-  // Extend Ca_pp to a full Cα driven by residueAngles.aa1.phi
-  const { phi: aa1Phi } = residueAngles.aa1;
-  const N_pp  = placeAtom(N_p, C_pp, Ca_pp, 1.458, 110.5, aa1Phi);
-  const Cb_pp = placeAtom(N_p, C_pp, Ca_pp, 1.521, 110.5, aa1Phi + 120);
-  const Ha_pp = placeAtom(N_p, C_pp, Ca_pp, 1.090, 110.5, aa1Phi - 120);
-  const H_Npp = placeAtom(C_pp, Ca_pp, N_pp, 1.010, 120.0, 0);
-  return { N_p, H_Np, Ha_prev, Cb_p, C_pp, O_pp, Ca_pp, N_pp, Cb_pp, Ha_pp, H_Npp };
+  const { N5, C4, Ca4 } = atoms;
+  const { phi: nPhi, psi: nPsi } = residueAngles.aa4;
+  // N4: amide N of AA4; dihedral(N5,C4,Ca4,N4) = nPsi
+  const N4    = placeAtom(N5, C4, Ca4, 1.458, 111.2, nPsi);
+  // C3: carbonyl C of AA3; dihedral(C4,Ca4,N4,C3) = nPhi
+  const C3    = placeAtom(C4, Ca4, N4, 1.329, 121.7, nPhi);
+  // Ca3: Cα of AA3; trans ω
+  const Ca3   = placeAtom(Ca4, N4, C3, 1.525, 116.2, 180);
+  // O3: carbonyl O of AA3
+  const O3    = placeAtom(Ca4, N4, C3, 1.229, 120.8, 0);
+  // HN4: amide H on N4 in peptide plane
+  const HN4   = placeAtom(Ca3, C3, N4, 1.010, 119.0, 0);
+  // Cb4, Ha4: side-chain and Hα on Ca4
+  const Cb4   = placeAtom(C3, N4, Ca4, 1.521, 110.5, nPhi - 120);
+  const Ha4   = placeAtom(C3, N4, Ca4, 1.090, 110.5, nPhi + 120);
+  // Extend Ca3 to a full Cα driven by residueAngles.aa3.phi
+  const { phi: aa3Phi } = residueAngles.aa3;
+  const N3    = placeAtom(N4, C3, Ca3, 1.458, 110.5, aa3Phi);
+  const Cb3   = placeAtom(N4, C3, Ca3, 1.521, 110.5, aa3Phi + 120);
+  const Ha3   = placeAtom(N4, C3, Ca3, 1.090, 110.5, aa3Phi - 120);
+  const HN3   = placeAtom(C3, Ca3, N3, 1.010, 120.0, 0);
+  return { N4, HN4, Ha4, Cb4, C3, O3, Ca3, N3, Cb3, Ha3, HN3 };
 }
 
 // Build extra C-terminal residue atoms from the base dipeptide atoms
 function buildCtermAtoms(atoms) {
-  const { C, N_next, Ca_next } = atoms;
-  const { phi: cPhi, psi: cPsi } = residueAngles.cTerm;
-  // C_n: carbonyl C of residue +1; phi_c = C–N_next–Ca_next–C_n
-  const C_n   = placeAtom(C, N_next, Ca_next, 1.525, 111.2, cPhi);
-  // Cb_n: side-chain of Ca_next; offset 120° from C_n
-  const Cb_n  = placeAtom(C, N_next, Ca_next, 1.521, 110.5, cPhi - 120);
-  // O_n: carbonyl O of C_n; psi_c = N_next–Ca_next–C_n–N_n2
-  const O_n   = placeAtom(N_next, Ca_next, C_n, 1.229, 120.8, cPsi + 180);
-  // N_n2: amide N of residue +2
-  const N_n2  = placeAtom(N_next, Ca_next, C_n, 1.329, 116.2, cPsi);
-  // H_Nn2: amide H on N_n2
-  const H_Nn2 = placeAtom(Ca_next, C_n, N_n2, 1.010, 119.0, 0);
-  // Ca_n2: Cα stub of residue +2 (trans ω)
-  const Ca_n2 = placeAtom(Ca_next, C_n, N_n2, 1.458, 121.7, 180);
-  // Ha_next: Hα on Ca_next; dihedral C–N_next–Ca_next–Ha_next = cPhi + 120° (tetrahedral)
-  const Ha_next = placeAtom(C, N_next, Ca_next, 1.090, 110.5, cPhi + 120);
-  // Extend Ca_n2 to a full Cα driven by residueAngles.aa5.phi
-  const { phi: aa5Phi } = residueAngles.aa5;
-  const C_n2  = placeAtom(C_n, N_n2, Ca_n2, 1.525, 111.2, aa5Phi);
-  const Cb_n2 = placeAtom(C_n, N_n2, Ca_n2, 1.521, 110.5, aa5Phi - 120);
-  const Ha_n2 = placeAtom(C_n, N_n2, Ca_n2, 1.090, 110.5, aa5Phi + 120);
-  const O_n2  = placeAtom(N_n2, Ca_n2, C_n2, 1.229, 120.8, 0);
-  return { C_n, O_n, Cb_n, N_n2, H_Nn2, Ca_n2, Ha_next, C_n2, O_n2, Cb_n2, Ha_n2 };
+  const { C5, N6, Ca6 } = atoms;
+  const { phi: cPhi, psi: cPsi } = residueAngles.aa6;
+  // C6: carbonyl C of AA6; phi_c = C5–N6–Ca6–C6
+  const C6    = placeAtom(C5, N6, Ca6, 1.525, 111.2, cPhi);
+  // Cb6: side-chain of Ca6
+  const Cb6   = placeAtom(C5, N6, Ca6, 1.521, 110.5, cPhi - 120);
+  // O6: carbonyl O of C6
+  const O6    = placeAtom(N6, Ca6, C6, 1.229, 120.8, cPsi + 180);
+  // N7: amide N of AA7
+  const N7    = placeAtom(N6, Ca6, C6, 1.329, 116.2, cPsi);
+  // HN7: amide H on N7
+  const HN7   = placeAtom(Ca6, C6, N7, 1.010, 119.0, 0);
+  // Ca7: Cα stub of AA7 (trans ω)
+  const Ca7   = placeAtom(Ca6, C6, N7, 1.458, 121.7, 180);
+  // Ha6: Hα on Ca6
+  const Ha6   = placeAtom(C5, N6, Ca6, 1.090, 110.5, cPhi + 120);
+  // Extend Ca7 to a full Cα driven by residueAngles.aa7.phi
+  const { phi: aa7Phi } = residueAngles.aa7;
+  const C7    = placeAtom(C6, N7, Ca7, 1.525, 111.2, aa7Phi);
+  const Cb7   = placeAtom(C6, N7, Ca7, 1.521, 110.5, aa7Phi - 120);
+  const Ha7   = placeAtom(C6, N7, Ca7, 1.090, 110.5, aa7Phi + 120);
+  const O7    = placeAtom(N7, Ca7, C7, 1.229, 120.8, 0);
+  return { C6, O6, Cb6, N7, HN7, Ca7, Ha6, C7, O7, Cb7, Ha7 };
+}
+
+// Build AA2 and AA1 going further N-terminal from Ca3
+function buildNtermExt2Atoms(ntermAtoms) {
+  const { N3, C3, Ca3 } = ntermAtoms;
+  const { phi: aa2Phi } = residueAngles.aa2;
+  const { phi: aa1Phi } = residueAngles.aa1;
+
+  // ── AA2 backbone ──────────────────────────────────────────────
+  // C2: carbonyl C of AA2, bonded to N3 via peptide bond
+  const C2  = placeAtom(C3, Ca3, N3, 1.329, 121.7, aa2Phi);
+  // Ca2: Cα of AA2 (trans ω)
+  const Ca2 = placeAtom(Ca3, N3, C2, 1.525, 116.2, 180);
+  // O2: carbonyl O of AA2
+  const O2  = placeAtom(Ca3, N3, C2, 1.229, 120.8, 0);
+  // HN3: peptide amide H on N3 — replaces free-amine H from buildNtermAtoms
+  const HN3 = placeAtom(Ca2, C2, N3, 1.010, 119.0, 0);
+  // AA2 substituents (anchors mirror buildNtermAtoms Phase B pattern)
+  const N2  = placeAtom(N3, C2, Ca2, 1.458, 110.5, aa2Phi);
+  const Cb2 = placeAtom(N3, C2, Ca2, 1.521, 110.5, aa2Phi + 120);
+  const Ha2 = placeAtom(N3, C2, Ca2, 1.090, 110.5, aa2Phi - 120);
+
+  // ── AA1 backbone ──────────────────────────────────────────────
+  // C1: carbonyl C of AA1, bonded to N2 via peptide bond
+  const C1  = placeAtom(C2, Ca2, N2, 1.329, 121.7, aa1Phi);
+  // Ca1: Cα of AA1 (trans ω)
+  const Ca1 = placeAtom(Ca2, N2, C1, 1.525, 116.2, 180);
+  // O1: carbonyl O of AA1
+  const O1  = placeAtom(Ca2, N2, C1, 1.229, 120.8, 0);
+  // HN2: peptide amide H on N2 (now that Ca1 is known)
+  const HN2 = placeAtom(Ca1, C1, N2, 1.010, 119.0, 0);
+  // AA1 substituents
+  const N1  = placeAtom(N2, C1, Ca1, 1.458, 110.5, aa1Phi);
+  const Cb1 = placeAtom(N2, C1, Ca1, 1.521, 110.5, aa1Phi + 120);
+  const Ha1 = placeAtom(N2, C1, Ca1, 1.090, 110.5, aa1Phi - 120);
+  // HN1: free amine H on N1 (AA1 is the chain N-terminus)
+  const HN1 = placeAtom(C1, Ca1, N1, 1.010, 120.0, 0);
+
+  return { C2, O2, Ca2, N2, HN2, Cb2, Ha2, HN3, C1, O1, Ca1, N1, HN1, Cb1, Ha1 };
+}
+
+// Build AA8 and AA9 going further C-terminal from Ca7
+function buildCtermExt2Atoms(ctermAtoms) {
+  const { N7, Ca7, C7 } = ctermAtoms;
+  const { psi: aa7Psi }           = residueAngles.aa7;
+  const { phi: aa8Phi, psi: aa8Psi } = residueAngles.aa8;
+  const { phi: aa9Phi }           = residueAngles.aa9;
+
+  // ── AA8 backbone ──────────────────────────────────────────────
+  // N8: amide N of AA8, placed using aa7.psi
+  const N8  = placeAtom(N7, Ca7, C7, 1.329, 116.2, aa7Psi);
+  const HN8 = placeAtom(Ca7, C7, N8, 1.010, 119.0, 0);
+  // Ca8: Cα of AA8 (trans ω)
+  const Ca8 = placeAtom(Ca7, C7, N8, 1.458, 121.7, 180);
+  // C8, Cb8, Ha8: backbone and substituents of Ca8
+  const C8  = placeAtom(C7, N8, Ca8, 1.525, 111.2, aa8Phi);
+  const Cb8 = placeAtom(C7, N8, Ca8, 1.521, 110.5, aa8Phi - 120);
+  const Ha8 = placeAtom(C7, N8, Ca8, 1.090, 110.5, aa8Phi + 120);
+  // O8: carbonyl O (psi-dependent since N9 follows)
+  const O8  = placeAtom(N8, Ca8, C8, 1.229, 120.8, aa8Psi + 180);
+
+  // ── AA9 backbone ──────────────────────────────────────────────
+  // N9: amide N of AA9, placed using aa8.psi
+  const N9  = placeAtom(N8, Ca8, C8, 1.329, 116.2, aa8Psi);
+  const HN9 = placeAtom(Ca8, C8, N9, 1.010, 119.0, 0);
+  // Ca9: Cα of AA9 (trans ω)
+  const Ca9 = placeAtom(Ca8, C8, N9, 1.458, 121.7, 180);
+  // C9, Cb9, Ha9: backbone and substituents of Ca9
+  const C9  = placeAtom(C8, N9, Ca9, 1.525, 111.2, aa9Phi);
+  const Cb9 = placeAtom(C8, N9, Ca9, 1.521, 110.5, aa9Phi - 120);
+  const Ha9 = placeAtom(C8, N9, Ca9, 1.090, 110.5, aa9Phi + 120);
+  // O9: terminal carbonyl O
+  const O9  = placeAtom(N9, Ca9, C9, 1.229, 120.8, 0);
+
+  return { N8, HN8, Ca8, C8, O8, Cb8, Ha8, N9, HN9, Ca9, C9, O9, Cb9, Ha9 };
 }
 
 // ── Extra residue atom styles ───────────────────────────────────
 const NTERM_ATOM_STYLE = {
-  Ca_prev: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' }, // upgrade stub → full Cα
-  N_p:     { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
-  H_Np:    { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
-  Ha_prev: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
-  Cb_p:    { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
-  C_pp:    { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
-  O_pp:    { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
-  Ca_pp:   { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
-  N_pp:    { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
-  H_Npp:   { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
-  Cb_pp:   { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
-  Ha_pp:   { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  Ca4: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' }, // upgrade stub → full Cα
+  N4:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN4: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Ha4: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  Cb4: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  C3:  { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O3:  { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Ca3: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  N3:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN3: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Cb3: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha3: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
 };
 const NTERM_BOND_DEFS = [
-  ['Ca_pp',   'C_pp',   'single'],
-  ['C_pp',    'O_pp',   'double'],
-  ['C_pp',    'N_p',    'peptide'],
-  ['N_p',     'H_Np',   'hbond'],
-  ['N_p',     'Ca_prev','single'],
-  ['Ca_prev', 'Ha_prev','hbond'],
-  ['Ca_prev', 'Cb_p',   'stub'],
-  ['Ca_pp',   'N_pp',   'single'],
-  ['Ca_pp',   'Cb_pp',  'stub'],
-  ['Ca_pp',   'Ha_pp',  'hbond'],
-  ['N_pp',    'H_Npp',  'hbond'],
+  ['Ca3', 'C3',  'single'],
+  ['C3',  'O3',  'double'],
+  ['C3',  'N4',  'peptide'],
+  ['N4',  'HN4', 'hbond'],
+  ['N4',  'Ca4', 'single'],
+  ['Ca4', 'Ha4', 'hbond'],
+  ['Ca4', 'Cb4', 'stub'],
+  ['Ca3', 'N3',  'single'],
+  ['Ca3', 'Cb3', 'stub'],
+  ['Ca3', 'Ha3', 'hbond'],
+  ['N3',  'HN3', 'hbond'],
 ];
 
 const CTERM_ATOM_STYLE = {
-  Ca_next:  { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' }, // upgrade stub → full Cα
-  Ha_next:  { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
-  C_n:      { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
-  O_n:      { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
-  Cb_n:     { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
-  N_n2:     { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
-  H_Nn2:    { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
-  Ca_n2:    { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
-  C_n2:     { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
-  O_n2:     { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
-  Cb_n2:    { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
-  Ha_n2:    { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  Ca6: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' }, // upgrade stub → full Cα
+  Ha6: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  C6:  { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
+  O6:  { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
+  Cb6: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  N7:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN7: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Ca7: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  C7:  { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O7:  { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Cb7: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha7: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
 };
 const CTERM_BOND_DEFS = [
-  ['Ca_next', 'Ha_next','hbond'],
-  ['Ca_next', 'C_n',   'single'],
-  ['Ca_next', 'Cb_n',  'stub'],
-  ['C_n',     'O_n',   'double'],
-  ['C_n',     'N_n2',  'peptide'],
-  ['N_n2',    'H_Nn2', 'hbond'],
-  ['N_n2',    'Ca_n2', 'single'],
-  ['Ca_n2',   'C_n2',  'single'],
-  ['Ca_n2',   'Cb_n2', 'stub'],
-  ['Ca_n2',   'Ha_n2', 'hbond'],
-  ['C_n2',    'O_n2',  'double'],
+  ['Ca6', 'Ha6', 'hbond'],
+  ['Ca6', 'C6',  'single'],
+  ['Ca6', 'Cb6', 'stub'],
+  ['C6',  'O6',  'double'],
+  ['C6',  'N7',  'peptide'],
+  ['N7',  'HN7', 'hbond'],
+  ['N7',  'Ca7', 'single'],
+  ['Ca7', 'C7',  'single'],
+  ['Ca7', 'Cb7', 'stub'],
+  ['Ca7', 'Ha7', 'hbond'],
+  ['C7',  'O7',  'double'],
+];
+
+// ── Extended N-terminal (AA1–AA2) and C-terminal (AA8–AA9) styles ──
+const NTERM2_ATOM_STYLE = {
+  C2:  { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O2:  { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Ca2: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  N2:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN2: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Cb2: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha2: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  C1:  { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O1:  { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Ca1: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  N1:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN1: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Cb1: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha1: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+};
+const NTERM2_BOND_DEFS = [
+  ['C2',  'N3',  'peptide'],
+  ['C2',  'O2',  'double'],
+  ['Ca2', 'C2',  'single'],
+  ['Ca2', 'N2',  'single'],
+  ['Ca2', 'Cb2', 'stub'],
+  ['Ca2', 'Ha2', 'hbond'],
+  ['N2',  'HN2', 'hbond'],
+  ['C1',  'N2',  'peptide'],
+  ['C1',  'O1',  'double'],
+  ['Ca1', 'C1',  'single'],
+  ['Ca1', 'N1',  'single'],
+  ['Ca1', 'Cb1', 'stub'],
+  ['Ca1', 'Ha1', 'hbond'],
+  ['N1',  'HN1', 'hbond'],
+];
+
+const CTERM2_ATOM_STYLE = {
+  N8:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN8: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Ca8: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  C8:  { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O8:  { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Cb8: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha8: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  N9:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN9: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Ca9: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  C9:  { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'C'  },
+  O9:  { fill:'#ef5350', stroke:'#b71c1c', r:6,  label:'O'  },
+  Cb9: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  Ha9: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+};
+const CTERM2_BOND_DEFS = [
+  ['C7',  'N8',  'peptide'],
+  ['N8',  'HN8', 'hbond'],
+  ['N8',  'Ca8', 'single'],
+  ['Ca8', 'C8',  'single'],
+  ['Ca8', 'Cb8', 'stub'],
+  ['Ca8', 'Ha8', 'hbond'],
+  ['C8',  'O8',  'double'],
+  ['C8',  'N9',  'peptide'],
+  ['N9',  'HN9', 'hbond'],
+  ['N9',  'Ca9', 'single'],
+  ['Ca9', 'C9',  'single'],
+  ['Ca9', 'Cb9', 'stub'],
+  ['Ca9', 'Ha9', 'hbond'],
+  ['C9',  'O9',  'double'],
 ];
 
 // ── View rotation ──────────────────────────────────────────────
@@ -859,36 +1017,36 @@ function project(p, scale, cx, cy) {
 
 // ── Atom styles ────────────────────────────────────────────────
 const ATOM_STYLE = {
-  Ca_prev: { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
-  C_prev:  { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
-  O_prev:  { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
-  N:       { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
-  H_N:     { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
-  Ca:      { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
-  Ha:      { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
-  Cb:      { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
-  C:       { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
-  O:       { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
-  N_next:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
-  H_N2:    { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
-  Ca_next: { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+  Ca4: { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
+  C4:  { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
+  O4:  { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
+  N5:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN5: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Ca5: { fill:'#cfd8dc', stroke:'#78909c', r:11, label:'Cα' },
+  Ha5: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'Hα' },
+  Cb5: { fill:'#ab47bc', stroke:'#6a1b9a', r:14, label:'R'  },
+  C5:  { fill:'#90a4ae', stroke:'#546e7a', r:8,  label:'C'  },
+  O5:  { fill:'#ef5350', stroke:'#b71c1c', r:7,  label:'O'  },
+  N6:  { fill:'#4fc3f7', stroke:'#0277bd', r:9,  label:'N'  },
+  HN6: { fill:'#BDBDBD', stroke:'#757575', r:4,  label:'H'  },
+  Ca6: { fill:'#90a4ae', stroke:'#546e7a', r:7,  label:'Cα' },
 };
 
 // Bond definitions: [atomKey1, atomKey2, type]
 // types: 'single','double','peptide','phi','psi','hbond','stub'
 const BOND_DEFS = [
-  ['Ca_prev','C_prev', 'stub'],
-  ['C_prev', 'O_prev', 'double'],
-  ['C_prev', 'N',      'peptide'],
-  ['N',      'H_N',    'hbond'],
-  ['N',      'Ca',     'phi'],
-  ['Ca',     'Ha',     'hbond'],
-  ['Ca',     'Cb',     'stub'],
-  ['Ca',     'C',      'psi'],
-  ['C',      'O',      'double'],
-  ['C',      'N_next', 'peptide'],
-  ['N_next', 'H_N2',   'hbond'],
-  ['N_next', 'Ca_next','stub'],
+  ['Ca4', 'C4',  'stub'],
+  ['C4',  'O4',  'double'],
+  ['C4',  'N5',  'peptide'],
+  ['N5',  'HN5', 'hbond'],
+  ['N5',  'Ca5', 'phi'],
+  ['Ca5', 'Ha5', 'hbond'],
+  ['Ca5', 'Cb5', 'stub'],
+  ['Ca5', 'C5',  'psi'],
+  ['C5',  'O5',  'double'],
+  ['C5',  'N6',  'peptide'],
+  ['N6',  'HN6', 'hbond'],
+  ['N6',  'Ca6', 'stub'],
 ];
 
 const BOND_COLOR = {
@@ -1013,30 +1171,40 @@ function renderDipeptide() {
   const baseAtoms = buildDipeptide(phi, psi);
   if (showNterm) Object.assign(baseAtoms, buildNtermAtoms(baseAtoms));
   if (showCterm) Object.assign(baseAtoms, buildCtermAtoms(baseAtoms));
+  if (showNterm && showNtermExtra) Object.assign(baseAtoms, buildNtermExt2Atoms(baseAtoms));
+  if (showCterm && showCtermExtra) Object.assign(baseAtoms, buildCtermExt2Atoms(baseAtoms));
 
   const atoms = { ...baseAtoms };
 
-  // Center the scene on Cα (which is always at its reference position after compensation)
-  const mid = atoms.Ca;
+  // Center the scene on Cα5 (always at its reference position after compensation)
+  const mid = atoms.Ca5;
 
   // Build per-frame atom style and bond defs (merge in extras when active)
   const atomStyle = { ...ATOM_STYLE };
   const bondDefs  = [...BOND_DEFS];
-  if (showNterm) { Object.assign(atomStyle, NTERM_ATOM_STYLE); bondDefs.push(...NTERM_BOND_DEFS); }
+  if (showNterm) {
+    Object.assign(atomStyle, NTERM_ATOM_STYLE);
+    // Suppress free-amine HN3 bond when ext2 replaces it with peptide amide H
+    const ntermBonds = showNtermExtra
+      ? NTERM_BOND_DEFS.filter(b => !(b[0] === 'N3' && b[1] === 'HN3'))
+      : NTERM_BOND_DEFS;
+    bondDefs.push(...ntermBonds);
+  }
   if (showCterm) { Object.assign(atomStyle, CTERM_ATOM_STYLE); bondDefs.push(...CTERM_BOND_DEFS); }
+  if (showNterm && showNtermExtra) { Object.assign(atomStyle, NTERM2_ATOM_STYLE); bondDefs.push(...NTERM2_BOND_DEFS); }
+  if (showCterm && showCtermExtra) { Object.assign(atomStyle, CTERM2_ATOM_STYLE); bondDefs.push(...CTERM2_BOND_DEFS); }
 
-  // Alpha-helix H-bond: O_pp ··· H_Nn2 (true i+4, residues 1→5)
-  // Both atoms only exist when the N-term and C-term extra residues are shown
+  // H-bond logic
   {
     const reg = getRegion(phi, psi);
-    // α-helix H-bond (i→i+4): suppressed while a β-turn preset is active
+    // α-helix H-bond (i→i+4): O3···HN7; suppressed while a β-turn preset is active
     if (!betaTurnMode && showNterm && showCterm && reg.level === 'favored' &&
         (reg.name === 'alpha-helix' || reg.name === 'left-hand helix')) {
-      bondDefs.push(['O_pp', 'H_Nn2', 'helix_hbond']);
+      bondDefs.push(['O3', 'HN7', 'helix_hbond']);
     }
-    // β-turn H-bond (i→i+3): O of AA2 ··· H-N of AA5
+    // β-turn H-bond (i→i+3): O4···HN7
     if (betaTurnMode && showNterm && showCterm) {
-      bondDefs.push(['O_prev', 'H_Nn2', 'bturn_hbond']);
+      bondDefs.push(['O4', 'HN7', 'bturn_hbond']);
     }
   }
 
@@ -1071,10 +1239,18 @@ function renderDipeptide() {
   items.sort((a,b) => a.z - b.z);
 
   // ── Peptide plane fills (drawn first, behind everything) ──────
-  if (showNterm) drawPeptidePlane(proj, ['Ca_pp', 'C_pp', 'O_pp', 'H_Np', 'Ca_prev']);
-  drawPeptidePlane(proj, ['Ca_prev', 'O_prev', 'H_N', 'Ca']);
-  drawPeptidePlane(proj, ['Ca', 'O', 'H_N2', 'Ca_next']);
-  if (showCterm) drawPeptidePlane(proj, ['Ca_next', 'O_n', 'H_Nn2', 'Ca_n2']);
+  if (showNterm && showNtermExtra) {
+    drawPeptidePlane(proj, ['Ca1', 'C1', 'O1', 'N2', 'HN2', 'Ca2']);
+    drawPeptidePlane(proj, ['Ca2', 'C2', 'O2', 'N3', 'HN3', 'Ca3']);
+  }
+  if (showNterm) drawPeptidePlane(proj, ['Ca3', 'C3', 'O3', 'N4', 'HN4', 'Ca4']);
+  drawPeptidePlane(proj, ['Ca4', 'C4', 'O4', 'N5', 'HN5', 'Ca5']);
+  drawPeptidePlane(proj, ['Ca5', 'C5', 'O5', 'N6', 'HN6', 'Ca6']);
+  if (showCterm) drawPeptidePlane(proj, ['Ca6', 'C6', 'O6', 'N7', 'HN7', 'Ca7']);
+  if (showCterm && showCtermExtra) {
+    drawPeptidePlane(proj, ['Ca7', 'C7', 'O7', 'N8', 'HN8', 'Ca8']);
+    drawPeptidePlane(proj, ['Ca8', 'C8', 'O8', 'N9', 'HN9', 'Ca9']);
+  }
 
   // ── Draw items (on top of planes) ──────────────────────────────
   dc.lineCap  = 'round';
@@ -1101,32 +1277,32 @@ function renderDipeptide() {
 
   if (showAngles) {
     // ── Phi angle arc ────────────────────────────────────────────
-    // Dihedral C_prev–N–Cα–C: arc at Cα, between C_prev→Ca and C→Ca directions (projected)
+    // Dihedral C4–N5–Ca5–C5: arc at Ca5
     {
-      const pCa      = proj['Ca'];
-      const pC       = proj['C'];
-      const pC_prev  = proj['C_prev'];
-      const fromV = { x: pC_prev.x - pCa.x, y: pC_prev.y - pCa.y };
-      const toV   = { x: pC.x      - pCa.x, y: pC.y      - pCa.y };
-      const r = ATOM_STYLE['Ca'].r + 16;
+      const pCa     = proj['Ca5'];
+      const pC      = proj['C5'];
+      const pC4     = proj['C4'];
+      const fromV = { x: pC4.x - pCa.x, y: pC4.y - pCa.y };
+      const toV   = { x: pC.x  - pCa.x, y: pC.y  - pCa.y };
+      const r = ATOM_STYLE['Ca5'].r + 16;
       drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#ffa726', `ϕ=${Math.round(phi)}°`);
     }
 
     // ── Psi angle arc ────────────────────────────────────────────
-    // Dihedral N–Cα–C–N_next: arc at C, between Cα→C and N_next→C directions
+    // Dihedral N5–Ca5–C5–N6: arc at C5
     {
-      const pCa   = proj['Ca'];
-      const pC    = proj['C'];
-      const pNn   = proj['N_next'];
+      const pCa   = proj['Ca5'];
+      const pC    = proj['C5'];
+      const pN6   = proj['N6'];
       const fromV = { x: pCa.x - pC.x,  y: pCa.y - pC.y  };
-      const toV   = { x: pNn.x - pC.x,  y: pNn.y - pC.y  };
-      const r = ATOM_STYLE['C'].r + 16;
+      const toV   = { x: pN6.x - pC.x,  y: pN6.y - pC.y  };
+      const r = ATOM_STYLE['C5'].r + 16;
       drawAngleArc(pC, norm2(fromV), norm2(toV), r, '#26c6da', `ψ=${Math.round(psi)}°`);
     }
 
     // ── Bond axis highlight (capsule glow on phi/psi bonds) ──────
-    drawBondGlow(proj['N'],  proj['Ca'], '#ffa726');
-    drawBondGlow(proj['Ca'], proj['C'],  '#26c6da');
+    drawBondGlow(proj['N5'],  proj['Ca5'], '#ffa726');
+    drawBondGlow(proj['Ca5'], proj['C5'],  '#26c6da');
   }
 
 }
@@ -1146,6 +1322,7 @@ function drawBondGlow(p2a, p2b, color) {
 
 function drawPeptidePlane(proj, keys) {
   if (!showPlanes) return;
+  if (keys.some(k => !proj[k])) return;  // skip if any atom missing
   // Compute convex hull of projected points so the polygon never self-intersects
   const pts = keys.map(k => ({ x: proj[k].x, y: proj[k].y }));
   const hull = convexHull(pts);
@@ -1287,6 +1464,9 @@ function toggleNterm() {
   const btn = document.getElementById('nterm-toggle');
   btn.textContent = showNterm ? 'Remove N-terminal AA' : 'Add N-terminal AA';
   btn.classList.toggle('active', showNterm);
+  // Show/hide the "Add 2 More" row; collapse extra if N-term hidden
+  document.getElementById('nterm-extra-row').style.display = showNterm ? 'block' : 'none';
+  if (!showNterm && showNtermExtra) { showNtermExtra = false; updateNtermExtraBtn(); }
   renderDipeptide();
 }
 
@@ -1295,6 +1475,34 @@ function toggleCterm() {
   const btn = document.getElementById('cterm-toggle');
   btn.textContent = showCterm ? 'Remove C-terminal AA' : 'Add C-terminal AA';
   btn.classList.toggle('active', showCterm);
+  document.getElementById('cterm-extra-row').style.display = showCterm ? 'block' : 'none';
+  if (!showCterm && showCtermExtra) { showCtermExtra = false; updateCtermExtraBtn(); }
+  renderDipeptide();
+}
+
+function updateNtermExtraBtn() {
+  const btn = document.getElementById('nterm-extra-toggle');
+  btn.textContent = showNtermExtra ? 'Remove 2 N-term AAs' : 'Add 2 More N-term AAs';
+  btn.classList.toggle('active', showNtermExtra);
+}
+
+function updateCtermExtraBtn() {
+  const btn = document.getElementById('cterm-extra-toggle');
+  btn.textContent = showCtermExtra ? 'Remove 2 C-term AAs' : 'Add 2 More C-term AAs';
+  btn.classList.toggle('active', showCtermExtra);
+}
+
+function toggleNtermExtra() {
+  if (!showNterm) { toggleNterm(); }
+  showNtermExtra = !showNtermExtra;
+  updateNtermExtraBtn();
+  renderDipeptide();
+}
+
+function toggleCtermExtra() {
+  if (!showCterm) { toggleCterm(); }
+  showCtermExtra = !showCtermExtra;
+  updateCtermExtraBtn();
   renderDipeptide();
 }
 
@@ -1303,11 +1511,12 @@ function setBetaTurnTypeI() {
   if (!showCterm) toggleCterm();
   betaTurnMode = true;
   phi = -60; psi = -30;
-  residueAngles.aa1.phi     = phi;   residueAngles.aa1.psi     = psi;
-  residueAngles.nTerm.phi   = phi;   residueAngles.nTerm.psi   = psi;
-  residueAngles.central.phi = phi;   residueAngles.central.psi = psi;
-  residueAngles.cTerm.phi   = -90;   residueAngles.cTerm.psi   = 0;
-  residueAngles.aa5.phi     = -90;   residueAngles.aa5.psi     = 0;
+  // All residues default to the "i" position; overrides for i+2 (aa6) and i+3 (aa7)
+  for (const key of Object.keys(residueAngles)) {
+    residueAngles[key].phi = phi; residueAngles[key].psi = psi;
+  }
+  residueAngles.aa6.phi = -90;  residueAngles.aa6.psi = 0;
+  residueAngles.aa7.phi = -90;  residueAngles.aa7.psi = 0;
   renderPlot(); updateUI(); renderDipeptide();
 }
 
@@ -1316,11 +1525,11 @@ function setBetaTurnTypeII() {
   if (!showCterm) toggleCterm();
   betaTurnMode = true;
   phi = -60; psi = 120;
-  residueAngles.aa1.phi     = phi;   residueAngles.aa1.psi     = psi;
-  residueAngles.nTerm.phi   = phi;   residueAngles.nTerm.psi   = psi;
-  residueAngles.central.phi = phi;   residueAngles.central.psi = psi;
-  residueAngles.cTerm.phi   = 80;    residueAngles.cTerm.psi   = 0;
-  residueAngles.aa5.phi     = 80;    residueAngles.aa5.psi     = 0;
+  for (const key of Object.keys(residueAngles)) {
+    residueAngles[key].phi = phi; residueAngles[key].psi = psi;
+  }
+  residueAngles.aa6.phi = -60;  residueAngles.aa6.psi = 120;
+  residueAngles.aa7.phi = 80;   residueAngles.aa7.psi = 0;
   renderPlot(); updateUI(); renderDipeptide();
 }
 
