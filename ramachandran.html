@@ -774,9 +774,9 @@ function buildNtermAtoms(atoms) {
   const Ha4   = placeAtom(C3, N4, Ca4, 1.090, 110.5, nPhi + 120);
   // Extend Ca3 to a full Cα driven by residueAngles.aa3.phi
   const { phi: aa3Phi } = residueAngles.aa3;
-  const N3    = placeAtom(N4, C3, Ca3, 1.458, 110.5, aa3Phi);
-  const Cb3   = placeAtom(N4, C3, Ca3, 1.521, 110.5, aa3Phi + 120);
-  const Ha3   = placeAtom(N4, C3, Ca3, 1.090, 110.5, aa3Phi - 120);
+  const N3    = placeAtom(N5, C3, Ca3, 1.458, 110.5, aa3Phi);
+  const Cb3   = placeAtom(N5, C3, Ca3, 1.521, 110.5, aa3Phi + 120);
+  const Ha3   = placeAtom(N5, C3, Ca3, 1.090, 110.5, aa3Phi - 120);
   const HN3   = placeAtom(C3, Ca3, N3, 1.010, 120.0, 0);
   return { N4, HN4, Ha4, Cb4, C3, O3, Ca3, N3, Cb3, Ha3, HN3 };
 }
@@ -801,16 +801,16 @@ function buildCtermAtoms(atoms) {
   const Ha6   = placeAtom(C5, N6, Ca6, 1.090, 110.5, cPhi + 120);
   // Extend Ca7 to a full Cα driven by residueAngles.aa7.phi
   const { phi: aa7Phi } = residueAngles.aa7;
-  const C7    = placeAtom(C6, N7, Ca7, 1.525, 111.2, aa7Phi);
-  const Cb7   = placeAtom(C6, N7, Ca7, 1.521, 110.5, aa7Phi - 120);
-  const Ha7   = placeAtom(C6, N7, Ca7, 1.090, 110.5, aa7Phi + 120);
-  const O7    = placeAtom(N7, Ca7, C7, 1.229, 120.8, 0);
+  const C7    = placeAtom(C5, N7, Ca7, 1.525, 111.2, aa7Phi);
+  const Cb7   = placeAtom(C5, N7, Ca7, 1.521, 110.5, aa7Phi - 120);
+  const Ha7   = placeAtom(C5, N7, Ca7, 1.090, 110.5, aa7Phi + 120);
+  const O7    = placeAtom(N7, Ca7, C7, 1.229, 120.8, 180);
   return { C6, O6, Cb6, N7, HN7, Ca7, Ha6, C7, O7, Cb7, Ha7 };
 }
 
 // Build AA2 and AA1 going further N-terminal from Ca3
 function buildNtermExt2Atoms(ntermAtoms) {
-  const { N3, C3, Ca3 } = ntermAtoms;
+  const { N3, C3, Ca3, N5 } = ntermAtoms;
   const { phi: aa2Phi } = residueAngles.aa2;
   const { phi: aa1Phi } = residueAngles.aa1;
 
@@ -823,10 +823,10 @@ function buildNtermExt2Atoms(ntermAtoms) {
   const O2  = placeAtom(Ca3, N3, C2, 1.229, 120.8, 0);
   // HN3: peptide amide H on N3 — replaces free-amine H from buildNtermAtoms
   const HN3 = placeAtom(Ca2, C2, N3, 1.010, 119.0, 0);
-  // AA2 substituents (anchors mirror buildNtermAtoms Phase B pattern)
-  const N2  = placeAtom(N3, C2, Ca2, 1.458, 110.5, aa2Phi);
-  const Cb2 = placeAtom(N3, C2, Ca2, 1.521, 110.5, aa2Phi + 120);
-  const Ha2 = placeAtom(N3, C2, Ca2, 1.090, 110.5, aa2Phi - 120);
+  // AA2 substituents (use fixed N5 as reference to avoid rotation cancellation)
+  const N2  = placeAtom(N5, C2, Ca2, 1.458, 110.5, aa2Phi);
+  const Cb2 = placeAtom(N5, C2, Ca2, 1.521, 110.5, aa2Phi + 120);
+  const Ha2 = placeAtom(N5, C2, Ca2, 1.090, 110.5, aa2Phi - 120);
 
   // ── AA1 backbone ──────────────────────────────────────────────
   // C1: carbonyl C of AA1, bonded to N2 via peptide bond
@@ -837,10 +837,10 @@ function buildNtermExt2Atoms(ntermAtoms) {
   const O1  = placeAtom(Ca2, N2, C1, 1.229, 120.8, 0);
   // HN2: peptide amide H on N2 (now that Ca1 is known)
   const HN2 = placeAtom(Ca1, C1, N2, 1.010, 119.0, 0);
-  // AA1 substituents
-  const N1  = placeAtom(N2, C1, Ca1, 1.458, 110.5, aa1Phi);
-  const Cb1 = placeAtom(N2, C1, Ca1, 1.521, 110.5, aa1Phi + 120);
-  const Ha1 = placeAtom(N2, C1, Ca1, 1.090, 110.5, aa1Phi - 120);
+  // AA1 substituents (use fixed N5 as reference to avoid rotation cancellation)
+  const N1  = placeAtom(N5, C1, Ca1, 1.458, 110.5, aa1Phi);
+  const Cb1 = placeAtom(N5, C1, Ca1, 1.521, 110.5, aa1Phi + 120);
+  const Ha1 = placeAtom(N5, C1, Ca1, 1.090, 110.5, aa1Phi - 120);
   // HN1: free amine H on N1 (AA1 is the chain N-terminus)
   const HN1 = placeAtom(C1, Ca1, N1, 1.010, 120.0, 0);
 
@@ -849,7 +849,7 @@ function buildNtermExt2Atoms(ntermAtoms) {
 
 // Build AA8 and AA9 going further C-terminal from Ca7
 function buildCtermExt2Atoms(ctermAtoms) {
-  const { N7, Ca7, C7 } = ctermAtoms;
+  const { N7, Ca7, C7, C5 } = ctermAtoms;
   const { psi: aa7Psi }           = residueAngles.aa7;
   const { phi: aa8Phi, psi: aa8Psi } = residueAngles.aa8;
   const { phi: aa9Phi }           = residueAngles.aa9;
@@ -860,10 +860,10 @@ function buildCtermExt2Atoms(ctermAtoms) {
   const HN8 = placeAtom(Ca7, C7, N8, 1.010, 119.0, 0);
   // Ca8: Cα of AA8 (trans ω)
   const Ca8 = placeAtom(Ca7, C7, N8, 1.458, 121.7, 180);
-  // C8, Cb8, Ha8: backbone and substituents of Ca8
-  const C8  = placeAtom(C7, N8, Ca8, 1.525, 111.2, aa8Phi);
-  const Cb8 = placeAtom(C7, N8, Ca8, 1.521, 110.5, aa8Phi - 120);
-  const Ha8 = placeAtom(C7, N8, Ca8, 1.090, 110.5, aa8Phi + 120);
+  // C8, Cb8, Ha8: backbone and substituents of Ca8 (use fixed C5 as reference)
+  const C8  = placeAtom(C5, N8, Ca8, 1.525, 111.2, aa8Phi);
+  const Cb8 = placeAtom(C5, N8, Ca8, 1.521, 110.5, aa8Phi - 120);
+  const Ha8 = placeAtom(C5, N8, Ca8, 1.090, 110.5, aa8Phi + 120);
   // O8: carbonyl O (psi-dependent since N9 follows)
   const O8  = placeAtom(N8, Ca8, C8, 1.229, 120.8, aa8Psi + 180);
 
@@ -873,12 +873,12 @@ function buildCtermExt2Atoms(ctermAtoms) {
   const HN9 = placeAtom(Ca8, C8, N9, 1.010, 119.0, 0);
   // Ca9: Cα of AA9 (trans ω)
   const Ca9 = placeAtom(Ca8, C8, N9, 1.458, 121.7, 180);
-  // C9, Cb9, Ha9: backbone and substituents of Ca9
-  const C9  = placeAtom(C8, N9, Ca9, 1.525, 111.2, aa9Phi);
-  const Cb9 = placeAtom(C8, N9, Ca9, 1.521, 110.5, aa9Phi - 120);
-  const Ha9 = placeAtom(C8, N9, Ca9, 1.090, 110.5, aa9Phi + 120);
-  // O9: terminal carbonyl O
-  const O9  = placeAtom(N9, Ca9, C9, 1.229, 120.8, 0);
+  // C9, Cb9, Ha9: backbone and substituents of Ca9 (use fixed C5 as reference)
+  const C9  = placeAtom(C5, N9, Ca9, 1.525, 111.2, aa9Phi);
+  const Cb9 = placeAtom(C5, N9, Ca9, 1.521, 110.5, aa9Phi - 120);
+  const Ha9 = placeAtom(C5, N9, Ca9, 1.090, 110.5, aa9Phi + 120);
+  // O9: terminal carbonyl O (anti to N9 → dihedral 180)
+  const O9  = placeAtom(N9, Ca9, C9, 1.229, 120.8, 180);
 
   return { N8, HN8, Ca8, C8, O8, Cb8, Ha8, N9, HN9, Ca9, C9, O9, Cb9, Ha9 };
 }
@@ -1197,10 +1197,14 @@ function renderDipeptide() {
   // H-bond logic
   {
     const reg = getRegion(phi, psi);
-    // α-helix H-bond (i→i+4): O3···HN7; suppressed while a β-turn preset is active
-    if (!betaTurnMode && showNterm && showCterm && reg.level === 'favored' &&
+    // α-helix H-bonds (i→i+4); suppressed while a β-turn preset is active
+    if (!betaTurnMode && reg.level === 'favored' &&
         (reg.name === 'alpha-helix' || reg.name === 'left-hand helix')) {
-      bondDefs.push(['O3', 'HN7', 'helix_hbond']);
+      if (showNtermExtra)             bondDefs.push(['O1', 'HN5', 'helix_hbond']);
+      if (showNtermExtra)             bondDefs.push(['O2', 'HN6', 'helix_hbond']);
+      if (showNterm && showCterm)     bondDefs.push(['O3', 'HN7', 'helix_hbond']);
+      if (showCterm && showCtermExtra) bondDefs.push(['O4', 'HN8', 'helix_hbond']);
+      if (showCterm && showCtermExtra) bondDefs.push(['O5', 'HN9', 'helix_hbond']);
     }
     // β-turn H-bond (i→i+3): O4···HN7
     if (betaTurnMode && showNterm && showCterm) {
