@@ -25,7 +25,7 @@
   .mem-ap-container {
     display: flex;
     gap: 14px;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .mem-section {
@@ -40,6 +40,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    height: 100%;
   }
 
   /* ========== CONCENTRATION PANELS ========== */
@@ -88,7 +89,8 @@
   .hion-row input[type="range"] { flex:none; width:70px; min-width:40px; }
   input[type="range"].na-slider { background:linear-gradient(to right,#d4520a,#8b2800); }
   input[type="range"].k-slider  { background:linear-gradient(to right,#1565c0,#003080); }
-  input[type="range"].vm-slider { background:linear-gradient(to right,#a0b8d0,#1565c0); }
+  input[type="range"].vm-slider   { background:linear-gradient(to right,#003080,#d0d0d0 66.67%,#8b0000); }
+  input[type="range"].temp-slider { background:linear-gradient(to right,#003080,#d0d0d0 74%,#8b0000); }
   input[type="range"].x-slider  { background:linear-gradient(to right,#5b21b6,#3b0f7a); }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance:none; width:20px; height:20px;
@@ -116,6 +118,7 @@
     background:#fff8ff; border:1px solid #685c53;
     border-radius:10px; padding:10px 12px;
     display:flex; flex-direction:column;
+    height: 100%;
   }
 
   .ap-btn {
@@ -126,7 +129,7 @@
   .ap-btn:hover { background:#a00d25; }
   .ap-btn:disabled { background:#a0a0a0; cursor:default; }
 
-  #apSVG { width:100%; display:block; }
+  #apSVG { flex: 1; height: 0; min-height: 0; width: 100%; display: block; }
 
   /* ========== CONTROLS (side-by-side Vm + Temp) ========== */
   .ctrl-pair-row {
@@ -236,7 +239,6 @@
 <div class="page-wrap">
 
 <h1>Cell Membrane Ion Transport</h1>
-<p class="subtitle">Electrochemical Gradients &amp; Free Energy Changes</p>
 
 <!-- ===== MEMBRANE + ACTION POTENTIAL SIDE BY SIDE ===== -->
 <div class="mem-ap-container">
@@ -244,15 +246,15 @@
   <!-- Left: outside panel + SVG membrane + inside panel (2/3) -->
   <div class="mem-section">
 
-    <div class="hpanel outside-panel">
-      <div class="hpanel-title">Extracellular</div>
-    </div>
-
     <svg id="membraneSVG" viewBox="142 15 600 210" xmlns="http://www.w3.org/2000/svg">
       <rect x="0" y="0"   width="900" height="75"  fill="#ddeeff"/>
       <rect x="0" y="75"  width="900" height="90"  fill="#f0e8d8"/>
       <rect x="0" y="165" width="900" height="75"  fill="#ffe8e0"/>
-      <rect x="0" y="115" width="900" height="6"   fill="#c8b89a" opacity="0.6"/>
+      <rect x="0" y="115" width="900" height="6"   fill="#f0e8d8"/>
+      <text x="143" y="70"  font-size="11" font-family="Segoe UI,Arial" font-weight="bold"
+            fill="#1e4a60" text-anchor="start">Extracellular</text>
+      <text x="143" y="173" font-size="11" font-family="Segoe UI,Arial" font-weight="bold"
+            fill="#1e4a60" text-anchor="start">Intracellular</text>
       <g id="ions-outside"></g>
       <g id="heads-outer"></g>
       <g id="tails-outer"></g>
@@ -267,9 +269,6 @@
       <line x1="0" y1="165" x2="900" y2="165" stroke="#a0a090" stroke-width="0.5" opacity="0.5"/>
     </svg>
 
-    <div class="hpanel inside-panel">
-      <div class="hpanel-title">Intracellular</div>
-    </div>
 
   </div><!-- end mem-section -->
 
@@ -315,7 +314,7 @@
         <span class="ctrl-label">Temp (°C)</span>
         <input type="number" id="tempNum" min="0" max="50" value="37" aria-label="Temperature (°C)">
       </div>
-      <input type="range" class="vm-slider ctrl-slider" id="tempSlider" min="0" max="50" step="1" value="37" aria-label="Temperature in Celsius">
+      <input type="range" class="temp-slider ctrl-slider" id="tempSlider" min="0" max="50" step="1" value="37" aria-label="Temperature in Celsius">
       <button class="reset-btn" onclick="resetDefaults()" style="margin-top:12px; margin-left:0; width:100%">Reset Defaults</button>
     </div>
     <!-- Right: table + formula -->
@@ -609,14 +608,15 @@ function drawMembrane(){
 
   const SEGMENTS = [
     {lo:5,   hi:240, fillFrom:'right'},
-    {lo:334, hi:373, fillFrom:'left' },
-    {lo:467, hi:506, fillFrom:'left' },
+    {lo:334, hi:373, fillFrom:'left', step:19},
+    {lo:467, hi:506, fillFrom:'left', step:19},
     {lo:600, hi:870, fillFrom:'left' },
   ];
 
-  for (const {lo,hi,fillFrom} of SEGMENTS) {
-    if (fillFrom==='right') { for(let x=hi; x>=lo; x-=step) drawLipidAt(x); }
-    else                    { for(let x=lo; x<=hi; x+=step) drawLipidAt(x); }
+  for (const {lo,hi,fillFrom,step:segStep} of SEGMENTS) {
+    const s = segStep ?? step;
+    if (fillFrom==='right') { for(let x=hi; x>=lo; x-=s) drawLipidAt(x); }
+    else                    { for(let x=lo; x<=hi; x+=s) drawLipidAt(x); }
   }
 
   CHANNELS.forEach(({x,color,label}, idx)=>{
@@ -664,7 +664,7 @@ function drawMembrane(){
     {conc:x2In,  maxRef:x2Preset.max, fill:'#9d174d',stroke:'#9d174d',textFill:'#ffffff',  label:x2Label,seedBase:300},
   ];
 
-  const pl_out = drawIons('ions-outside', ionsNaK_out, 150, 517, 22,  65);
+  const pl_out = drawIons('ions-outside', ionsNaK_out, 220, 517, 22,  65);
   const pr_out = drawIons('ions-outside', ionsX_out,   591, 730, 22,  65, 5);
   const pl_in  = drawIons('ions-inside',  ionsNaK_in,  150, 517, 175, 222);
   const pr_in  = drawIons('ions-inside',  ionsX_in,    591, 730, 175, 222, 5);
@@ -749,19 +749,8 @@ function animateChannel(idx) {
     inside:  {xMin:150,xMax:730,yMin:175,yMax:222},
   };
   particles.forEach(p => {
-    if (idx === 0 || idx === 1) {
-      // Na / K channels: fixed straight-down path
-      p.finalX = p.x;      // same x throughout — no drift
-      p.finalY = p.toY;    // deterministic landing (200 for Na, 40 for K)
-    } else {
-      const region = p.toY < 120 ? 'outside' : 'inside';
-      const b = REGION_BOUNDS[region];
-      const combined = [..._ionPositions[region], ..._animPlaced[region]];
-      const spot = findFreeSpot(p.x, p.toY, combined, b.xMin, b.xMax, b.yMin, b.yMax);
-      p.finalX = spot.cx;
-      p.finalY = spot.cy;
-      _animPlaced[region].push(spot);
-    }
+    p.finalX = p.x;
+    p.finalY = p.toY;
   });
 
   const animG = document.getElementById('chan-anim-'+idx);
@@ -859,15 +848,7 @@ function initiateAP() {
   ];
 
   // Pre-assign landing spots
-  const schedule = rawSchedule.map(p => {
-    if (p.grpId === 'chan-anim-0' || p.grpId === 'chan-anim-1') {
-      return {...p, finalX: p.x, finalY: p.toY};
-    }
-    const b = REGION_BOUNDS[p.region];
-    const spot = findFreeSpot(p.x, p.toY, placed[p.region], b.xMin, b.xMax, b.yMin, b.yMax);
-    placed[p.region].push(spot);
-    return {...p, finalX: spot.cx, finalY: spot.cy};
-  });
+  const schedule = rawSchedule.map(p => ({...p, finalX: p.x, finalY: p.toY}));
 
   const started = new Set();
   const active  = [];
