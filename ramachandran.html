@@ -1110,9 +1110,16 @@ function renderDipeptide() {
       if (showExtra2)             bondDefs.push(['O4', 'HN8', 'helix_hbond']);
       if (showExtra4)             bondDefs.push(['O5', 'HN9', 'helix_hbond']);
     }
-    // β-turn H-bonds (AA3···AA6, i→i+3)
+    // β-turn H-bond (i→i+3) + flanking antiparallel β-sheet H-bonds
     if (betaTurnMode !== null && showNterm) {
-      bondDefs.push(['O3', 'HN6', 'bturn_hbond']);
+      bondDefs.push(['O3', 'HN6', 'bturn_hbond']);          // turn: C=O of AA3 → N-H of AA6
+    }
+    if (betaTurnMode !== null && showNterm && showCterm) {
+      bondDefs.push(['HN3', 'O6', 'bturn_hbond']);           // sheet: N-H of AA3 → C=O of AA6
+    }
+    if (betaTurnMode !== null && showExtra4 && showExtra2) {
+      bondDefs.push(['O1', 'HN8', 'bturn_hbond']);           // sheet: C=O of AA1 → N-H of AA8
+      bondDefs.push(['HN1', 'O8', 'bturn_hbond']);           // sheet: N-H of AA1 → C=O of AA8
     }
   }
 
@@ -1446,30 +1453,38 @@ function toggleExtra4() {
 }
 
 function setBetaTurnTypeI() {
-  if (!showNterm) toggleNterm();
-  if (!showCterm) toggleCterm();
+  if (!showNterm)  toggleNterm();
+  if (!showCterm)  toggleCterm();
+  if (!showExtra2) toggleExtra2();
+  if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeI';
   phi = -120; psi = 130;
   dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
     residueAngles[key].phi = -120; residueAngles[key].psi = 130;
   }
+  residueAngles.aa3.phi = -139; residueAngles.aa3.psi = 135;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = -30;
   residueAngles.aa5.phi = -90;  residueAngles.aa5.psi = 0;
+  residueAngles.aa6.phi = -139; residueAngles.aa6.psi = 135;
   renderPlot(); updateUI(); renderDipeptide();
 }
 
 function setBetaTurnTypeII() {
-  if (!showNterm) toggleNterm();
-  if (!showCterm) toggleCterm();
+  if (!showNterm)  toggleNterm();
+  if (!showCterm)  toggleCterm();
+  if (!showExtra2) toggleExtra2();
+  if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeII';
   phi = -120; psi = 130;
   dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
     residueAngles[key].phi = -120; residueAngles[key].psi = 130;
   }
+  residueAngles.aa3.phi = -139; residueAngles.aa3.psi = 135;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = 120;
   residueAngles.aa5.phi = 80;   residueAngles.aa5.psi = 0;
+  residueAngles.aa6.phi = -139; residueAngles.aa6.psi = 135;
   renderPlot(); updateUI(); renderDipeptide();
 }
 
