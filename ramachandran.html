@@ -1102,11 +1102,7 @@ function renderDipeptide() {
   const bondDefs  = [...BOND_DEFS];
   if (showNterm) {
     Object.assign(atomStyle, NTERM_ATOM_STYLE);
-    // Suppress HN3 hbond when AA2 (peptide neighbor) is visible
-    const ntermBonds = showExtra2
-      ? NTERM_BOND_DEFS.filter(b => !(b[0] === 'N3' && b[1] === 'HN3'))
-      : NTERM_BOND_DEFS;
-    bondDefs.push(...ntermBonds);
+    bondDefs.push(...NTERM_BOND_DEFS);
   }
   if (showCterm)  { Object.assign(atomStyle, CTERM_ATOM_STYLE);  bondDefs.push(...CTERM_BOND_DEFS);  }
   if (showExtra2) { Object.assign(atomStyle, EXTRA2_ATOM_STYLE); bondDefs.push(...EXTRA2_BOND_DEFS); }
@@ -1402,16 +1398,16 @@ function applyPan(dx, dy) {
 }
 const PAN_STEP = 8;
 document.getElementById('pbtn-up').addEventListener('mousedown', () => {
-  applyPan(0, PAN_STEP); panInterval = setInterval(() => applyPan(0, PAN_STEP), 80);
-});
-document.getElementById('pbtn-down').addEventListener('mousedown', () => {
   applyPan(0, -PAN_STEP); panInterval = setInterval(() => applyPan(0, -PAN_STEP), 80);
 });
+document.getElementById('pbtn-down').addEventListener('mousedown', () => {
+  applyPan(0, PAN_STEP); panInterval = setInterval(() => applyPan(0, PAN_STEP), 80);
+});
 document.getElementById('pbtn-left').addEventListener('mousedown', () => {
-  applyPan(PAN_STEP, 0); panInterval = setInterval(() => applyPan(PAN_STEP, 0), 80);
+  applyPan(-PAN_STEP, 0); panInterval = setInterval(() => applyPan(-PAN_STEP, 0), 80);
 });
 document.getElementById('pbtn-right').addEventListener('mousedown', () => {
-  applyPan(-PAN_STEP, 0); panInterval = setInterval(() => applyPan(-PAN_STEP, 0), 80);
+  applyPan(PAN_STEP, 0); panInterval = setInterval(() => applyPan(PAN_STEP, 0), 80);
 });
 
 // ── N/C-terminal AA toggles ────────────────────────────────────
