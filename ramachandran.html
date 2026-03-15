@@ -255,6 +255,15 @@
       font-size: 18px;
       pointer-events: all;
     }
+    #pan-btns {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    #pbtn-up    { position: absolute; top:    4px; left: 50%; transform: translateX(-50%); pointer-events: all; }
+    #pbtn-down  { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); pointer-events: all; }
+    #pbtn-left  { position: absolute; left:   4px; top:  50%; transform: translateY(-50%); pointer-events: all; }
+    #pbtn-right { position: absolute; right:  4px; top:  50%; transform: translateY(-50%); pointer-events: all; }
 
     #angle-toggle {
       padding: 5px 14px;
@@ -406,6 +415,12 @@
       <div></div>
       <button class="rot-btn" id="rbtn-down"  title="Rotate down">▼</button>
       <div></div>
+    </div>
+    <div id="pan-btns">
+      <button class="rot-btn" id="pbtn-up"    title="Pan up">↑</button>
+      <button class="rot-btn" id="pbtn-down"  title="Pan down">↓</button>
+      <button class="rot-btn" id="pbtn-left"  title="Pan left">←</button>
+      <button class="rot-btn" id="pbtn-right" title="Pan right">→</button>
     </div>
   </div>
   <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
@@ -586,7 +601,7 @@ function updateUI() {
 function setAngles(p, q) {
   phi = Math.max(-180, Math.min(180, p));
   psi = Math.max(-180, Math.min(180, q));
-  betaTurnMode = false;                             // clear β-turn mode on any slider move
+  betaTurnMode = null;                              // clear β-turn mode on any slider move
   for (const key of Object.keys(residueAngles)) {
     residueAngles[key].phi = phi;
     residueAngles[key].psi = psi;
@@ -770,7 +785,7 @@ let showNterm    = false;
 let showCterm    = false;
 let showExtra2   = false;   // adds AA2 + AA8
 let showExtra4   = false;   // adds AA1 + AA9
-let betaTurnMode = false;   // true while a β-turn preset is active
+let betaTurnMode = null;    // 'typeI', 'typeII', or null
 
 
 // ── Extra residue atom styles ───────────────────────────────────
@@ -1095,9 +1110,12 @@ function renderDipeptide() {
       if (showExtra2)             bondDefs.push(['O4', 'HN8', 'helix_hbond']);
       if (showExtra4)             bondDefs.push(['O5', 'HN9', 'helix_hbond']);
     }
-    // β-turn H-bond (i→i+3): O5···HN9
-    if (betaTurnMode && showExtra4) {
-      bondDefs.push(['O5', 'HN9', 'bturn_hbond']);
+    // β-turn H-bonds
+    if (betaTurnMode === 'typeI' && showNterm && showCterm) {
+      bondDefs.push(['O4', 'HN7', 'bturn_hbond']);
+    }
+    if (betaTurnMode === 'typeII' && showExtra2) {
+      bondDefs.push(['O5', 'HN8', 'bturn_hbond']);
     }
   }
 
@@ -1111,7 +1129,7 @@ function renderDipeptide() {
 
   // Scale and center
   const SCALE = dipScale;
-  const CX = DW * 0.48, CY = DH * 0.52;
+  const CX = DW * 0.48 + dipOffX, CY = DH * 0.52 + dipOffY;
 
   // Project all atoms into 2D
   const proj = {};
@@ -1342,7 +1360,9 @@ function toggleAngles() {
 
 // ── Zoom ───────────────────────────────────────────────────────
 let dipScale = 44;
+let dipOffX = 0, dipOffY = 0;
 let zoomInterval = null;
+let panInterval = null;
 function applyZoom(delta) {
   dipScale = Math.max(8, Math.min(120, dipScale + delta));
   renderDipeptide();
@@ -1353,7 +1373,28 @@ document.getElementById('zbtn-in').addEventListener('mousedown', () => {
 document.getElementById('zbtn-out').addEventListener('mousedown', () => {
   applyZoom(-4); zoomInterval = setInterval(() => applyZoom(-4), 80);
 });
-document.addEventListener('mouseup', () => { clearInterval(zoomInterval); zoomInterval = null; });
+document.addEventListener('mouseup', () => {
+  clearInterval(zoomInterval); zoomInterval = null;
+  clearInterval(panInterval);  panInterval  = null;
+});
+
+function applyPan(dx, dy) {
+  dipOffX += dx; dipOffY += dy;
+  renderDipeptide();
+}
+const PAN_STEP = 8;
+document.getElementById('pbtn-up').addEventListener('mousedown', () => {
+  applyPan(0, -PAN_STEP); panInterval = setInterval(() => applyPan(0, -PAN_STEP), 80);
+});
+document.getElementById('pbtn-down').addEventListener('mousedown', () => {
+  applyPan(0, PAN_STEP); panInterval = setInterval(() => applyPan(0, PAN_STEP), 80);
+});
+document.getElementById('pbtn-left').addEventListener('mousedown', () => {
+  applyPan(-PAN_STEP, 0); panInterval = setInterval(() => applyPan(-PAN_STEP, 0), 80);
+});
+document.getElementById('pbtn-right').addEventListener('mousedown', () => {
+  applyPan(PAN_STEP, 0); panInterval = setInterval(() => applyPan(PAN_STEP, 0), 80);
+});
 
 // ── N/C-terminal AA toggles ────────────────────────────────────
 function toggleNterm() {
@@ -1410,13 +1451,13 @@ function toggleExtra4() {
 function setBetaTurnTypeI() {
   if (!showNterm) toggleNterm();
   if (!showCterm) toggleCterm();
-  betaTurnMode = true;
-  phi = -60; psi = -30;
-  // All residues default to the "i" position; overrides for i+2 (aa6) and i+3 (aa7)
+  betaTurnMode = 'typeI';
+  phi = -120; psi = 130;
+  dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = phi; residueAngles[key].psi = psi;
+    residueAngles[key].phi = -120; residueAngles[key].psi = 130;
   }
-  residueAngles.aa6.phi = -90;  residueAngles.aa6.psi = 0;
+  residueAngles.aa6.phi = -60;  residueAngles.aa6.psi = -30;
   residueAngles.aa7.phi = -90;  residueAngles.aa7.psi = 0;
   renderPlot(); updateUI(); renderDipeptide();
 }
@@ -1425,11 +1466,11 @@ function setBetaTurnTypeII() {
   if (!showNterm) toggleNterm();
   if (!showCterm) toggleCterm();
   if (!showExtra2) toggleExtra2();
-  if (!showExtra4) toggleExtra4();
-  betaTurnMode = true;
-  phi = -60; psi = 120;
+  betaTurnMode = 'typeII';
+  phi = -120; psi = 130;
+  dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = phi; residueAngles[key].psi = psi;
+    residueAngles[key].phi = -120; residueAngles[key].psi = 130;
   }
   residueAngles.aa6.phi = -60;  residueAngles.aa6.psi = 120;
   residueAngles.aa7.phi = 80;   residueAngles.aa7.psi = 0;
