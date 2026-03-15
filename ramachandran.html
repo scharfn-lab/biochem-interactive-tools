@@ -1473,10 +1473,10 @@ function setBetaTurnTypeI() {
   if (!showExtra2) toggleExtra2();
   if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeI';
-  phi = -60; psi = -45;           // α-helix for flanking residues
+  phi = -120; psi = 130;          // β-sheet for flanking residues
   dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = -60; residueAngles[key].psi = -45;
+    residueAngles[key].phi = -120; residueAngles[key].psi = 130;
   }
   residueAngles.aa3.phi = -139; residueAngles.aa3.psi = 135;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = -30;
