@@ -596,15 +596,29 @@ function updateUI() {
   if (reg.level==='favored')    { rd.className='reg-favored';    rd.textContent=`Favored — ${reg.name}`; }
   else if (reg.level==='allowed') { rd.className='reg-allowed';  rd.textContent=`Allowed — ${reg.name||'transition zone'}`; }
   else                            { rd.className='reg-disallowed'; rd.textContent='Disallowed region'; }
+  document.getElementById('bturn-type1').textContent =
+    betaTurnMode === 'typeI'  ? 'Remove β turn (Type I)'  : 'Show β turn (Type I)';
+  document.getElementById('bturn-type2').textContent =
+    betaTurnMode === 'typeII' ? 'Remove β turn (Type II)' : 'Show β turn (Type II)';
 }
 
 function setAngles(p, q) {
   phi = Math.max(-180, Math.min(180, p));
   psi = Math.max(-180, Math.min(180, q));
-  betaTurnMode = null;                              // clear β-turn mode on any slider move
-  for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = phi;
-    residueAngles[key].psi = psi;
+  if (betaTurnMode !== null) {
+    // aa3–aa6 are locked by the β-turn preset; only update the flanking residues
+    for (const key of Object.keys(residueAngles)) {
+      if (key !== 'aa3' && key !== 'aa4' && key !== 'aa5' && key !== 'aa6') {
+        residueAngles[key].phi = phi;
+        residueAngles[key].psi = psi;
+      }
+    }
+  } else {
+    betaTurnMode = null;
+    for (const key of Object.keys(residueAngles)) {
+      residueAngles[key].phi = phi;
+      residueAngles[key].psi = psi;
+    }
   }
   renderPlot();
   updateUI();
@@ -1117,7 +1131,7 @@ function renderDipeptide() {
     if (betaTurnMode !== null && showNterm && showCterm) {
       bondDefs.push(['HN3', 'O6', 'bturn_hbond']);           // sheet: N-H of AA3 → C=O of AA6
     }
-    if (betaTurnMode !== null && showExtra4 && showExtra2) {
+    if (betaTurnMode === 'typeII' && showExtra4 && showExtra2) {
       bondDefs.push(['O1', 'HN8', 'bturn_hbond']);           // sheet: C=O of AA1 → N-H of AA8
       bondDefs.push(['HN1', 'O8', 'bturn_hbond']);           // sheet: N-H of AA1 → C=O of AA8
     }
@@ -1453,15 +1467,16 @@ function toggleExtra4() {
 }
 
 function setBetaTurnTypeI() {
+  if (betaTurnMode === 'typeI') { betaTurnMode = null; setAngles(phi, psi); return; }
   if (!showNterm)  toggleNterm();
   if (!showCterm)  toggleCterm();
   if (!showExtra2) toggleExtra2();
   if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeI';
-  phi = -120; psi = 130;
+  phi = -60; psi = -45;           // α-helix for flanking residues
   dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = -120; residueAngles[key].psi = 130;
+    residueAngles[key].phi = -60; residueAngles[key].psi = -45;
   }
   residueAngles.aa3.phi = -139; residueAngles.aa3.psi = 135;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = -30;
@@ -1471,6 +1486,7 @@ function setBetaTurnTypeI() {
 }
 
 function setBetaTurnTypeII() {
+  if (betaTurnMode === 'typeII') { betaTurnMode = null; setAngles(phi, psi); return; }
   if (!showNterm)  toggleNterm();
   if (!showCterm)  toggleCterm();
   if (!showExtra2) toggleExtra2();
