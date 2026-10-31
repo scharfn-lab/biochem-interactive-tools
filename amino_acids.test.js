@@ -48,6 +48,7 @@ function makeElement(tag, attrs = {}) {
       for (const fn of listeners[type] || []) fn(e);
     },
     focus() { makeElement.focused = el; },
+    scrollIntoView() {},
   };
   return el;
 }
@@ -119,7 +120,7 @@ const ask = (page, code, ph) => page.run(`current = { aa: AA.find(a => a.code1 =
 const pickNameType = (page, type) => page.run(`setNameType('${type}')`);
 const answer = (page, id, value) => {
   page.el('inp-' + id).value = value;
-  page.el('inp-' + id).fire(id === 'type' || id === 'ph' ? 'change' : 'blur');
+  page.el('inp-' + id).fire(id === 'ph' ? 'change' : 'blur');
 };
 const scoreboard = page => ['s-total', 's-correct', 's-partial', 's-pct'].map(id => String(page.el(id).textContent));
 const setRandom = (page, value) => page.run(`Math.random = () => ${value}`);
@@ -167,7 +168,7 @@ test('question-type buttons and answer dropdowns agree with the script', () => {
   const page = loadPage();
   assert.deepEqual(page.qa('.qtype-btn').map(b => b.dataset.type).sort(), page.json('Object.keys(QTYPE)').sort());
   const options = id => [...MARKUP.match(new RegExp(`id="${id}"[\\s\\S]*?</select>`))[0].matchAll(/<option value="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(options('inp-type').sort(), page.json('Object.keys(TYPE_LABELS)').sort());
+  assert.deepEqual(page.json('COMBO_OPTIONS.type'), ['Nonpolar', 'Polar', 'Acidic', 'Basic']);
   assert.deepEqual(options('inp-ph'), ['1', '7', '13']);
 });
 
@@ -489,7 +490,7 @@ test('Show Answers reveals what is missing and credits only what was already rig
   answer(page, 'c1', 'W');
   answer(page, 'type', 'polar');
   page.run('showAnswers()');
-  assert.equal(page.el('inp-type').value, 'nonpolar');
+  assert.equal(page.el('inp-type').value, 'Nonpolar');
   assert.equal(page.el('inp-name').value, '', 'a field that was not asked is left alone');
   for (const id of ['c1', 'type']) assert.equal(page.el('inp-' + id).disabled, true, id);
   assert.deepEqual(scoreboard(page), ['1', '0', '1', '50%']);
@@ -606,6 +607,197 @@ test('Reset score clears the tally and keeps the question', () => {
   page.run('resetScore()');
   assert.deepEqual(scoreboard(page), ['0', '0', '0', '—']);
   assert.equal(page.run('current'), before);
+});
+
+// ── Type-ahead answer lists ────────────────────────────────────
+const listed = (page, id) => (page.el('list-' + id).hidden ? null : page.el('list-' + id).children.map(c => c.textContent));
+const typeInto = (page, id, text) => {
+  page.el('inp-' + id).value = text;
+  page.el('inp-' + id).fire('input');
+};
+const showAllFields = page => page.run(`toggleQuestionType('properties')`);
+
+test('name and type answers are combo boxes, and pH stays a dropdown', () => {
+  for (const id of ['c1', 'c3', 'name', 'type']) {
+    assert.match(MARKUP, new RegExp(`<input [^>]*id="inp-${id}"[^>]*role="combobox"[^>]*aria-controls="list-${id}"`), id);
+    assert.match(MARKUP, new RegExp(`<ul [^>]*id="list-${id}"[^>]*role="listbox"[^>]*aria-label=`), id);
+  }
+  assert.match(MARKUP, /<select class="field-input" id="inp-ph">/);
+  assert.equal([...MARKUP.matchAll(/<select/g)].length, 1, 'pH is the only dropdown left');
+});
+
+test('the lists hold every answer the page accepts', () => {
+  const options = loadPage().json('COMBO_OPTIONS');
+  assert.deepEqual(options.c1, EXPECTED.map(e => e[0]).sort());
+  assert.deepEqual(options.c3, EXPECTED.map(e => e[1]).sort());
+  assert.deepEqual(options.name, [...EXPECTED.map(e => e[2]), 'Aspartic acid', 'Glutamic acid'].sort());
+  assert.equal(options.c1.length, 20);
+});
+
+test('typing shows only the options that start with those letters, in any case', () => {
+  const page = loadPage();
+  showAllFields(page);
+  page.run(`setNameType('name')`);
+  ask(page, 'A', 7);
+  assert.equal(listed(page, 'name'), null, 'closed before any typing');
+  typeInto(page, 'name', 'gl');
+  assert.deepEqual(listed(page, 'name'), ['Glutamate', 'Glutamic acid', 'Glutamine', 'Glycine']);
+  typeInto(page, 'name', 'GLUTAM');
+  assert.deepEqual(listed(page, 'name'), ['Glutamate', 'Glutamic acid', 'Glutamine']);
+  typeInto(page, 'name', 'a');
+  assert.ok(!listed(page, 'name').includes('Valine'), 'a letter later in the word is not a match');
+  typeInto(page, 'name', 'zzz');
+  assert.equal(listed(page, 'name'), null, 'nothing matches, so nothing is listed');
+  typeInto(page, 'name', '');
+  assert.equal(listed(page, 'name'), null, 'clearing the box closes the list');
+
+  typeInto(page, 'type', 'p');
+  assert.deepEqual(listed(page, 'type'), ['Polar']);
+  typeInto(page, 'type', 'NO');
+  assert.deepEqual(listed(page, 'type'), ['Nonpolar']);
+
+  pickNameType(page, 'c3');
+  typeInto(page, 'c3', 'a');
+  assert.deepEqual(listed(page, 'c3'), ['Ala', 'Arg', 'Asn', 'Asp']);
+  pickNameType(page, 'c1');
+  typeInto(page, 'c1', 'a');
+  assert.deepEqual(listed(page, 'c1'), ['A'], 'a complete answer still narrows while typing');
+});
+
+test('a new question does not open a list by focusing the box', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  assert.equal(makeElement.focused, page.el('inp-c1'));
+  assert.equal(listed(page, 'c1'), null);
+  assert.equal(page.el('inp-c1').getAttribute('aria-expanded'), 'false');
+});
+
+test('clicking a box lists every option, or the matches for partial text', () => {
+  const page = loadPage();
+  showAllFields(page);
+  ask(page, 'A', 7);
+  page.el('inp-type').fire('click');
+  assert.deepEqual(listed(page, 'type'), ['Nonpolar', 'Polar', 'Acidic', 'Basic']);
+  assert.equal(page.el('inp-type').getAttribute('aria-expanded'), 'true');
+  page.el('inp-type').fire('blur');
+  assert.equal(listed(page, 'type'), null);
+
+  page.el('inp-type').value = 'a';
+  page.el('inp-type').fire('click');
+  assert.deepEqual(listed(page, 'type'), ['Acidic']);
+});
+
+test('choosing an option with the mouse grades it once, then moves on', () => {
+  const page = loadPage();
+  showAllFields(page);
+  ask(page, 'A', 7);
+  typeInto(page, 'c1', 'a');
+  const option = page.el('list-c1').children[0];
+  let prevented = false;
+  option.fire('mousedown', { preventDefault() { prevented = true; } });
+  assert.ok(prevented, 'focus stays in the box, so partial text is not graded on blur');
+  option.fire('click');
+  assert.equal(page.el('inp-c1').value, 'A');
+  assert.equal(page.el('inp-c1').className, 'field-input ok');
+  assert.equal(listed(page, 'c1'), null);
+  assert.equal(makeElement.focused, page.el('inp-type'), 'on to the next open field');
+
+  page.el('inp-type').fire('click');
+  page.el('list-type').children[0].fire('click');
+  assert.equal(page.run('answered'), true);
+  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
+  assert.equal(makeElement.focused, page.q('.btn-next'), 'finished, so on to Next');
+});
+
+test('a wrong choice stays editable and the full list comes back on click', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  page.run(`setNameType('c3')`);
+  typeInto(page, 'c3', 'g');
+  const option = page.el('list-c3').children.find(c => c.textContent === 'Gly');
+  option.fire('click');
+  assert.equal(page.el('inp-c3').className, 'field-input bad');
+  assert.equal(page.el('inp-c3').disabled, false);
+  assert.equal(makeElement.focused, page.el('inp-c3'), 'stays to try again');
+  page.el('inp-c3').fire('click');
+  assert.equal(listed(page, 'c3').length, 20);
+  page.el('list-c3').children.find(c => c.textContent === 'Ala').fire('click');
+  assert.equal(page.el('inp-c3').className, 'field-input ok');
+});
+
+test('the lists work from the keyboard', () => {
+  const page = loadPage();
+  showAllFields(page);
+  ask(page, 'A', 7);
+  const box = page.el('inp-type');
+  const list = page.el('list-type');
+  const key = k => box.fire('keydown', { key: k });
+  const active = () => list.children.filter(c => c.classList.contains('combo-active')).map(c => c.textContent);
+
+  key('ArrowDown');
+  assert.deepEqual(active(), ['Nonpolar'], 'opens on the first option');
+  assert.equal(box.getAttribute('aria-activedescendant'), list.children[0].id);
+  assert.equal(list.children[0].getAttribute('aria-selected'), 'true');
+  key('ArrowDown');
+  assert.deepEqual(active(), ['Polar']);
+  key('ArrowUp');
+  key('ArrowUp');
+  assert.deepEqual(active(), ['Basic'], 'wraps around');
+  key('ArrowDown');
+  assert.deepEqual(active(), ['Nonpolar']);
+
+  key('Escape');
+  assert.equal(listed(page, 'type'), null);
+  assert.equal(box.getAttribute('aria-activedescendant'), null);
+
+  key('ArrowUp');
+  assert.deepEqual(active(), ['Basic'], 'ArrowUp opens on the last option');
+  key('ArrowUp');
+  key('ArrowUp');
+  key('ArrowUp');
+  assert.deepEqual(active(), ['Nonpolar']);
+  key('Enter');
+  assert.equal(box.value, 'Nonpolar');
+  assert.equal(box.className, 'field-input ok');
+  assert.equal(listed(page, 'type'), null);
+  assert.equal(makeElement.focused, page.el('inp-c1'), 'on to the open field');
+});
+
+test('Enter without a highlighted option grades the typed text', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  typeInto(page, 'c1', 'a');
+  page.el('inp-c1').fire('keydown', { key: 'Enter' });
+  assert.equal(listed(page, 'c1'), null);
+  assert.equal(page.el('inp-c1').className, 'field-input ok');
+});
+
+test('leaving a box closes its list and grades what was typed', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  typeInto(page, 'c1', 'g');
+  page.el('inp-c1').fire('blur');
+  assert.equal(listed(page, 'c1'), null);
+  assert.equal(page.el('inp-c1').className, 'field-input bad');
+});
+
+test('locked answers cannot reopen a list, and new questions close open ones', () => {
+  const page = loadPage();
+  showAllFields(page);
+  ask(page, 'A', 7);
+  answer(page, 'c1', 'A');
+  page.el('inp-c1').fire('click');
+  assert.equal(listed(page, 'c1'), null, 'a correct answer stays locked');
+
+  typeInto(page, 'type', 'p');
+  page.run('showAnswers()');
+  assert.equal(listed(page, 'type'), null, 'Show Answers closes it');
+
+  ask(page, 'G', 7);
+  typeInto(page, 'type', 'p');
+  page.run('nextQuestion()');
+  assert.equal(listed(page, 'type'), null, 'a new question closes it');
+  assert.equal(page.el('inp-type').getAttribute('aria-expanded'), 'false');
 });
 
 // ── Score breakdown ────────────────────────────────────────────
@@ -944,20 +1136,36 @@ test('there is no Show structure button', () => {
   assert.doesNotMatch(HTML, /name-struct-toggle|toggleNameStructure/);
 });
 
-test('the pH buttons redraw a structure question and reset on the next question', () => {
+test('a structure question opens at its random pH and students can still switch', () => {
   const page = loadPage();
+  const activePH = () => page.qa('.name-ph-btn').filter(b => b.classList.contains('active')).map(b => b.dataset.ph);
   page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
-  ask(page, 'D', 7);
+  for (const ph of [1, 7, 13]) {
+    ask(page, 'D', ph);
+    assert.ok(boxHTML(page).includes(page.run(`current.aa.smiles[${ph}]`)), `opens at pH ${ph}`);
+    assert.deepEqual(activePH(), [String(ph)]);
+  }
+
+  ask(page, 'D', 13);
   answer(page, 'type', 'polar');
   page.run('setNameStructPH(1)');
   assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[1]')));
-  assert.deepEqual(page.qa('.name-ph-btn').map(b => b.classList.contains('active')), [true, false, false]);
+  assert.deepEqual(activePH(), ['1']);
   assert.equal(page.el('inp-type').className, 'field-input bad', 'changing pH keeps the answer in progress');
 
-  page.run('nextQuestion()');
-  assert.equal(page.run('nameStructPH'), 7);
-  assert.deepEqual(page.qa('.name-ph-btn').map(b => b.classList.contains('active')), [false, true, false]);
-  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[7]')));
+  page.run(`current = { aa: AA[0], ph: 7 }; renderQuestion()`);
+  assert.deepEqual(activePH(), ['7'], 'the next question uses its own pH');
+});
+
+test('the opening pH covers all three values across questions', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
+  for (const [r, ph] of [[0, 1], [0.5, 7], [0.999, 13]]) {
+    setRandom(page, r);
+    page.run('nextQuestion()');
+    assert.equal(page.run('nameStructPH'), ph, `random=${r}`);
+    assert.ok(boxHTML(page).includes(page.run(`current.aa.smiles[${ph}]`)));
+  }
 });
 
 test('Randomly select asks from a name or a structure per question and keeps it', () => {

@@ -192,6 +192,27 @@
     .field-input.bad { border-color: #C8102E; background: #FFEBEE; }
     .field-input:disabled { cursor: not-allowed; }
 
+    /* Type-ahead answer lists */
+    .combo { position: relative; flex: 1; min-width: 0; display: flex; }
+    .combo .field-input { width: 100%; }
+    .combo-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin-top: 2px;
+      max-height: 220px;
+      overflow-y: auto;
+      list-style: none;
+      background: #FFFFFF;
+      border: 1px solid #685C53;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .combo-list li { padding: 7px 13px; font-size: 0.92rem; color: #000000; cursor: pointer; }
+    .combo-list li:hover, .combo-list li.combo-active { background: rgba(200,16,46,0.08); color: #C8102E; }
+
     select.field-input { cursor: pointer; }
     select.field-input option { background: #FFFFFF; color: #000000; }
 
@@ -532,8 +553,12 @@
       <div class="field-group" id="fg-c1">
         <label class="field-label" for="inp-c1">1-Letter Code</label>
         <div class="field-row">
-          <input class="field-input" id="inp-c1" type="text" maxlength="2"
-                 placeholder="e.g. A" autocomplete="off" />
+          <div class="combo">
+            <input class="field-input" id="inp-c1" type="text" maxlength="2"
+                   placeholder="e.g. A" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-c1" />
+            <ul class="combo-list" id="list-c1" role="listbox" aria-label="1-letter code options" hidden></ul>
+          </div>
           <span class="ind" id="ind-c1" aria-live="polite"></span>
         </div>
       </div>
@@ -541,8 +566,12 @@
       <div class="field-group" id="fg-c3">
         <label class="field-label" for="inp-c3">3-Letter Code</label>
         <div class="field-row">
-          <input class="field-input" id="inp-c3" type="text" maxlength="4"
-                 placeholder="e.g. Ala" autocomplete="off" />
+          <div class="combo">
+            <input class="field-input" id="inp-c3" type="text" maxlength="4"
+                   placeholder="e.g. Ala" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-c3" />
+            <ul class="combo-list" id="list-c3" role="listbox" aria-label="3-letter code options" hidden></ul>
+          </div>
           <span class="ind" id="ind-c3" aria-live="polite"></span>
         </div>
       </div>
@@ -550,8 +579,12 @@
       <div class="field-group" id="fg-name">
         <label class="field-label" for="inp-name">Full Name</label>
         <div class="field-row">
-          <input class="field-input" id="inp-name" type="text"
-                 placeholder="e.g. Alanine" autocomplete="off" />
+          <div class="combo">
+            <input class="field-input" id="inp-name" type="text"
+                   placeholder="e.g. Alanine" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-name" />
+            <ul class="combo-list" id="list-name" role="listbox" aria-label="Full name options" hidden></ul>
+          </div>
           <span class="ind" id="ind-name" aria-live="polite"></span>
         </div>
       </div>
@@ -559,13 +592,12 @@
       <div class="field-group" id="fg-type">
         <label class="field-label" for="inp-type">Type</label>
         <div class="field-row">
-          <select class="field-input" id="inp-type">
-            <option value="">— Select type —</option>
-            <option value="nonpolar">Nonpolar</option>
-            <option value="polar">Polar</option>
-            <option value="acidic">Acidic</option>
-            <option value="basic">Basic</option>
-          </select>
+          <div class="combo">
+            <input class="field-input" id="inp-type" type="text"
+                   placeholder="e.g. Polar" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-type" />
+            <ul class="combo-list" id="list-type" role="listbox" aria-label="Type options" hidden></ul>
+          </div>
           <span class="ind" id="ind-type" aria-live="polite"></span>
         </div>
       </div>
@@ -1290,11 +1322,11 @@ function renderQuestion() {
   document.getElementById('ph-badge').textContent =
     !activeQtypeSet.has('ph') ? `pH ${ph}` : 'pH ?';
 
-  // Start name-mode structures back at pH 7
+  // Name-mode structures start at the question's random pH
   if (displayMode === 'name') {
-    nameStructPH = 7;
+    nameStructPH = ph;
     document.querySelectorAll('.name-ph-btn').forEach(b =>
-      setActive(b, parseInt(b.dataset.ph) === 7)
+      setActive(b, parseInt(b.dataset.ph) === ph)
     );
   }
 
@@ -1306,6 +1338,7 @@ function renderQuestion() {
   ALL_FIELD_IDS.forEach(id => {
     const active = activeFields.includes(id);
     document.getElementById('fg-' + id).style.display = active ? '' : 'none';
+    if (COMBO_OPTIONS[id]) closeCombo(id);
     const el  = document.getElementById('inp-' + id);
     const ind = document.getElementById('ind-' + id);
     el.value        = '';
@@ -1396,7 +1429,7 @@ function gradeField(id) {
   const { aa } = current;
   const correctMap = {
     c1: aa.code1, c3: aa.code3, name: aa.name,
-    type: aa.type, ph: String(current.ph)
+    type: TYPE_LABELS[aa.type], ph: String(current.ph)
   };
   let userVal;
   if      (id === 'c1')                  userVal = el.value.trim().toUpperCase();
@@ -1458,7 +1491,7 @@ function showAnswers() {
   const { aa } = current;
   const correctMap = {
     c1: aa.code1, c3: aa.code3, name: aa.name,
-    type: aa.type, ph: String(current.ph)
+    type: TYPE_LABELS[aa.type], ph: String(current.ph)
   };
 
   // Record which fields user already got correct
@@ -1470,6 +1503,7 @@ function showAnswers() {
 
   // Reveal remaining fields
   activeFields.forEach(id => {
+    if (COMBO_OPTIONS[id]) closeCombo(id);
     const el = document.getElementById('inp-' + id);
     if (!el.disabled) {
       el.value     = correctMap[id];
@@ -1539,12 +1573,129 @@ function toggleScoreBreakdown() {
   if (open) renderScoreBreakdown();
 }
 
+// ─── Type-ahead answer lists ──────────────────────────────────────────────────
+const byAlphabet = (a, b) => a.localeCompare(b);
+const COMBO_OPTIONS = {
+  c1:   AA.map(a => a.code1).sort(byAlphabet),
+  c3:   AA.map(a => a.code3).sort(byAlphabet),
+  name: AA.flatMap(a => [a.name, ...(a.altNames || [])]).sort(byAlphabet),
+  type: Object.values(TYPE_LABELS)
+};
+let comboActive = -1;   // highlighted option in the open list, -1 for none
+
+function comboIsOpen(id) {
+  return !document.getElementById('list-' + id).hidden;
+}
+
+function openCombo(id, options) {
+  const el   = document.getElementById('inp-' + id);
+  const list = document.getElementById('list-' + id);
+  if (el.disabled || options.length === 0) {
+    closeCombo(id);
+    return;
+  }
+  comboActive = -1;
+  el.removeAttribute('aria-activedescendant');
+  list.innerHTML = '';
+  options.forEach((option, i) => {
+    const item = document.createElement('li');
+    item.id = `opt-${id}-${i}`;
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', 'false');
+    item.textContent = option;
+    // Keeps focus in the input, so choosing an option doesn't first grade the partial text
+    item.addEventListener('mousedown', e => e.preventDefault());
+    item.addEventListener('click', () => pickComboOption(id, option));
+    list.appendChild(item);
+  });
+  list.hidden = false;
+  el.setAttribute('aria-expanded', 'true');
+}
+
+function closeCombo(id) {
+  const el = document.getElementById('inp-' + id);
+  document.getElementById('list-' + id).hidden = true;
+  el.setAttribute('aria-expanded', 'false');
+  el.removeAttribute('aria-activedescendant');
+  comboActive = -1;
+}
+
+// Options that start with what has been typed
+function comboMatches(id) {
+  const typed = norm(document.getElementById('inp-' + id).value);
+  return COMBO_OPTIONS[id].filter(o => norm(o).startsWith(typed));
+}
+
+// Clicking a box holding a complete answer offers the full list, so it can be changed
+function comboOptionsOnClick(id) {
+  const typed = norm(document.getElementById('inp-' + id).value);
+  return COMBO_OPTIONS[id].some(o => norm(o) === typed) ? COMBO_OPTIONS[id] : comboMatches(id);
+}
+
+function moveComboActive(id, step) {
+  const items = document.getElementById('list-' + id).children;
+  if (comboActive >= 0) items[comboActive].classList.remove('combo-active');
+  if (comboActive >= 0) items[comboActive].setAttribute('aria-selected', 'false');
+  comboActive = comboActive < 0 && step < 0
+    ? items.length - 1
+    : (comboActive + step + items.length) % items.length;
+  const item = items[comboActive];
+  item.classList.add('combo-active');
+  item.setAttribute('aria-selected', 'true');
+  item.scrollIntoView({ block: 'nearest' });
+  document.getElementById('inp-' + id).setAttribute('aria-activedescendant', item.id);
+}
+
+function pickComboOption(id, option) {
+  const el = document.getElementById('inp-' + id);
+  el.value = option;
+  closeCombo(id);
+  gradeField(id);
+  if (!el.disabled) return;   // wrong: stay here to try again
+  const nextField = getActiveFields().map(f => document.getElementById('inp-' + f)).find(f => !f.disabled);
+  (nextField || document.querySelector('.btn-next')).focus();
+}
+
+// Returns true when the list used the key
+function handleComboKey(id, e) {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!comboIsOpen(id)) openCombo(id, comboOptionsOnClick(id));
+    if (comboIsOpen(id)) moveComboActive(id, e.key === 'ArrowDown' ? 1 : -1);
+    return true;
+  }
+  if (!comboIsOpen(id)) return false;
+  if (e.key === 'Escape') {
+    closeCombo(id);
+    return true;
+  }
+  if (e.key === 'Enter') {
+    if (comboActive >= 0) {
+      e.preventDefault();
+      pickComboOption(id, document.getElementById('list-' + id).children[comboActive].textContent);
+      return true;
+    }
+    closeCombo(id);
+  }
+  return false;
+}
+
 // ─── Keyboard ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  ['c1','c3','name'].forEach(id => {
+  Object.keys(COMBO_OPTIONS).forEach(id => {
     const el = document.getElementById('inp-' + id);
-    el.addEventListener('blur',    () => gradeField(id));
+    closeCombo(id);
+    el.addEventListener('input', () => {
+      if (norm(el.value)) openCombo(id, comboMatches(id));
+      else                closeCombo(id);
+    });
+    el.addEventListener('click', () => openCombo(id, comboOptionsOnClick(id)));
+    el.addEventListener('blur',  () => {
+      closeCombo(id);
+      gradeField(id);
+    });
     el.addEventListener('keydown', e => {
+      if (handleComboKey(id, e)) return;
       if (e.key === 'Enter') {
         if (!answered) gradeField(id);
         else           nextQuestion();
@@ -1552,9 +1703,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  ['type','ph'].forEach(id => {
-    document.getElementById('inp-' + id).addEventListener('change', () => gradeField(id));
-  });
+  document.getElementById('inp-ph').addEventListener('change', () => gradeField('ph'));
 
   nextQuestion();  // starts in 'name' mode, which shows c1/c3/name
 });
