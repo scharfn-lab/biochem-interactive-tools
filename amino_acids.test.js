@@ -114,7 +114,9 @@ function loadPage({ rdkit = true } = {}) {
 // ── Helpers ────────────────────────────────────────────────────
 const FIELDS = ['c1', 'c3', 'name', 'type', 'ph'];
 const visibleFields = page => FIELDS.filter(id => page.el('fg-' + id).style.display !== 'none');
-const ask = (page, code, ph) => page.run(`current = { aa: AA.find(a => a.code1 === '${code}'), ph: ${ph} }; renderQuestion()`);
+// Fixes the default "Randomly select" hide choice on the full name, so c1 and c3 are the asked fields
+const ask = (page, code, ph) => page.run(`current = { aa: AA.find(a => a.code1 === '${code}'), ph: ${ph}, randomHide: 'name' }; renderQuestion()`);
+const hide = (page, field) => page.run(`toggleNameHide('${field}')`);
 const answer = (page, id, value) => {
   page.el('inp-' + id).value = value;
   page.el('inp-' + id).fire(id === 'type' || id === 'ph' ? 'change' : 'blur');
@@ -133,13 +135,15 @@ const startIdentify = (page, code = 'A', ph = 7) => {
 };
 
 // ── Page wiring ────────────────────────────────────────────────
-test('loads in structure mode with a question ready and only the name fields shown', () => {
+test('loads in structure mode with a question ready and two name fields shown', () => {
   const page = loadPage();
   assert.equal(page.run('displayMode'), 'structure');
   assert.ok(page.run('current'), 'first question was generated');
-  assert.deepEqual(visibleFields(page), ['c1', 'c3', 'name']);
+  const fields = visibleFields(page);
+  assert.equal(fields.length, 2, fields.join());
+  assert.ok(fields.every(f => ['c1', 'c3', 'name'].includes(f)), fields.join());
   assert.equal(page.el('ph-badge').textContent, `pH ${page.run('current.ph')}`);
-  assert.equal(page.document.getElementById('inp-c1'), makeElement.focused);
+  assert.equal(page.document.getElementById('inp-' + fields[0]), makeElement.focused);
 });
 
 test('every id the script looks up exists in the markup', () => {
@@ -164,11 +168,11 @@ test('question-type buttons and answer dropdowns agree with the script', () => {
   assert.deepEqual(page.qa('.qtype-btn').map(b => b.dataset.type).sort(), page.json('Object.keys(QTYPE)').sort());
   const options = id => [...MARKUP.match(new RegExp(`id="${id}"[\\s\\S]*?</select>`))[0].matchAll(/<option value="([^"]+)"/g)].map(m => m[1]);
   assert.deepEqual(options('inp-type').sort(), page.json('Object.keys(TYPE_LABELS)').sort());
-  assert.deepEqual(options('inp-ph'), ['2', '7', '13']);
+  assert.deepEqual(options('inp-ph'), ['1', '7', '13']);
 });
 
 // ── Amino acid database ────────────────────────────────────────
-// code1, code3, name, type, net charge at pH 2 / 7 / 13
+// code1, code3, name, type, net charge at pH 1 / 7 / 13
 const EXPECTED = [
   ['G', 'Gly', 'Glycine',       'nonpolar', 1,  0, -1],
   ['A', 'Ala', 'Alanine',       'nonpolar', 1,  0, -1],
@@ -203,12 +207,12 @@ test('every structure has the net charge expected at its pH', () => {
   const aa = loadPage().json('AA');
   for (const [code1, , name, , q2, q7, q13] of EXPECTED) {
     const { smiles } = aa.find(a => a.code1 === code1);
-    assert.deepEqual([2, 7, 13].map(ph => netCharge(smiles[ph])), [q2, q7, q13], name);
+    assert.deepEqual([1, 7, 13].map(ph => netCharge(smiles[ph])), [q2, q7, q13], name);
   }
 });
 
 test('all 60 SMILES are distinct, so no two options in a question can look identical', () => {
-  const all = loadPage().json('AA').flatMap(a => [a.smiles[2], a.smiles[7], a.smiles[13]]);
+  const all = loadPage().json('AA').flatMap(a => [a.smiles[1], a.smiles[7], a.smiles[13]]);
   assert.equal(all.length, 60);
   assert.equal(new Set(all).size, 60);
 });
@@ -222,7 +226,7 @@ test('every structure has natural L stereochemistry', () => {
   const expected = { G: [], I: ['@@', '@'], T: ['@@', '@'] };
   const wrong = [];
   for (const a of aa) {
-    for (const ph of [2, 7, 13]) {
+    for (const ph of [1, 7, 13]) {
       const tags = [...a.smiles[ph].matchAll(/\[C(@@?)H\]/g)].map(m => m[1]);
       if (tags.join() !== (expected[a.code1] ?? ['@@']).join()) wrong.push(`${a.name} pH ${ph}: ${a.smiles[ph]}`);
     }
@@ -233,7 +237,7 @@ test('every structure has natural L stereochemistry', () => {
 // ── Question generation ────────────────────────────────────────
 test('nextQuestion can reach all three pH values', () => {
   const page = loadPage();
-  for (const [r, ph] of [[0, 2], [0.5, 7], [0.999, 13]]) {
+  for (const [r, ph] of [[0, 1], [0.5, 7], [0.999, 13]]) {
     setRandom(page, r);
     page.run('nextQuestion()');
     assert.equal(page.run('current.ph'), ph);
@@ -274,8 +278,8 @@ test('shuffle returns a permutation and leaves its input alone', () => {
 // ── Active fields ──────────────────────────────────────────────
 test('getActiveFields follows the mode, question types and hide flags', () => {
   const cases = [
-    ['structure', [], ['c1', 'c3', 'name']],
-    ['structure', [`toggleQuestionType('ph')`], ['c1', 'c3', 'name', 'ph']],
+    ['structure', [`toggleNameHide('name')`], ['c1', 'c3']],
+    ['structure', [`toggleNameHide('c3')`, `toggleQuestionType('ph')`], ['c1', 'name', 'ph']],
     ['structure', [`toggleQuestionType('properties')`, `toggleQuestionType('name')`], ['type']],
     ['structure', [`toggleNameHide('c1')`], ['c3', 'name']],
     ['name', [], ['type']],
@@ -321,8 +325,12 @@ test('text answers ignore case and surrounding spaces', () => {
     ask(page, 'A', 7);
     answer(page, 'c1', c1);
     answer(page, 'c3', c3);
+    assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%'], `${c1}/${c3}`);
+    ask(page, 'A', 7);
+    hide(page, 'c1');
+    answer(page, 'c3', c3);
     answer(page, 'name', name);
-    assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%'], `${c1}/${c3}/${name}`);
+    assert.deepEqual(scoreboard(page), ['2', '2', '0', '100%'], `${c3}/${name}`);
   }
 });
 
@@ -330,6 +338,7 @@ test('Aspartic acid and Glutamic acid are accepted as full names', () => {
   for (const [code, code3, names] of [['D', 'Asp', ['Aspartate', 'aspartic acid', ' Aspartic  Acid ']], ['E', 'Glu', ['Glutamate', 'glutamic acid']]]) {
     for (const name of names) {
       const page = loadPage();
+      hide(page, 'c1');
       ask(page, code, 7);
       answer(page, 'name', name);
       assert.equal(page.el('inp-name').className, 'field-input ok', name);
@@ -338,6 +347,7 @@ test('Aspartic acid and Glutamic acid are accepted as full names', () => {
     }
   }
   const page = loadPage();
+  hide(page, 'c1');
   ask(page, 'D', 7);
   answer(page, 'name', 'Glutamic acid');
   assert.equal(page.el('inp-name').className, 'field-input bad', "Glu's name is not accepted for Asp");
@@ -416,19 +426,22 @@ test('dropdown answers grade on change against the true type and pH', () => {
 });
 
 test('every amino acid can be answered correctly at every pH', () => {
-  const page = loadPage();
-  page.run(`toggleQuestionType('properties'); toggleQuestionType('ph')`);
-  let done = 0;
-  for (const [code1, code3, name, type] of EXPECTED) {
-    for (const ph of [2, 7, 13]) {
-      ask(page, code1, ph);
-      answer(page, 'c1', code1);
-      answer(page, 'c3', code3);
-      answer(page, 'name', name);
-      answer(page, 'type', type);
-      answer(page, 'ph', String(ph));
-      done++;
-      assert.equal(page.el('s-correct').textContent, done, `${name} at pH ${ph}`);
+  for (const hidden of ['name', 'c1']) {
+    const page = loadPage();
+    page.run(`toggleQuestionType('properties'); toggleQuestionType('ph')`);
+    hide(page, hidden);
+    let done = 0;
+    for (const [code1, code3, name, type] of EXPECTED) {
+      for (const ph of [1, 7, 13]) {
+        ask(page, code1, ph);
+        answer(page, 'c1', code1);
+        answer(page, 'c3', code3);
+        answer(page, 'name', name);
+        answer(page, 'type', type);
+        answer(page, 'ph', String(ph));
+        done++;
+        assert.equal(page.el('s-correct').textContent, done, `${name} at pH ${ph}, hiding ${hidden}`);
+      }
     }
   }
 });
@@ -479,11 +492,11 @@ test('Show Answers reveals what is missing and credits only what was already rig
   answer(page, 'c3', 'Phe');
   page.run('showAnswers()');
   assert.equal(page.el('inp-c3').value, 'Trp');
-  assert.equal(page.el('inp-name').value, 'Tryptophan');
-  for (const id of ['c1', 'c3', 'name']) assert.equal(page.el('inp-' + id).disabled, true, id);
-  assert.deepEqual(scoreboard(page), ['1', '0', '1', '33%']);
+  assert.equal(page.el('inp-name').value, '', 'the hidden field is left alone');
+  for (const id of ['c1', 'c3']) assert.equal(page.el('inp-' + id).disabled, true, id);
+  assert.deepEqual(scoreboard(page), ['1', '0', '1', '50%']);
   assert.equal(page.el('feedback').className, 'feedback show partial');
-  assert.match(page.el('feedback').innerHTML, /1\/3 correct\./);
+  assert.match(page.el('feedback').innerHTML, /1\/2 correct\./);
   for (const text of ['Trp', 'Tryptophan', 'Nonpolar', 'pH 7']) assert.ok(page.el('feedback').innerHTML.includes(text), text);
 });
 
@@ -493,7 +506,7 @@ test('Show Answers with nothing right scores zero', () => {
   page.run('showAnswers()');
   assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
   assert.equal(page.el('feedback').className, 'feedback show wrong');
-  assert.match(page.el('feedback').innerHTML, /0\/3 correct\./);
+  assert.match(page.el('feedback').innerHTML, /0\/2 correct\./);
 });
 
 test('finishing every field reports a perfect score without Show Answers', () => {
@@ -503,7 +516,7 @@ test('finishing every field reports a perfect score without Show Answers', () =>
   answer(page, 'c3', 'Ala');
   answer(page, 'name', 'Alanine');
   assert.equal(page.el('feedback').className, 'feedback show all-correct');
-  assert.match(page.el('feedback').innerHTML, /Perfect! All 3 correct\./);
+  assert.match(page.el('feedback').innerHTML, /Perfect! All 2 correct\./);
   assert.equal(page.el('btn-check').disabled, true);
 });
 
@@ -592,31 +605,96 @@ test('Reset score clears the tally and keeps the question', () => {
   assert.equal(page.run('current'), before);
 });
 
-test('a question with no answer fields is never scored as perfect', () => {
+test('every combination of settings leaves something to answer', () => {
   const page = loadPage();
-  ask(page, 'A', 7);
-  page.run(`toggleNameHide('c1'); toggleNameHide('c3'); toggleNameHide('name')`);
-  assert.deepEqual(visibleFields(page), []);
-  assert.equal(page.el('btn-check').disabled, true);
-  assert.match(page.el('feedback').innerHTML, /Nothing to answer/);
-  page.run('showAnswers()');
-  assert.equal(page.run('score.total'), 0);
-  assert.equal(page.run('score.correct'), 0);
-  assert.equal(page.run('answered'), false);
-  assert.doesNotMatch(page.el('feedback').innerHTML, /Perfect/);
+  const types = ['name', 'ph', 'properties'];
+  for (const hidden of ['random', 'c1', 'c3', 'name']) {
+    page.run(`structureHide = '${hidden}'`);
+    for (let mask = 1; mask < 8; mask++) {
+      page.run(`activeQtypeSet = new Set(${JSON.stringify(types.filter((_, i) => mask & (1 << i)))}); renderQuestion()`);
+      assert.ok(page.json('getActiveFields()').length > 0, `hide ${hidden}, types ${mask}`);
+    }
+  }
+});
 
-  page.run(`toggleNameHide('c1')`);
-  assert.equal(page.el('btn-check').disabled, false, 'restoring a field restores the question');
-  assert.equal(page.el('feedback').innerHTML, '');
+// ── Hide-from-display choices in structure mode ────────────────
+test('the hide row sits below the question types and needs "Determine name"', () => {
+  assert.ok(MARKUP.indexOf('id="qtype-bar"') < MARKUP.indexOf('id="name-toggles"'));
+  const page = loadPage();
+  const row = page.el('name-toggles');
+  assert.equal(row.style.display, undefined, 'on by default with Determine name');
+
+  page.run(`toggleQuestionType('ph'); toggleQuestionType('name')`);
+  assert.equal(row.style.display, 'none');
+  assert.deepEqual(visibleFields(page), ['ph']);
+  page.run(`toggleQuestionType('name')`);
+  assert.equal(row.style.display, '');
+
+  page.run(`toggleQuestionType('name'); setDisplayMode('identify')`);
+  assert.equal(row.style.display, 'none');
+  page.run(`setDisplayMode('name')`);
+  assert.equal(row.style.display, '', 'name mode always offers it');
+  page.run(`setDisplayMode('structure')`);
+  assert.equal(row.style.display, 'none', 'name mode switched Determine name off');
+});
+
+test('exactly one hide choice is selected, starting with Randomly select first', () => {
+  const page = loadPage();
+  assert.deepEqual([...MARKUP.match(/id="name-toggles"[\s\S]*?<\/div>/)[0].matchAll(/>([^<>]+)<\/button>/g)].map(m => m[1]),
+    ['Randomly select', 'Hide 1-letter', 'Hide 3-letter', 'Hide Full Name']);
+  const selected = () => page.qa('.name-hide-btn').filter(b => !b.dataset.style && b.classList.contains('active')).map(b => b.dataset.field ?? b.id);
+  assert.deepEqual(selected(), ['name-random-btn']);
+  ask(page, 'A', 7);
+
+  for (const [field, fields] of [['c1', ['c3', 'name']], ['c3', ['c1', 'name']], ['name', ['c1', 'c3']]]) {
+    hide(page, field);
+    assert.deepEqual(selected(), [field]);
+    assert.deepEqual(visibleFields(page), fields);
+  }
+  hide(page, 'name');
+  assert.deepEqual(selected(), ['name'], 'clicking the selected choice keeps it');
+  page.run('toggleNameRandom(); toggleNameRandom()');
+  assert.deepEqual(selected(), ['name-random-btn'], 'so does clicking Randomly select twice');
+});
+
+test('Randomly select hides one field per question and keeps it through re-renders', () => {
+  const page = loadPage();
+  for (const [r, shown] of [[0, ['c3', 'name']], [0.5, ['c1', 'name']], [0.9, ['c1', 'c3']]]) {
+    setRandom(page, r);
+    page.run('nextQuestion()');
+    assert.deepEqual(visibleFields(page), shown, `random=${r}`);
+    setRandom(page, r === 0 ? 0.9 : 0);
+    page.run(`toggleQuestionType('ph'); toggleQuestionType('ph')`);
+    assert.deepEqual(visibleFields(page), shown, 'same question, same fields');
+  }
+});
+
+test('the structure hide choice and name mode hide flags are separate', () => {
+  const page = loadPage();
+  hide(page, 'c1');
+  page.run(`setDisplayMode('name')`);
+  assert.equal(page.q('[data-field="c1"]').classList.contains('active'), false);
+  assert.equal(page.el('name-random-btn').classList.contains('active'), false);
+  page.run(`toggleNameHide('c3'); toggleNameHide('name')`);
+  assert.deepEqual(page.json('getActiveFields()'), ['c3', 'name', 'type'], 'name mode still allows several');
+  page.run(`setDisplayMode('structure')`);
+  assert.ok(page.q('[data-field="c1"]').classList.contains('active'));
+  assert.ok(!page.q('[data-field="c3"]').classList.contains('active'));
+});
+
+test('the mode buttons have their new names', () => {
+  assert.match(MARKUP, /id="mode-btn-structure"[^>]*>Determine Properties \(From Structure\)</);
+  assert.match(MARKUP, /id="mode-btn-identify"[^>]*>Determine Structure \(From Name \+ pH\)</);
 });
 
 // ── Display mode switching ─────────────────────────────────────
 test('each mode shows its own panels and marks its own button', () => {
   const shown = id => id.style.display !== 'none';
   const expected = {
-    structure: { grid: true, identify: false, qtype: true, toggles: true, identifyToggles: false, random: false, phBadge: true, structControls: false },
-    name: { grid: true, identify: false, qtype: true, toggles: true, identifyToggles: false, random: true, phBadge: false, structControls: true },
-    identify: { grid: false, identify: true, qtype: false, toggles: false, identifyToggles: true, random: false, phBadge: true, structControls: false },
+    // Name mode turned Determine name off, so the hide row is gone on returning to structure mode
+    structure: { grid: true, identify: false, qtype: true, toggles: false, identifyToggles: false, phBadge: true, structControls: false },
+    name: { grid: true, identify: false, qtype: true, toggles: true, identifyToggles: false, phBadge: false, structControls: true },
+    identify: { grid: false, identify: true, qtype: false, toggles: false, identifyToggles: true, phBadge: true, structControls: false },
   };
   const page = loadPage();
   for (const mode of ['name', 'identify', 'structure']) {
@@ -627,7 +705,6 @@ test('each mode shows its own panels and marks its own button', () => {
       qtype: shown(page.el('qtype-bar')),
       toggles: shown(page.el('name-toggles')),
       identifyToggles: shown(page.el('identify-name-toggles')),
-      random: shown(page.el('name-random-btn')),
       phBadge: shown(page.el('ph-badge')),
       structControls: shown(page.el('name-struct-controls')),
     }, expected[mode], mode);
@@ -717,8 +794,8 @@ test('the structure toggle draws the pH 7 form and offers the other pH values', 
   assert.equal(page.el('name-ph-btns').style.display, '');
   assert.ok(boxHTML(page).includes(smiles(7)));
 
-  page.run('setNameStructPH(2)');
-  assert.ok(boxHTML(page).includes(smiles(2)));
+  page.run('setNameStructPH(1)');
+  assert.ok(boxHTML(page).includes(smiles(1)));
   assert.deepEqual(page.qa('.name-ph-btn').map(b => b.classList.contains('active')), [true, false, false]);
 
   page.run('toggleNameStructure()');
@@ -743,7 +820,7 @@ test('a new question in name mode returns to the name at pH 7', () => {
 test('every question offers 8 distinct options with one correct answer and a pH near miss', () => {
   const page = loadPage();
   for (let i = 0; i < 20; i++) {
-    for (const ph of [2, 7, 13]) {
+    for (const ph of [1, 7, 13]) {
       for (let round = 0; round < 5; round++) {
         const opts = page.json(`buildIdentifyOptions(AA[${i}], ${ph}).map(o => ({ i: AA.indexOf(o.aa), ph: o.ph, isCorrect: o.isCorrect }))`);
         const where = `AA[${i}] at pH ${ph}`;
@@ -759,7 +836,7 @@ test('every question offers 8 distinct options with one correct answer and a pH 
 
         const others = opts.filter(o => o.i !== i);
         assert.ok(others.filter(o => o.ph === ph).length >= 3, `${where}: at least 3 distractors share the target pH`);
-        for (const o of opts) assert.ok([2, 7, 13].includes(o.ph), where);
+        for (const o of opts) assert.ok([1, 7, 13].includes(o.ph), where);
       }
     }
   }
@@ -781,7 +858,7 @@ test('distractors favor the same side-chain type, up to the 3 available', () => 
 test('the question names the amino acid and draws a structure in each of 8 cells', () => {
   const page = loadPage();
   startIdentify(page, 'A', 13);
-  page.run(`toggleIdentifyNameStyle('c1'); toggleIdentifyNameStyle('c3')`);
+  page.run(`setIdentifyNameStyle('name')`);
   assert.equal(page.el('identify-aa-name').textContent, 'Alanine');
   assert.equal(page.el('identify-ph-badge').textContent, 'pH 13');
   const options = page.json('current.identifyOptions');
@@ -811,17 +888,32 @@ test('structure options are real buttons with labels that do not give away the a
   assert.equal(wrongCell.getAttribute('aria-disabled'), null, 'it can be explored again');
 });
 
-test('name style options set how the amino acid is named, and one always stays on', () => {
+test('exactly one name style is selected, starting with Randomly select first', () => {
+  const page = loadPage();
+  const buttons = page.qa('[data-style]');
+  assert.deepEqual(buttons.map(b => b.dataset.style), ['random', 'c1', 'c3', 'name']);
+  const selected = () => buttons.filter(b => b.classList.contains('active')).map(b => b.dataset.style);
+  assert.deepEqual(selected(), ['random']);
+
+  startIdentify(page, 'W', 7);
+  for (const [style, text] of [['c1', 'W'], ['c3', 'Trp'], ['name', 'Tryptophan']]) {
+    page.run(`setIdentifyNameStyle('${style}')`);
+    assert.deepEqual(selected(), [style]);
+    assert.equal(page.el('identify-aa-name').textContent, text);
+    page.run(`setIdentifyNameStyle('${style}')`);
+    assert.deepEqual(selected(), [style], 'clicking the selected style keeps it');
+  }
+});
+
+test('Randomly select can name the amino acid each of the three ways', () => {
   const page = loadPage();
   startIdentify(page, 'W', 7);
-  page.run(`toggleIdentifyNameStyle('name'); toggleIdentifyNameStyle('c3')`);
-  assert.equal(page.el('identify-aa-name').textContent, 'W');
-  page.run(`toggleIdentifyNameStyle('c1')`);
-  assert.deepEqual(page.json('[...identifyNamePool]'), ['c1'], 'the last style cannot be turned off');
-  assert.ok(page.q('[data-style="c1"]').classList.contains('active'));
-  assert.ok(!page.q('[data-style="c3"]').classList.contains('active'));
-  page.run(`toggleIdentifyNameStyle('c1'); toggleIdentifyNameStyle('c3'); toggleIdentifyNameStyle('c1')`);
-  assert.equal(page.el('identify-aa-name').textContent, 'Trp');
+  page.run(`setIdentifyNameStyle('random')`);
+  for (const [r, text] of [[0, 'W'], [0.5, 'Trp'], [0.9, 'Tryptophan']]) {
+    setRandom(page, r);
+    page.run('renderQuestion()');
+    assert.equal(page.el('identify-aa-name').textContent, text);
+  }
 });
 
 test('a correct first pick earns the point and locks the grid', () => {
@@ -909,8 +1001,8 @@ test('leaving identify mode and coming back does not clear the penalty for a wro
 // ── Structure rendering and RDKit ──────────────────────────────
 test('structure mode draws the SMILES for the current amino acid and pH', () => {
   const page = loadPage();
-  ask(page, 'E', 2);
-  assert.ok(boxHTML(page).includes(`data-smiles="${page.run('AA.find(a => a.code1 === "E").smiles[2]')}"`));
+  ask(page, 'E', 1);
+  assert.ok(boxHTML(page).includes(`data-smiles="${page.run('AA.find(a => a.code1 === "E").smiles[1]')}"`));
 });
 
 test('drawn SVGs get a transparent background and free their molecule', () => {
@@ -946,9 +1038,9 @@ test('a structure requested before RDKit loads is drawn once it arrives', () => 
 test('only the latest structure requested before RDKit loads is drawn', () => {
   const page = loadPage({ rdkit: false });
   ask(page, 'A', 7);
-  ask(page, 'G', 2);
+  ask(page, 'G', 1);
   page.loader.load();
-  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[2]')));
+  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[1]')));
 });
 
 test('RDKit arriving in name mode does not replace the names with a stale structure', () => {
@@ -1115,7 +1207,8 @@ test('toggle buttons report their state, in the markup and after every change', 
   for (const action of [
     `toggleQuestionType('ph')`, `toggleNameHide('c1')`, `toggleNameHide('c1')`, `setDisplayMode('name')`,
     'toggleNameRandom()', 'toggleNameStructure()', 'setNameStructPH(13)', 'nextQuestion()',
-    `setDisplayMode('identify')`, `toggleIdentifyNameStyle('c1')`, `setDisplayMode('structure')`,
+    `setDisplayMode('identify')`, `setIdentifyNameStyle('c1')`, `setDisplayMode('structure')`,
+    `toggleQuestionType('name')`, `toggleNameHide('c3')`, 'toggleNameRandom()',
   ]) {
     page.run(action);
     inSync(page);
@@ -1155,8 +1248,8 @@ test('unselected option buttons are grayed out but stay readable', () => {
   const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
   for (const selector of ['mode-btn', 'qtype-btn', 'name-hide-btn', 'name-ph-btn']) {
     const rule = css.match(new RegExp(`\\.${selector}\\s*{([^}]*)}`))[1];
-    assert.match(rule, /background: #E9E9E9;/, selector);
-    assert.match(rule, /color: #5F5F5F;/, selector);  // 5.26:1 on the gray fill
+    assert.match(rule, /background: #D4D4D4;/, selector);
+    assert.match(rule, /color: #555555;/, selector);  // 5.03:1 on the gray fill
     assert.match(css, new RegExp(`\\.${selector}\\.active\\s*{[^}]*color: #(C8102E|FFFFFF);`), `${selector} when selected`);
   }
 });
@@ -1179,6 +1272,11 @@ test('sulfur is drawn dark enough to read against the structure backgrounds', ()
   assert.ok(ratio >= 4.5, `contrast is ${ratio.toFixed(2)}:1`);
 });
 
-test('the pH 2 simplification is stated on the page', () => {
-  assert.match(MARKUP, /class="page-note"[\s\S]*pH 2[\s\S]*pKa is about 2/);
+test('the low pH is 1 everywhere and needs no explanatory note', () => {
+  const page = loadPage();
+  assert.doesNotMatch(HTML, /pH 2\b/);
+  assert.doesNotMatch(HTML, /page-note/);
+  assert.match(MARKUP, /data-ph="1"[^>]*onclick="setNameStructPH\(1\)">pH 1</);
+  for (const a of page.json('AA')) assert.deepEqual(Object.keys(a.smiles).sort(), ['1', '13', '7'], a.name);
+  for (let i = 0; i < 50; i++) assert.ok([1, 7, 13].includes(page.run('resolveCurrentPH()')));
 });

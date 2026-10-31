@@ -90,14 +90,14 @@
       font-weight: 600;
       border: 1px solid #8A8A8A;
       border-radius: 20px;
-      background: #E9E9E9;
-      color: #5F5F5F;
+      background: #D4D4D4;
+      color: #555555;
       cursor: pointer;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
       letter-spacing: 0.2px;
     }
 
-    .qtype-btn:hover { border-color: #C8102E; color: #C8102E; }
+    .qtype-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .qtype-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Main grid */
@@ -250,14 +250,6 @@
     .feedback .fb-answers b { color: #000000; }
     .feedback .fb-note { font-size: 0.85rem; color: #000000; margin-top: 8px; line-height: 1.4; }
 
-    .page-note {
-      font-size: 0.8rem;
-      color: #685C53;
-      line-height: 1.4;
-      margin-top: 16px;
-      text-align: center;
-    }
-
     .reset-link {
       display: block;
       margin: 16px auto 0;
@@ -284,12 +276,12 @@
       font-weight: 600;
       border: 1px solid #8A8A8A;
       border-radius: 20px;
-      background: #E9E9E9;
-      color: #5F5F5F;
+      background: #D4D4D4;
+      color: #555555;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .mode-btn:hover { border-color: #C8102E; color: #C8102E; }
+    .mode-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .mode-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Name-mode hide toggles */
@@ -300,12 +292,12 @@
       font-weight: 600;
       border: 1px solid #8A8A8A;
       border-radius: 20px;
-      background: #E9E9E9;
-      color: #5F5F5F;
+      background: #D4D4D4;
+      color: #555555;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; }
+    .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .name-hide-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Identify-mode panel */
@@ -380,11 +372,11 @@
       padding: 4px 14px;
       border: 1.5px solid #8A8A8A;
       border-radius: 6px;
-      background: #E9E9E9;
+      background: #D4D4D4;
       font-size: 0.82rem;
       font-weight: 600;
       cursor: pointer;
-      color: #5F5F5F;
+      color: #555555;
     }
     .name-ph-btn.active {
       background: #D0012B;
@@ -467,26 +459,18 @@
 
   <!-- Display mode toggle -->
   <div class="mode-toggle-row" role="group" aria-label="Display mode">
-    <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Show Amino Acid Structures</button>
+    <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Determine Properties (From Structure)</button>
     <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Show Amino Acid Names</button>
-    <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Amino Acid Structure</button>
+    <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Structure (From Name + pH)</button>
   </div>
 
-  <!-- Name-mode hide toggles -->
-  <div class="name-toggles" id="name-toggles" role="group" aria-label="Hide from display">
-    <span class="qtype-label">Hide from display:</span>
-    <button class="name-hide-btn" data-field="c1"   aria-pressed="false" onclick="toggleNameHide('c1')">Hide 1-letter</button>
-    <button class="name-hide-btn" data-field="c3"   aria-pressed="false" onclick="toggleNameHide('c3')">Hide 3-letter</button>
-    <button class="name-hide-btn" data-field="name" aria-pressed="false" onclick="toggleNameHide('name')">Hide Full Name</button>
-    <button class="name-hide-btn" id="name-random-btn" style="display:none" aria-pressed="false" onclick="toggleNameRandom()">Randomly select</button>
-  </div>
-
-  <!-- Identify-mode name style controls -->
+  <!-- Identify-mode name style controls (only one can be selected) -->
   <div class="name-toggles" id="identify-name-toggles" style="display:none" role="group" aria-label="Show name as">
     <span class="qtype-label">Show name as:</span>
-    <button class="name-hide-btn active" data-style="c1"   aria-pressed="true" onclick="toggleIdentifyNameStyle('c1')">1-letter</button>
-    <button class="name-hide-btn active" data-style="c3"   aria-pressed="true" onclick="toggleIdentifyNameStyle('c3')">3-letter</button>
-    <button class="name-hide-btn active" data-style="name" aria-pressed="true" onclick="toggleIdentifyNameStyle('name')">Full name</button>
+    <button class="name-hide-btn active" data-style="random" aria-pressed="true"  onclick="setIdentifyNameStyle('random')">Randomly select</button>
+    <button class="name-hide-btn"        data-style="c1"     aria-pressed="false" onclick="setIdentifyNameStyle('c1')">1-letter</button>
+    <button class="name-hide-btn"        data-style="c3"     aria-pressed="false" onclick="setIdentifyNameStyle('c3')">3-letter</button>
+    <button class="name-hide-btn"        data-style="name"   aria-pressed="false" onclick="setIdentifyNameStyle('name')">Full name</button>
   </div>
 
   <!-- Question type selector -->
@@ -495,6 +479,15 @@
     <button class="qtype-btn active" data-type="name"       aria-pressed="true"  onclick="toggleQuestionType('name')">Determine name</button>
     <button class="qtype-btn"        data-type="ph"         aria-pressed="false" onclick="toggleQuestionType('ph')">Determine pH</button>
     <button class="qtype-btn"        data-type="properties" aria-pressed="false" onclick="toggleQuestionType('properties')">Determine properties</button>
+  </div>
+
+  <!-- Hide toggles: one choice with "Determine name" in structure mode, any combination in name mode -->
+  <div class="name-toggles" id="name-toggles" role="group" aria-label="Hide from display">
+    <span class="qtype-label">Hide from display:</span>
+    <button class="name-hide-btn active" id="name-random-btn" aria-pressed="true" onclick="toggleNameRandom()">Randomly select</button>
+    <button class="name-hide-btn" data-field="c1"   aria-pressed="false" onclick="toggleNameHide('c1')">Hide 1-letter</button>
+    <button class="name-hide-btn" data-field="c3"   aria-pressed="false" onclick="toggleNameHide('c3')">Hide 3-letter</button>
+    <button class="name-hide-btn" data-field="name" aria-pressed="false" onclick="toggleNameHide('name')">Hide Full Name</button>
   </div>
 
   <!-- Main grid -->
@@ -507,7 +500,7 @@
       <div id="name-struct-controls" style="display:none; text-align:center; margin-bottom:6px">
         <button id="name-struct-toggle" class="btn btn-check" onclick="toggleNameStructure()">Show structure</button>
         <div id="name-ph-btns" style="display:none; justify-content:center; gap:6px; margin-top:8px">
-          <button class="name-ph-btn" data-ph="2"  aria-pressed="false" onclick="setNameStructPH(2)">pH 2</button>
+          <button class="name-ph-btn" data-ph="1"  aria-pressed="false" onclick="setNameStructPH(1)">pH 1</button>
           <button class="name-ph-btn active" data-ph="7"  aria-pressed="true" onclick="setNameStructPH(7)">pH 7</button>
           <button class="name-ph-btn" data-ph="13" aria-pressed="false" onclick="setNameStructPH(13)">pH 13</button>
         </div>
@@ -566,7 +559,7 @@
         <div class="field-row">
           <select class="field-input" id="inp-ph">
             <option value="">— Select pH —</option>
-            <option value="2">pH 2</option>
+            <option value="1">pH 1</option>
             <option value="7">pH 7</option>
             <option value="13">pH 13</option>
           </select>
@@ -602,18 +595,13 @@
   <!-- Feedback -->
   <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
 
-  <p class="page-note">
-    Simplification: pH 2 structures show the α-carboxyl fully protonated (COOH). Its pKa is about 2,
-    so a real sample at pH 2 is a substantial mix of COOH and COO⁻.
-  </p>
-
   <button type="button" class="reset-link" onclick="resetScore()">Reset score</button>
 </div>
 
 <script>
 // ─── Amino Acid Database ──────────────────────────────────────────────────────
 // SMILES with L-amino acid stereochemistry via [C@@H]/[C@H].
-// pH 2  → NH₃⁺, COOH backbone (fully protonated)
+// pH 1  → NH₃⁺, COOH backbone (fully protonated)
 // pH 7  → NH₃⁺, COO⁻ backbone (zwitterion) + ionizable side chains at physiological state
 // pH 13 → NH₂, COO⁻ backbone (fully deprotonated) + ionizable side chains deprotonated
 const AA = [
@@ -621,7 +609,7 @@ const AA = [
     name: "Glycine", code1: "G", code3: "Gly", type: "nonpolar",
     note: "Smallest amino acid; the only achiral one (R = H).",
     smiles: {
-      2:  "[NH3+]CC(=O)O",
+      1:  "[NH3+]CC(=O)O",
       7:  "[NH3+]CC(=O)[O-]",
       13: "NCC(=O)[O-]"
     }
@@ -630,7 +618,7 @@ const AA = [
     name: "Alanine", code1: "A", code3: "Ala", type: "nonpolar",
     note: "Simplest chiral amino acid (S); methyl side chain.",
     smiles: {
-      2:  "[NH3+][C@@H](C)C(=O)O",
+      1:  "[NH3+][C@@H](C)C(=O)O",
       7:  "[NH3+][C@@H](C)C(=O)[O-]",
       13: "N[C@@H](C)C(=O)[O-]"
     }
@@ -639,7 +627,7 @@ const AA = [
     name: "Valine", code1: "V", code3: "Val", type: "nonpolar",
     note: "Branched-chain (S); isopropyl side chain.",
     smiles: {
-      2:  "[NH3+][C@@H](C(C)C)C(=O)O",
+      1:  "[NH3+][C@@H](C(C)C)C(=O)O",
       7:  "[NH3+][C@@H](C(C)C)C(=O)[O-]",
       13: "N[C@@H](C(C)C)C(=O)[O-]"
     }
@@ -648,7 +636,7 @@ const AA = [
     name: "Leucine", code1: "L", code3: "Leu", type: "nonpolar",
     note: "Branched-chain (S); isobutyl side chain.",
     smiles: {
-      2:  "[NH3+][C@@H](CC(C)C)C(=O)O",
+      1:  "[NH3+][C@@H](CC(C)C)C(=O)O",
       7:  "[NH3+][C@@H](CC(C)C)C(=O)[O-]",
       13: "N[C@@H](CC(C)C)C(=O)[O-]"
     }
@@ -657,7 +645,7 @@ const AA = [
     name: "Isoleucine", code1: "I", code3: "Ile", type: "nonpolar",
     note: "Branched-chain; two chiral centers (2S,3S); sec-butyl side chain.",
     smiles: {
-      2:  "[NH3+][C@@H]([C@H](CC)C)C(=O)O",
+      1:  "[NH3+][C@@H]([C@H](CC)C)C(=O)O",
       7:  "[NH3+][C@@H]([C@H](CC)C)C(=O)[O-]",
       13: "N[C@@H]([C@H](CC)C)C(=O)[O-]"
     }
@@ -666,7 +654,7 @@ const AA = [
     name: "Proline", code1: "P", code3: "Pro", type: "nonpolar",
     note: "Secondary amine in a pyrrolidine ring (S); constrains backbone flexibility.",
     smiles: {
-      2:  "OC(=O)[C@@H]1CCC[NH2+]1",
+      1:  "OC(=O)[C@@H]1CCC[NH2+]1",
       7:  "[O-]C(=O)[C@@H]1CCC[NH2+]1",
       13: "[O-]C(=O)[C@@H]1CCCN1"
     }
@@ -675,7 +663,7 @@ const AA = [
     name: "Phenylalanine", code1: "F", code3: "Phe", type: "nonpolar",
     note: "Aromatic benzyl side chain (S); no ionizable group.",
     smiles: {
-      2:  "[NH3+][C@@H](Cc1ccccc1)C(=O)O",
+      1:  "[NH3+][C@@H](Cc1ccccc1)C(=O)O",
       7:  "[NH3+][C@@H](Cc1ccccc1)C(=O)[O-]",
       13: "N[C@@H](Cc1ccccc1)C(=O)[O-]"
     }
@@ -684,7 +672,7 @@ const AA = [
     name: "Tryptophan", code1: "W", code3: "Trp", type: "nonpolar",
     note: "Largest amino acid (S); indole side chain absorbs UV at 280 nm.",
     smiles: {
-      2:  "[NH3+][C@@H](Cc1c[nH]c2ccccc12)C(=O)O",
+      1:  "[NH3+][C@@H](Cc1c[nH]c2ccccc12)C(=O)O",
       7:  "[NH3+][C@@H](Cc1c[nH]c2ccccc12)C(=O)[O-]",
       13: "N[C@@H](Cc1c[nH]c2ccccc12)C(=O)[O-]"
     }
@@ -693,7 +681,7 @@ const AA = [
     name: "Methionine", code1: "M", code3: "Met", type: "nonpolar",
     note: "Contains sulfur as a thioether (S); universal N-terminal residue (AUG start codon).",
     smiles: {
-      2:  "[NH3+][C@@H](CCSC)C(=O)O",
+      1:  "[NH3+][C@@H](CCSC)C(=O)O",
       7:  "[NH3+][C@@H](CCSC)C(=O)[O-]",
       13: "N[C@@H](CCSC)C(=O)[O-]"
     }
@@ -702,7 +690,7 @@ const AA = [
     name: "Serine", code1: "S", code3: "Ser", type: "polar",
     note: "Hydroxymethyl side chain (S); common phosphorylation site.",
     smiles: {
-      2:  "[NH3+][C@@H](CO)C(=O)O",
+      1:  "[NH3+][C@@H](CO)C(=O)O",
       7:  "[NH3+][C@@H](CO)C(=O)[O-]",
       13: "N[C@@H](CO)C(=O)[O-]"
     }
@@ -711,7 +699,7 @@ const AA = [
     name: "Threonine", code1: "T", code3: "Thr", type: "polar",
     note: "β-Hydroxyl group; two chiral centers (2S,3R); phosphorylation site.",
     smiles: {
-      2:  "[NH3+][C@@H]([C@H](O)C)C(=O)O",
+      1:  "[NH3+][C@@H]([C@H](O)C)C(=O)O",
       7:  "[NH3+][C@@H]([C@H](O)C)C(=O)[O-]",
       13: "N[C@@H]([C@H](O)C)C(=O)[O-]"
     }
@@ -720,7 +708,7 @@ const AA = [
     name: "Cysteine", code1: "C", code3: "Cys", type: "polar",
     note: "Thiol side chain, R config at α-C (thiol raises CIP priority above carboxyl); pKa ~8.3; forms disulfide bonds.",
     smiles: {
-      2:  "[NH3+][C@@H](CS)C(=O)O",
+      1:  "[NH3+][C@@H](CS)C(=O)O",
       7:  "[NH3+][C@@H](CS)C(=O)[O-]",
       13: "N[C@@H](C[S-])C(=O)[O-]"
     }
@@ -729,7 +717,7 @@ const AA = [
     name: "Asparagine", code1: "N", code3: "Asn", type: "polar",
     note: "Amide side chain (S); no ionizable group; common N-linked glycosylation site.",
     smiles: {
-      2:  "[NH3+][C@@H](CC(N)=O)C(=O)O",
+      1:  "[NH3+][C@@H](CC(N)=O)C(=O)O",
       7:  "[NH3+][C@@H](CC(N)=O)C(=O)[O-]",
       13: "N[C@@H](CC(N)=O)C(=O)[O-]"
     }
@@ -738,7 +726,7 @@ const AA = [
     name: "Glutamine", code1: "Q", code3: "Gln", type: "polar",
     note: "Amide side chain (S); one carbon longer than Asn; no ionizable group.",
     smiles: {
-      2:  "[NH3+][C@@H](CCC(N)=O)C(=O)O",
+      1:  "[NH3+][C@@H](CCC(N)=O)C(=O)O",
       7:  "[NH3+][C@@H](CCC(N)=O)C(=O)[O-]",
       13: "N[C@@H](CCC(N)=O)C(=O)[O-]"
     }
@@ -747,7 +735,7 @@ const AA = [
     name: "Tyrosine", code1: "Y", code3: "Tyr", type: "polar",
     note: "Phenol side chain (S), pKa ~10.5; deprotonated at pH 13 (phenolate, O⁻); absorbs UV at 280 nm.",
     smiles: {
-      2:  "[NH3+][C@@H](Cc1ccc(O)cc1)C(=O)O",
+      1:  "[NH3+][C@@H](Cc1ccc(O)cc1)C(=O)O",
       7:  "[NH3+][C@@H](Cc1ccc(O)cc1)C(=O)[O-]",
       13: "N[C@@H](Cc1ccc([O-])cc1)C(=O)[O-]"
     }
@@ -756,7 +744,7 @@ const AA = [
     name: "Aspartate", altNames: ["Aspartic acid"], code1: "D", code3: "Asp", type: "acidic",
     note: "Side chain carboxyl pKa ~3.9 (S); negatively charged (COO⁻) at pH 7 and above.",
     smiles: {
-      2:  "[NH3+][C@@H](CC(=O)O)C(=O)O",
+      1:  "[NH3+][C@@H](CC(=O)O)C(=O)O",
       7:  "[NH3+][C@@H](CC(=O)[O-])C(=O)[O-]",
       13: "N[C@@H](CC(=O)[O-])C(=O)[O-]"
     }
@@ -765,7 +753,7 @@ const AA = [
     name: "Glutamate", altNames: ["Glutamic acid"], code1: "E", code3: "Glu", type: "acidic",
     note: "Side chain carboxyl pKa ~4.1 (S); negatively charged (COO⁻) at pH 7 and above.",
     smiles: {
-      2:  "[NH3+][C@@H](CCC(=O)O)C(=O)O",
+      1:  "[NH3+][C@@H](CCC(=O)O)C(=O)O",
       7:  "[NH3+][C@@H](CCC(=O)[O-])C(=O)[O-]",
       13: "N[C@@H](CCC(=O)[O-])C(=O)[O-]"
     }
@@ -774,7 +762,7 @@ const AA = [
     name: "Lysine", code1: "K", code3: "Lys", type: "basic",
     note: "ε-Amino group pKa ~10.5 (S); positively charged (NH₃⁺) at pH 7; neutral (NH₂) at pH 13.",
     smiles: {
-      2:  "[NH3+][C@@H](CCCC[NH3+])C(=O)O",
+      1:  "[NH3+][C@@H](CCCC[NH3+])C(=O)O",
       7:  "[NH3+][C@@H](CCCC[NH3+])C(=O)[O-]",
       13: "N[C@@H](CCCCN)C(=O)[O-]"
     }
@@ -783,16 +771,16 @@ const AA = [
     name: "Arginine", code1: "R", code3: "Arg", type: "basic",
     note: "Guanidinium pKa ~12.5 (S); remains positively charged at pH 7; deprotonated near pH 13.",
     smiles: {
-      2:  "[NH3+][C@@H](CCCNC(=[NH2+])N)C(=O)O",
+      1:  "[NH3+][C@@H](CCCNC(=[NH2+])N)C(=O)O",
       7:  "[NH3+][C@@H](CCCNC(=[NH2+])N)C(=O)[O-]",
       13: "N[C@@H](CCCNC(=N)N)C(=O)[O-]"
     }
   },
   {
     name: "Histidine", code1: "H", code3: "His", type: "basic",
-    note: "Imidazole pKa ~6.0 (S); protonated (imidazolium) at pH 2, mostly neutral at pH 7.",
+    note: "Imidazole pKa ~6.0 (S); protonated (imidazolium) at pH 1, mostly neutral at pH 7.",
     smiles: {
-      2:  "[NH3+][C@@H](CC1=CNC=[NH+]1)C(=O)O",
+      1:  "[NH3+][C@@H](CC1=CNC=[NH+]1)C(=O)O",
       7:  "[NH3+][C@@H](Cc1c[nH]cn1)C(=O)[O-]",
       13: "N[C@@H](Cc1c[nH]cn1)C(=O)[O-]"
     }
@@ -812,8 +800,9 @@ let answered     = false;      // true only when ALL active fields are correct
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
 let displayMode    = 'structure';       // 'structure' | 'name' | 'identify'
-let nameHideFlags  = { c1: false, c3: false, name: false };
-let identifyNamePool   = new Set(['c1', 'c3', 'name']); // styles allowed in identify mode
+let nameHideFlags  = { c1: false, c3: false, name: false }; // name mode: fields hidden from the display
+let structureHide  = 'random';   // structure mode: name field left out, 'random' | 'c1' | 'c3' | 'name'
+let identifyNameStyle  = 'random'; // identify mode: how the amino acid is named, same choices
 let nameRandom         = false;  // randomly show one non-hidden name field in name mode
 let nameShowingStructure = false;  // true when name mode is showing structure view
 let nameStructPH         = 7;      // active pH in name-mode structure view
@@ -841,7 +830,25 @@ function toggleQuestionType(type) {
   document.querySelectorAll('.qtype-btn').forEach(b => {
     setActive(b, activeQtypeSet.has(b.dataset.type));
   });
+  updateHideRow();
   renderQuestion();
+}
+
+// The hide buttons only matter in structure mode while "Determine name" is on
+function updateHideRow() {
+  const visible = displayMode === 'name' ||
+    (displayMode === 'structure' && activeQtypeSet.has('name'));
+  document.getElementById('name-toggles').style.display = visible ? '' : 'none';
+}
+
+function syncHideButtons() {
+  const structureMode = displayMode === 'structure';
+  document.querySelectorAll('.name-hide-btn[data-field]').forEach(b => {
+    const field = b.dataset.field;
+    setActive(b, structureMode ? structureHide === field : nameHideFlags[field]);
+  });
+  setActive(document.getElementById('name-random-btn'),
+    structureMode ? structureHide === 'random' : nameRandom);
 }
 
 function setDisplayMode(mode) {
@@ -856,9 +863,7 @@ function setDisplayMode(mode) {
   document.querySelector('.main-grid').style.display        = identifyMode ? 'none' : '';
   document.getElementById('identify-panel').style.display   = identifyMode ? ''     : 'none';
   document.getElementById('qtype-bar').style.display        = identifyMode ? 'none' : '';
-  document.getElementById('name-toggles').style.display     = identifyMode ? 'none' : '';
   document.getElementById('identify-name-toggles').style.display = identifyMode ? '' : 'none';
-  document.getElementById('name-random-btn').style.display  = (mode === 'name') ? '' : 'none';
 
   // Hide 'Determine name' qtype button in name mode
   document.querySelector('[data-type="name"]').style.display =
@@ -886,6 +891,9 @@ function setDisplayMode(mode) {
     );
   }
 
+  updateHideRow();
+  syncHideButtons();
+
   const nameMode = mode === 'name';
   document.getElementById('ph-badge').style.display             = nameMode ? 'none' : '';
   document.getElementById('name-struct-controls').style.display = nameMode ? ''     : 'none';
@@ -903,24 +911,24 @@ function setDisplayMode(mode) {
 }
 
 function toggleNameHide(fieldId) {
-  nameHideFlags[fieldId] = !nameHideFlags[fieldId];
-  setActive(document.querySelector(`.name-hide-btn[data-field="${fieldId}"]`), nameHideFlags[fieldId]);
+  if (displayMode === 'structure') structureHide = fieldId;
+  else nameHideFlags[fieldId] = !nameHideFlags[fieldId];
+  syncHideButtons();
   renderQuestion();
 }
 
-function toggleIdentifyNameStyle(style) {
-  if (identifyNamePool.has(style) && identifyNamePool.size === 1) return; // keep ≥1
-  if (identifyNamePool.has(style)) identifyNamePool.delete(style);
-  else                             identifyNamePool.add(style);
+function setIdentifyNameStyle(style) {
+  identifyNameStyle = style;
   document.querySelectorAll('[data-style]').forEach(b =>
-    setActive(b, identifyNamePool.has(b.dataset.style))
+    setActive(b, b.dataset.style === style)
   );
   if (current) document.getElementById('identify-aa-name').textContent = resolveIdentifyName(current.aa);
 }
 
 function toggleNameRandom() {
-  nameRandom = !nameRandom;
-  setActive(document.getElementById('name-random-btn'), nameRandom);
+  if (displayMode === 'structure') structureHide = 'random';
+  else nameRandom = !nameRandom;
+  syncHideButtons();
   renderQuestion();
 }
 
@@ -948,11 +956,20 @@ function setNameStructPH(ph) {
   drawStructure(current.aa.smiles[ph]);
 }
 
+function randomNameField() {
+  return ['c1', 'c3', 'name'][Math.floor(Math.random() * 3)];
+}
+
 function resolveIdentifyName(aa) {
-  const pool = [...identifyNamePool];
-  if (pool.length === 0) return aa.name;
-  const style = pool[Math.floor(Math.random() * pool.length)];
+  const style = identifyNameStyle === 'random' ? randomNameField() : identifyNameStyle;
   return style === 'c1' ? aa.code1 : style === 'c3' ? aa.code3 : aa.name;
+}
+
+// A random choice is kept on the question so re-rendering it doesn't change the fields
+function structureHiddenField() {
+  if (structureHide !== 'random') return structureHide;
+  if (!current.randomHide) current.randomHide = randomNameField();
+  return current.randomHide;
 }
 
 function getActiveFields() {
@@ -961,10 +978,8 @@ function getActiveFields() {
   if (displayMode === 'structure') {
     // Union of all active qtype fields
     activeQtypeSet.forEach(type => QTYPE[type].fields.forEach(f => fields.add(f)));
-    // Hide flags remove name fields from the answer area
-    if (nameHideFlags.c1)   fields.delete('c1');
-    if (nameHideFlags.c3)   fields.delete('c3');
-    if (nameHideFlags.name) fields.delete('name');
+    // The hide choice removes one name field from the answer area
+    fields.delete(structureHiddenField());
   } else {
     // Name mode: hidden name fields become answer fields
     if (nameHideFlags.c1)   fields.add('c1');
@@ -1124,7 +1139,7 @@ function shuffle(arr) {
 }
 
 function buildIdentifyOptions(targetAA, targetPH) {
-  const PHs = [2, 7, 13];
+  const PHs = [1, 7, 13];
   const otherPHs = PHs.filter(p => p !== targetPH);
 
   let samePool = shuffle(AA.filter(a => a.type === targetAA.type && a !== targetAA));
@@ -1254,7 +1269,7 @@ function handleIdentifyClick(index) {
 
 // ─── pH helpers ───────────────────────────────────────────────────────────────
 function resolveCurrentPH() {
-  const choices = [2, 7, 13];
+  const choices = [1, 7, 13];
   return choices[Math.floor(Math.random() * 3)];
 }
 
@@ -1331,13 +1346,8 @@ function renderQuestion() {
   fb.className = 'feedback';
   fb.innerHTML = '';
 
-  // Re-enable check button, unless the hide toggles left nothing to answer
-  document.getElementById('btn-check').disabled = activeFields.length === 0;
-  if (activeFields.length === 0) {
-    fb.className = 'feedback show partial';
-    fb.innerHTML = `<div class="fb-title">Nothing to answer</div>
-      <div class="fb-answers">All answer fields are hidden. Turn off a Hide button or add another question type.</div>`;
-  }
+  // Re-enable check button
+  document.getElementById('btn-check').disabled = false;
 
   if (activeFields.length > 0)
     document.getElementById('inp-' + activeFields[0]).focus();
@@ -1467,7 +1477,6 @@ function showAnswers() {
   }
 
   const activeFields = getActiveFields();
-  if (activeFields.length === 0) return;
   const { aa } = current;
   const correctMap = {
     c1: aa.code1, c3: aa.code3, name: aa.name,
