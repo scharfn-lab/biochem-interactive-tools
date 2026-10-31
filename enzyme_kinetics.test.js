@@ -15,8 +15,8 @@ const { factors, constants, v0, fmtSig, fmtCompact, tickLabels, niceScale, parse
 const validate = raw => page.validate(raw);
 const buildModel = p => page.buildModel(p);
 const differingParameter = p => page.differingParameter(p);
-const randomParameters = rand => page.randomParameters(rand);
-const { timeToReach, productAt, progressCurve, measuredRate, ratesTimeEnd, leastSquaresLine, speciesTimeCourse } = page;
+const randomParameters = (rand, units) => page.randomParameters(rand, units);
+const { timeToReach, productAt, progressCurve, measuredRate, ratesTimeEnd } = page;
 
 // A repeatable random sequence, so a failure can be reproduced.
 function seededRandom(seed) {
@@ -320,30 +320,6 @@ test('a measured rate falls as the window widens and approaches v₀ as it narro
   }
 });
 
-test('narrow windows recover Vmax and Km from a least-squares L-B line; wide ones do not', () => {
-  const fitAt = pct => {
-    const tw = ratesTimeEnd(ENZYME) * pct / 100;
-    const line = leastSquaresLine([5, 10, 25, 50, 125].map(S => ({ x: 1 / S, y: 1 / measuredRate(ENZYME, S, tw) })));
-    return { Vmax: 1 / line.yInt, Km: line.slope / line.yInt };
-  };
-  const narrow = fitAt(0.01);
-  assert.ok(Math.abs(narrow.Vmax - 6) / 6 < 0.01 && Math.abs(narrow.Km - 25) / 25 < 0.01, JSON.stringify(narrow));
-  const wide = fitAt(100);
-  assert.ok(Math.abs(wide.Km - 25) / 25 > 0.1, JSON.stringify(wide));
-});
-
-test('leastSquaresLine recovers a known line and needs two different x values', () => {
-  const line = leastSquaresLine([1, 2, 3, 7].map(x => ({ x, y: 3 * x - 2 })));
-  near(line.slope, 3);
-  near(line.yInt, -2);
-  assert.equal(leastSquaresLine([{ x: 1, y: 1 }]), null);
-  assert.equal(leastSquaresLine([{ x: 1, y: 1 }, { x: 1, y: 2 }]), null);
-});
-
-test('lineEquation shows a negative intercept with a minus sign', () => {
-  assert.equal(lineEquation({ slope: 2, yInt: -0.5 }), 'y = 2.00x − 0.500');
-});
-
 test('the Measuring Rates tab reads only Conditions A and gives one uninhibited curve', () => {
   const { errors, params } = validate({ ...VALID, mode: 'rates', I: '-1', Ki: '', Km2: '' });
   assert.equal(errors.length, 0);
@@ -353,50 +329,19 @@ test('the Measuring Rates tab reads only Conditions A and gives one uninhibited 
   assert.equal(curves[0].k.appKm, 10);
 });
 
-// ── Measuring Rates: species over time ───────────────────────
-test('E and ES always add up to Et, and fractions stay between 0 and 1', () => {
-  const s = speciesTimeCourse(25, 120, 0.05, 25);
-  s.E.forEach((p, i) => {
-    near(p.y + s.ES[i].y, 1);
-    assert.ok(s.ES[i].y >= 0 && s.ES[i].y <= 1 && s.P[i].y >= 0 && s.P[i].y <= 1);
-  });
+test('a tolerance can be widened for values read from a plot', () => {
+  assert.ok(isCorrect(1.1, 1, 0.1));
+  assert.ok(!isCorrect(1.11, 1, 0.1));
+  assert.ok(!isCorrect(1.1, 1));
 });
 
-test('ES plateaus at the steady-state value, Et·S/(Km + S)', () => {
-  for (const S0 of [5, 25, 125]) {
-    const peak = Math.max(...speciesTimeCourse(25, 120, 0.05, S0).ES.map(p => p.y));
-    const expected = S0 / (25 + S0);
-    assert.ok(Math.abs(peak - expected) / expected < 0.02, `${S0}: ${peak} vs ${expected}`);
-  }
-});
-
-test('ES rises before product appears, and the reaction runs nearly to completion', () => {
-  const s = speciesTimeCourse(25, 120, 0.05, 25);
-  const rise = s.ES.findIndex(p => p.y >= 0.45);
-  assert.ok(rise > 0 && s.P[rise].y < 0.01, String(s.P[rise].y));
-  assert.ok(s.P[s.P.length - 1].y > 0.98);
-  assert.ok(s.ES[s.ES.length - 1].y < 0.05);
-});
-
-test('product from the mass-action model tracks the integrated rate law', () => {
-  const k = constants(6, 25, 1, 1);
-  const s = speciesTimeCourse(25, 120, 0.05, 25);
-  for (const p of s.P) {
-    if (p.y < 0.05 || p.y > 0.95) continue;
-    const exact = productAt(k, 25, p.x) / 25;
-    assert.ok(Math.abs(p.y - exact) < 0.03, `t = ${p.x}: ${p.y} vs ${exact}`);
-  }
-});
-
-test('the species model stays finite and valid across random enzymes', () => {
-  const rand = seededRandom(1234);
-  for (let i = 0; i < 200; i++) {
-    const r = randomParameters(rand);
-    const s = speciesTimeCourse(r.Km, r.kcat, r.Etot, r.Km * [0.2, 1, 5][i % 3]);
-    for (const series of [s.E, s.ES, s.P]) {
-      assert.ok(series.every(p => Number.isFinite(p.x) && p.x > 0 && p.y >= -1e-9 && p.y <= 1 + 1e-9), JSON.stringify(r));
-    }
-    assert.ok(s.P[s.P.length - 1].y > 0.9, JSON.stringify(r));
+test('random enzymes can share the same units', () => {
+  const rand = seededRandom(5);
+  for (let i = 0; i < 500; i++) {
+    const r = randomParameters(rand, { conc: 'mM', time: 'min' });
+    assert.equal(r.concUnit, 'mM');
+    assert.equal(r.timeUnit, 'min');
+    assert.ok(r.Km >= 0.5 && r.Km <= 200 && r.kcat >= 10 && r.kcat <= 5000, JSON.stringify(r));
   }
 });
 

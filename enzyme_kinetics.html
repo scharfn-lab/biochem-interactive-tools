@@ -270,6 +270,7 @@
     #reaction-scheme svg { max-width: 340px; }
 
     /* Measuring Rates controls */
+    #rates-settings-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
     #demo-s-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     #demo-s-buttons button { padding: 3px 9px; font-size: 0.8em; }
     .readout { font-size: 0.85em; line-height: 1.5; }
@@ -301,7 +302,7 @@
 
     .entry-tools { margin-top: 10px; }
     .entry-tools button { padding: 5px 14px; }
-    #entry-note-inhibition { margin: 0 0 8px; }
+    #entry-note-inhibition, #entry-note-rates { margin: 0 0 8px; }
     .score { font-size: 0.85em; }
 
     .table-scroll { overflow-x: auto; }
@@ -412,6 +413,11 @@
     <button type="button" data-difference="kcat">Different k<sub>cat</sub></button>
   </div>
 
+  <section class="panel box" id="rates-settings" aria-labelledby="rates-settings-title">
+    <h2 class="panel-section-title" id="rates-settings-title">Enzyme concentration and units</h2>
+    <div id="rates-settings-fields"></div>
+  </section>
+
   <div id="workspace">
 
     <!-- Controls -->
@@ -429,7 +435,7 @@
             <div class="field-row">
               <div class="field"><label for="Km">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km" step="any" min="0"></div>
               <div class="field"><label for="kcat">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat" step="any" min="0"></div>
-              <div class="field"><label for="Etot">E<sub>t</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
+              <div class="field" id="Etot-field"><label for="Etot">E<sub>t</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
             </div>
           </div>
           <div id="condition-b" role="group" aria-labelledby="condition-b-title">
@@ -443,8 +449,8 @@
         </div>
         <div class="box-subsection">
           <h3 class="panel-section-title">Units</h3>
-          <div class="field-row">
-            <div class="field">
+          <div class="field-row" id="units-row">
+            <div class="field" id="concUnit-field">
               <label for="concUnit">Concentration</label>
               <select id="concUnit">
                 <option value="M">M</option>
@@ -453,7 +459,7 @@
                 <option value="nM">nM</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field" id="timeUnit-field">
               <label for="timeUnit">Time</label>
               <select id="timeUnit">
                 <option value="s">s</option>
@@ -512,7 +518,7 @@
           <p id="run-message" role="status"></p>
           <label class="control-label" for="measure-window" id="window-readout"></label>
           <input type="range" id="measure-window" min="1" max="100" step="1">
-          <p class="note">Each run adds one point, using the slope over this window. Try [S] values below and above K<sub>m</sub>, then widen the window and watch the points fall as substrate runs out.</p>
+          <p class="note">Each run adds one point, using the slope over this window. Try a wide range of [S], until the rate levels off, then widen the window and watch the points fall as substrate runs out.</p>
           <ul id="run-list"></ul>
         </div>
       </section>
@@ -522,6 +528,7 @@
       <!-- Vmax and Km entry -->
       <section class="panel box" id="entry-box" aria-labelledby="entry-title">
         <h2 class="panel-section-title" id="entry-title">Determine V<sub>max</sub> and K<sub>m</sub></h2>
+        <p class="note" id="entry-note-rates">Estimate from your M-M plot: V<sub>max</sub> is where the rate levels off, and K<sub>m</sub> is the [S] that gives ½V<sub>max</sub>. Answers count within ±10%.</p>
         <p class="note" id="entry-note-inhibition">For the inhibited curves, enter the apparent values (V<sub>max</sub><sup>app</sup> and K<sub>m</sub><sup>app</sup>).</p>
         <div class="table-scroll" id="entry-table" role="region" aria-label="Vmax and Km answers" tabindex="0"></div>
         <div class="entry-tools">
@@ -562,7 +569,7 @@
           <div class="plot-tools"><button type="button" id="guides" aria-pressed="false">Show Guides</button></div>
         </div>
       </section>
-      <section class="panel plot-card" data-panel="lb" aria-labelledby="lb-title">
+      <section class="panel plot-card" id="lb-card" data-panel="lb" aria-labelledby="lb-title">
         <div class="panel-header">
           <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
           <div class="panel-buttons">
@@ -573,20 +580,6 @@
         <div class="panel-body">
           <div class="legend" id="lb-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
-        </div>
-      </section>
-      <section class="panel plot-card" id="species-card" data-panel="species" aria-labelledby="species-title">
-        <div class="panel-header">
-          <h2 class="panel-section-title" id="species-title">Species vs. time</h2>
-          <div class="panel-buttons">
-            <button type="button" data-zoom="species" aria-pressed="false" aria-label="Zoom species vs. time plot">Zoom</button>
-            <button type="button" data-collapse="species">Hide</button>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="legend" id="species-legend"></div>
-          <div class="canvas-wrap"><canvas class="plot-canvas" id="species-canvas" role="img"></canvas></div>
-          <p class="note">ES rises quickly, then holds nearly constant: the steady state. Only K<sub>m</sub> = (k₋₁ + k<sub>cat</sub>)/k₁ is set by your values, so this plot assumes k₋₁ = 4 × k<sub>cat</sub> for illustration. K<sub>m</sub> equals K<sub>d</sub> only when k<sub>cat</sub> ≪ k₋₁.</p>
         </div>
       </section>
       <p class="plot-hint" id="plot-hint">Hover or tap a plot to read the nearest point.</p>
@@ -602,6 +595,10 @@
 const $ = id => document.getElementById(id);
 
 const DEFAULT_WINDOW_PCT = 5;   // of the time axis
+
+// The Measuring Rates tab's hidden Km and kcat. The demonstration names multiples of Km, so
+// Collect Data uses a different enzyme, and neither matches the other tabs' defaults.
+const RATES_ENZYMES = { demo: { Km: 30, kcat: 140 }, collect: { Km: 40, kcat: 90 } };
 const MAX_RUNS = 10;
 
 const DEFAULTS = {
@@ -624,10 +621,11 @@ const state = {
   ratesData: null,    // progress curves and measured points, built only on the Measuring Rates tab
   rates: {
     view: 'demo',     // 'demo' or 'collect'
+    enzymes: { ...RATES_ENZYMES },   // hidden; never written to the page before Reveal
     selected: 2,      // index into DEMO_S_FACTORS
     runs: [],         // starting [S] of each experiment the student has run
     windowPct: DEFAULT_WINDOW_PCT,
-    key: '',          // the enzyme values the runs belong to; a change clears them
+    key: '',          // the enzyme and units the runs belong to; a change clears them
   },
 };
 
@@ -638,8 +636,8 @@ const challenge = { active: false, truth: null, guess: null, restore: null };
 
 // Page layout choices. "Reset to defaults" leaves these alone, as it does the open tab.
 const view = {
-  collapsed: { model: false, scheme: false, enzyme: false, product: false, mm: false, lb: false, species: false },
-  zoomed: { product: false, mm: false, lb: false, species: false },
+  collapsed: { model: false, scheme: false, enzyme: false, product: false, mm: false, lb: false },
+  zoomed: { product: false, mm: false, lb: false },
   guides: false,
 };
 
@@ -758,7 +756,7 @@ function buildModel(p) {
 
 // ── Progress curves: product against time for one experiment ──
 
-const DEMO_S_FACTORS = [0.2, 0.5, 1, 2, 5];   // starting [S] as multiples of Km
+const DEMO_S_FACTORS = [0.2, 0.5, 1, 2, 5, 10];   // starting [S] as multiples of Km
 const PROGRESS_POINTS = 200;
 
 // The integrated rate law: time for substrate to fall from S0 to S.
@@ -796,49 +794,6 @@ function measuredRate(k, S0, tWindow) {
 // visibly level off while high-[S] curves stay nearly straight.
 function ratesTimeEnd(k) {
   return timeToReach(k, k.Km, 0.2 * k.Km);
-}
-
-// Ordinary least squares, or null without two different x values.
-function leastSquaresLine(points) {
-  const n = points.length;
-  if (n < 2) return null;
-  const meanX = points.reduce((sum, p) => sum + p.x, 0) / n;
-  const meanY = points.reduce((sum, p) => sum + p.y, 0) / n;
-  const sxx = points.reduce((sum, p) => sum + (p.x - meanX) ** 2, 0);
-  if (sxx === 0) return null;
-  const slope = points.reduce((sum, p) => sum + (p.x - meanX) * (p.y - meanY), 0) / sxx;
-  return { slope, yInt: meanY - slope * meanX };
-}
-
-// E + S ⇌ ES → E + P by mass action, over a log time scale from the fast rise of ES to near
-// completion. Km and kcat leave k₋₁ open, so it is an illustrative multiple of kcat.
-const ILLUSTRATIVE_KOFF_RATIO = 4;
-
-function speciesTimeCourse(Km, kcat, Etot, S0, steps = 2000) {
-  const kOff = ILLUSTRATIVE_KOFF_RATIO * kcat;
-  const kOn = (kOff + kcat) / Km;
-  const k = constants(kcat * Etot, Km, 1, 1);
-  const tStart = 0.01 / (kOn * S0 + kOff + kcat);
-  const tEnd = Math.max(timeToReach(k, S0, 0.01 * S0) * 1.5, tStart * 100);
-  const ratio = (tEnd / tStart) ** (1 / steps);
-
-  const series = { E: [], ES: [], P: [] };
-  let ES = 0, P = 0, S = S0, t = 0, next = tStart;
-  for (let i = 0; i <= steps; i++) {
-    const dt = next - t;
-    t = next;
-    next = t * ratio;
-    // ES is updated implicitly, which stays stable when a step is far longer than the rise of ES.
-    ES = (ES + dt * kOn * Etot * S) / (1 + dt * (kOn * S + kOff + kcat));
-    P = Math.min(P + kcat * ES * dt, S0);
-    S = Math.max(0, S0 - P - ES);
-    if (i % 10 === 0) {
-      series.E.push({ x: t, y: 1 - ES / Etot });
-      series.ES.push({ x: t, y: ES / Etot });
-      series.P.push({ x: t, y: P / S0 });
-    }
-  }
-  return series;
 }
 
 const FIELD_NAMES = {
@@ -900,14 +855,14 @@ const MIN_CONC_NM = 1, MAX_CONC_NM = 9e8, MAX_ET_NM = 1e5, MAX_KI_NM = 5e7;
 // A full set of field values, rounded to 2 significant figures. Et stays well below Km, as the
 // Michaelis-Menten model assumes. [I] is set from Ki and Ki' rather than drawn on its own, so
 // I/Ki and I/Ki' are both at least about 1.5 and any inhibition type shows clearly on the plots.
-function randomParameters(rand = Math.random) {
+function randomParameters(rand = Math.random, units = {}) {
   const between = (lo, hi) => lo + (hi - lo) * rand();
   const logBetween = (lo, hi) => lo * (hi / lo) ** rand();
   const pick = list => list[Math.floor(rand() * list.length)];
   const sig2 = x => Number(x.toPrecision(2));
 
-  const concUnit = pick(Object.keys(RANDOM_KM_RANGE));
-  const timeUnit = pick(Object.keys(RANDOM_KCAT_RANGE));
+  const concUnit = units.conc || pick(Object.keys(RANDOM_KM_RANGE));
+  const timeUnit = units.time || pick(Object.keys(RANDOM_KCAT_RANGE));
   const perUnit = NM_PER_UNIT[concUnit];
 
   const Km = sig2(logBetween(...RANDOM_KM_RANGE[concUnit]));
@@ -984,8 +939,7 @@ function tickLabels(ticks) {
 
 // The L-B line as y = mx + b, with scientific notation closed up to fit on the plot.
 function lineEquation(k) {
-  const sign = k.yInt < 0 ? '−' : '+';
-  return `y = ${fmtSig(k.slope)}x ${sign} ${fmtSig(Math.abs(k.yInt))}`.replaceAll(' × ', '×');
+  return `y = ${fmtSig(k.slope)}x + ${fmtSig(k.yInt)}`.replaceAll(' × ', '×');
 }
 
 function niceStep(rough) {
@@ -1029,10 +983,14 @@ function parseAnswer(text) {
   return sci ? Number(`${sci[1]}e${sci[2]}`) : Number(t);
 }
 
-// Within ±2% of the true value. The tiny tolerance keeps an exact 2% answer from failing on rounding.
-function isCorrect(answer, truth) {
-  return Number.isFinite(answer) && Math.abs(answer - truth) <= 0.02 * Math.abs(truth) * (1 + 1e-9);
+// Within ±2% of the true value by default. The tiny tolerance keeps an answer exactly at the limit
+// from failing on rounding.
+function isCorrect(answer, truth, tolerance = 0.02) {
+  return Number.isFinite(answer) && Math.abs(answer - truth) <= tolerance * Math.abs(truth) * (1 + 1e-9);
 }
+
+// Reading a curve by eye can't match the precision of working from a line's equation.
+const READ_FROM_PLOT_TOLERANCE = 0.1;
 
 
 // ═══ 3. PLOTTING ══════════════════════════════════════════════
@@ -1069,16 +1027,11 @@ const plots = {
     kind: 'lb', canvas: document.getElementById('lb-canvas'), hover: null, geom: null,
     xName: '1/[S]', yName: '1/v₀',
     xUnit: u => `${u.conc}⁻¹`, yUnit: u => `${u.time}/${u.conc}`,
-    extent: m => (state.ratesData ? ratesExtent('lb') : {
+    notOnRates: true,
+    extent: m => ({
       x: 1 / m.range.Smin,
       y: Math.max(...m.curves.map(c => c.lb[c.lb.length - 1].y)) * 1.05,
     }),
-  },
-  species: {
-    kind: 'species', ratesOnly: true, logX: true, canvas: $('species-canvas'), hover: null, geom: null,
-    xName: 't', yName: 'Fraction',
-    xUnit: u => `${u.time}, log scale`, tipXUnit: u => u.time, yUnit: () => '',
-    extent: () => ratesExtent('species'),
   },
 };
 
@@ -1098,23 +1051,18 @@ function buildRatesData() {
   state.ratesData = null;
   if (state.params.mode !== 'rates') return;
   const { view, selected, runs, windowPct } = state.rates;
-  const { Km, kcat, Etot } = state.params;
   const k = state.model.curves[0].k;
   const tEnd = ratesTimeEnd(k);
   const tWindow = tEnd * windowPct / 100;
   const demo = view === 'demo';
-  const starts = demo ? DEMO_S_FACTORS.map(f => f * Km) : runs;
+  const starts = demo ? DEMO_S_FACTORS.map(f => f * state.params.Km) : runs;
   const experiments = starts.map(S0 => ({
     S0,
     pts: progressCurve(k, S0, tEnd),
     rate: demo ? v0(k, S0) : measuredRate(k, S0, tWindow),
   }));
   const focus = demo ? experiments[selected] : experiments[experiments.length - 1];
-  state.ratesData = {
-    demo, k, tEnd, tWindow, experiments, focus,
-    fit: demo ? null : leastSquaresLine(experiments.map(e => ({ x: 1 / e.S0, y: 1 / e.rate }))),
-    species: speciesTimeCourse(Km, kcat, Etot, focus ? focus.S0 : Km),
-  };
+  state.ratesData = { demo, k, tEnd, tWindow, experiments, focus };
 }
 
 // The true curve shows in the demonstration, and in Collect Data only after Reveal.
@@ -1123,45 +1071,31 @@ function truthShown() {
 }
 
 function ratesSeries(kind) {
-  const { demo, tEnd, tWindow, experiments, focus, fit, species } = state.ratesData;
-  const curve = state.model.curves[0];
+  const { demo, tEnd, tWindow, experiments, focus } = state.ratesData;
   const named = e => `[S] = ${fmtCompact(e.S0)} ${state.units.conc}`;
   const others = experiments.filter(e => e !== focus);
   const series = [];
-
-  if (kind === 'species') {
-    return [
-      { name: '[E]/Eₜ', style: CURVE_STYLES.uninhibited, pts: species.E },
-      { name: '[P]/S₀', style: CURVE_STYLES.second, pts: species.P },
-      { name: '[ES]/Eₜ', style: CURVE_STYLES.first, pts: species.ES },
-    ];
-  }
 
   if (kind === 'product') {
     const label = demo ? 'Other [S]' : 'Earlier runs';
     for (const e of others) series.push({ name: named(e), legend: label, style: RATE_STYLES.other, pts: e.pts });
     if (focus) {
       series.push({ name: named(focus), legend: demo ? 'Selected [S]' : 'Latest run', style: RATE_STYLES.selected, pts: focus.pts });
-      const reach = tEnd;
       series.push({
         name: demo ? 'Initial slope (v₀)' : 'Slope over window', style: RATE_STYLES.slope, noHover: true, noExtent: true,
-        pts: [{ x: 0, y: 0 }, { x: reach, y: focus.rate * reach }],
+        pts: [{ x: 0, y: 0 }, { x: tEnd, y: focus.rate * tEnd }],
       });
     }
     if (!demo) {
-      const top = Math.max(state.params.Km, ...experiments.map(e => e.pts[e.pts.length - 1].y)) * 2;
+      const top = Math.max(1, ...experiments.map(e => e.pts[e.pts.length - 1].y)) * 2;
       series.push({ name: 'End of window', style: RATE_STYLES.window, noHover: true, noExtent: true, pts: [{ x: tWindow, y: 0 }, { x: tWindow, y: top }] });
     }
     return series;
   }
 
-  // Michaelis–Menten or Lineweaver–Burk
-  const point = e => (kind === 'mm' ? { x: e.S0, y: e.rate } : { x: 1 / e.S0, y: 1 / e.rate });
-  if (truthShown()) series.push({ name: 'True curve', style: RATE_STYLES.truth, pts: curve[kind] });
-  if (kind === 'lb' && fit) {
-    const end = Math.max(...experiments.map(e => 1 / e.S0));
-    series.push({ name: 'Your line', style: RATE_STYLES.selected, noHover: true, pts: [{ x: 0, y: fit.yInt }, { x: end, y: fit.slope * end + fit.yInt }] });
-  }
+  // Michaelis–Menten
+  const point = e => ({ x: e.S0, y: e.rate });
+  if (truthShown()) series.push({ name: 'True curve', style: RATE_STYLES.truth, pts: state.model.curves[0].mm });
   if (demo) {
     series.push({ name: 'Other experiments', style: RATE_STYLES.otherDot, pts: others.map(point) });
     series.push({ name: named(focus), legend: 'Selected [S]', style: RATE_STYLES.selectedDot, pts: [point(focus)] });
@@ -1178,18 +1112,14 @@ function seriesFor(plot) {
     .map(c => ({ name: curveName(c), style: CURVE_STYLES[c.id], pts: c[plot.kind] }));
 }
 
+// Axes follow what is drawn. With nothing to draw they stay generic, because axes scaled to
+// the hidden enzyme would give its values away.
 function ratesExtent(kind) {
-  const { k, tEnd, demo, species } = state.ratesData;
-  const { range } = state.model;
+  const { k, tEnd } = state.ratesData;
   const pts = seriesFor(plots[kind]).filter(s => !s.noExtent).flatMap(s => s.pts);
   const largest = (axis, fallback) => (pts.length ? Math.max(...pts.map(p => p[axis])) : fallback);
-  if (kind === 'product') return { x: tEnd, y: largest('y', k.Km) * 1.05 };
-  if (kind === 'species') return { x: species.E[species.E.length - 1].x, xMin: species.E[0].x, y: 1.05 };
-  const margin = demo ? 1 : 1.05;   // keeps a student's outermost point off the plot edge
-  if (kind === 'mm') {
-    return { x: largest('x', range.Smax) * margin, y: Math.max(largest('y', 0), truthShown() || !pts.length ? k.Vmax : 0) * 1.08 };
-  }
-  return { x: largest('x', 1 / range.Smin) * margin, y: largest('y', 1 / v0(k, range.Smin)) * 1.05 };
+  if (kind === 'product') return { x: tEnd, y: largest('y', 1) * 1.05 };
+  return { x: largest('x', 1) * 1.05, y: (truthShown() ? Math.max(largest('y', 0), k.Vmax) : largest('y', 1)) * 1.08 };
 }
 
 function curveName(curve) {
@@ -1211,23 +1141,9 @@ function resizeCanvas(plot) {
   plot.dpr = dpr;
 }
 
-// Decade ticks for a log axis, thinned until the labels fit.
-function logTicks(ctx, xMin, xMax, width) {
-  const lo = Math.floor(Math.log10(xMin)), hi = Math.ceil(Math.log10(xMax));
-  for (let stride = 1; ; stride++) {
-    const exponents = [];
-    for (let e = lo; e <= hi; e += stride) exponents.push(e);
-    const labels = exponents.map(e => pow10Text(e));
-    const widest = Math.max(...labels.map(l => ctx.measureText(l).width));
-    if (width / Math.max(1, exponents.length - 1) >= widest + 8 || exponents.length <= 2) {
-      return { lo, hi: exponents[exponents.length - 1], ticks: exponents.map(e => 10 ** e), labels };
-    }
-  }
-}
-
 function computeGeometry(plot, ctx, yMax = plot.extent(state.model).y) {
   const W = plot.cssWidth, H = plot.cssHeight;
-  const { x: dataX, xMin } = plot.extent(state.model);
+  const { x: dataX } = plot.extent(state.model);
   const extent = { x: dataX, y: yMax };
   const top = 8, bottom = 36;
 
@@ -1240,19 +1156,6 @@ function computeGeometry(plot, ctx, yMax = plot.extent(state.model).y) {
   const yLabels = tickLabels(yTicks);
   const left = 22 + Math.max(...yLabels.map(t => ctx.measureText(t).width));
 
-  const plotH = H - top - bottom;
-  const sy = v => top + plotH - v / yScale.max * plotH;
-
-  if (plot.logX) {
-    const right = 14, plotW = W - left - right;
-    const log = logTicks(ctx, xMin, dataX, plotW);
-    return {
-      W, H, left, top, plotW, plotH, dataX, yScale, yLabels, sy,
-      xScale: { max: dataX, ticks: log.ticks }, xLabels: log.labels,
-      sx: v => left + (Math.log10(v) - log.lo) / (log.hi - log.lo) * plotW,
-    };
-  }
-
   // Use the most x ticks whose labels fit without touching.
   let xScale, xLabels, right;
   for (let target = 7; target >= 1; target--) {
@@ -1263,15 +1166,12 @@ function computeGeometry(plot, ctx, yMax = plot.extent(state.model).y) {
     if ((W - left - right) / xScale.ticks.slice(1).length >= widest + 8) break;
   }
 
-  const plotW = W - left - right;
+  const plotW = W - left - right, plotH = H - top - bottom;
   return {
-    W, H, left, top, plotW, plotH, dataX, xScale, yScale, xLabels, yLabels, sy,
+    W, H, left, top, plotW, plotH, dataX, xScale, yScale, xLabels, yLabels,
     sx: v => left + v / xScale.max * plotW,
+    sy: v => top + plotH - v / yScale.max * plotH,
   };
-}
-
-function axisTitle(name, unit) {
-  return unit ? `${name} (${unit})` : name;
 }
 
 function drawAxes(ctx, g, plot) {
@@ -1309,12 +1209,12 @@ function drawAxes(ctx, g, plot) {
   ctx.font = `600 12px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(axisTitle(plot.xName, plot.xUnit(units)), g.left + g.plotW / 2, g.H - 3);
+  ctx.fillText(`${plot.xName} (${plot.xUnit(units)})`, g.left + g.plotW / 2, g.H - 3);
   ctx.save();
   ctx.translate(9, g.top + g.plotH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textBaseline = 'middle';
-  ctx.fillText(axisTitle(plot.yName, plot.yUnit(units)), 0, 0);
+  ctx.fillText(`${plot.yName} (${plot.yUnit(units)})`, 0, 0);
   ctx.restore();
 }
 
@@ -1422,12 +1322,7 @@ function drawGuides(ctx, g) {
 // y = mx + b for each L-B line, in the plot's empty upper left. A line sample beside each
 // equation shows which curve it belongs to.
 function equationEntries() {
-  const entry_ = (k, style) => ({ text: lineEquation(k), slope: k.slope, yInt: k.yInt, style });
-  if (!state.ratesData) return state.model.curves.map(c => entry_(c.k, CURVE_STYLES[c.id]));
-  const entries = [];
-  if (truthShown()) entries.push(entry_(state.ratesData.k, RATE_STYLES.truth));
-  if (state.ratesData.fit) entries.push(entry_(state.ratesData.fit, RATE_STYLES.selected));
-  return entries;
+  return state.model.curves.map(c => ({ text: lineEquation(c.k), slope: c.k.slope, yInt: c.k.yInt, style: CURVE_STYLES[c.id] }));
 }
 
 function equationBox(ctx, g) {
@@ -1450,7 +1345,6 @@ function equationBox(ctx, g) {
 
 // The y-axis maximum that keeps every L-B line below the equations, given the lines rise to the right.
 function yMaxClearingEquations(ctx, g) {
-  if (!equationEntries().length) return g.yScale.max;
   const { boxX, boxY, boxW, boxH, entries } = equationBox(ctx, g);
   const clearance = 3;
   const x = Math.min((boxX + boxW - g.left) / g.plotW * g.xScale.max, g.dataX);
@@ -1460,7 +1354,6 @@ function yMaxClearingEquations(ctx, g) {
 }
 
 function drawEquations(ctx, g) {
-  if (!equationEntries().length) return;
   const { entries, pad, swatchW, lineH, boxW, boxH, boxX, boxY } = equationBox(ctx, g);
 
   ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
@@ -1526,8 +1419,8 @@ function drawHover(ctx, g, plot) {
   // Tooltip, flipped or clamped to stay on the canvas
   const lines = [
     series.name,
-    `${plot.xName} = ${fmtSig(p.x)} ${(plot.tipXUnit || plot.xUnit)(state.units)}`,
-    `${plot.yName} = ${fmtSig(p.y)} ${plot.yUnit(state.units)}`.trim(),
+    `${plot.xName} = ${fmtSig(p.x)} ${plot.xUnit(state.units)}`,
+    `${plot.yName} = ${fmtSig(p.y)} ${plot.yUnit(state.units)}`,
   ];
   ctx.font = `11px ${FONT}`;
   const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + 12;
@@ -1556,7 +1449,7 @@ function drawHover(ctx, g, plot) {
 }
 
 function drawPlot(plot) {
-  if (!state.model || !plot.cssWidth || (plot.ratesOnly && !state.ratesData)) return;
+  if (!state.model || !plot.cssWidth || (plot.ratesOnly && !state.ratesData) || (plot.notOnRates && state.ratesData)) return;
   const ctx = plot.canvas.getContext('2d');
   ctx.setTransform(plot.dpr, 0, 0, plot.dpr, 0, 0);
   ctx.fillStyle = '#FFFFFF';
@@ -1587,7 +1480,7 @@ function legendSwatch(style) {
 
 function renderLegends() {
   for (const plot of Object.values(plots)) {
-    if (plot.ratesOnly && !state.ratesData) continue;
+    if ((plot.ratesOnly && !state.ratesData) || (plot.notOnRates && state.ratesData)) continue;
     // Top-drawn series first, one entry for each label.
     const seen = new Set();
     const items = seriesFor(plot).reverse().filter(s => s.pts.length).filter(s => {
@@ -1612,8 +1505,6 @@ function updateCanvasLabels() {
   const runs = state.ratesData.experiments.map(e => fmtCompact(e.S0)).join(', ');
   plots.product.canvas.setAttribute('aria-label',
     `Product concentration in ${u.conc} against time in ${u.time}, one curve for each starting [S]: ${runs || 'none yet'} ${u.conc}.`);
-  plots.species.canvas.setAttribute('aria-label',
-    `Fractions of free enzyme, ES complex and product against time on a log scale. ES rises quickly, holds steady, then falls as substrate runs out.`);
 }
 
 function refitPlots() {
@@ -1648,6 +1539,9 @@ function entryRows() {
 
 function methodHint() {
   const mode = state.params.mode;
+  if (mode === 'rates') {
+    return '<b>Method:</b> V<sub>max</sub> is where the rate levels off at high [S], and K<sub>m</sub> is the [S] that gives ½V<sub>max</sub>. Narrow the measurement window if your points look low.';
+  }
   let text = 'V<sub>max</sub> = 1/(y-intercept) and K<sub>m</sub> = slope/(y-intercept) of the Lineweaver–Burk line.';
   if (mode === 'inhibition') text += ' For an inhibited line, these give the apparent values.';
   if (mode === 'kinetics') text += ' k<sub>cat</sub>/K<sub>m</sub> is that condition\'s k<sub>cat</sub> divided by its K<sub>m</sub>.';
@@ -1659,6 +1553,9 @@ function workedAnswers() {
   const { conc, time } = state.units;
   return state.model.curves.map(c => {
     const { slope, yInt, appVmax, appKm, kcatOverKm } = c.k;
+    if (state.params.mode === 'rates') {
+      return `<div><b>True values:</b> V<sub>max</sub> = ${fmtSig(appVmax)} ${conc}/${time}; K<sub>m</sub> = ${fmtSig(appKm)} ${conc}</div>`;
+    }
     const parts = [
       `V<sub>max</sub> = 1/${fmtSig(yInt)} = ${fmtSig(appVmax)} ${conc}/${time}`,
       `K<sub>m</sub> = ${fmtSig(slope)}/${fmtSig(yInt)} = ${fmtSig(appKm)} ${conc}`,
@@ -1713,7 +1610,8 @@ function checkCell(cell) {
   if (input.value.trim() === '') return null;   // an unanswered cell is not marked wrong
   const row = entryRows()[Number(cell.dataset.row)];
   const truth = state.model.curves[Number(cell.dataset.col)].k[row.key];
-  const correct = isCorrect(parseAnswer(input.value), truth);
+  const tolerance = state.params.mode === 'rates' ? READ_FROM_PLOT_TOLERANCE : undefined;
+  const correct = isCorrect(parseAnswer(input.value), truth, tolerance);
   const mark = cell.querySelector('.mark');
   cell.classList.add(correct ? 'correct' : 'wrong');
   mark.textContent = correct ? '✓' : '✗';
@@ -1866,6 +1764,7 @@ const DIFFERENCE_FACTOR = 2;
 function readRaw() {
   const raw = { mode: state.mode, type: state.type, compare: $('compare').checked };
   NUMBER_FIELDS.forEach(f => { raw[f] = $(f).value; });
+  if (state.mode === 'rates') Object.assign(raw, state.rates.enzymes[state.rates.view]);
   if (challenge.active) {
     Object.assign(raw, { type: challenge.truth.type, Ki: challenge.truth.Ki, KiP: challenge.truth.KiP, compare: false });
   }
@@ -1882,6 +1781,16 @@ function setPressed(button, on) {
   button.setAttribute('aria-pressed', String(on));
 }
 
+// Et and the units sit in the horizontal box on Measuring Rates and in Enzyme parameters elsewhere.
+function placeSharedFields(rates) {
+  const place = (id, parent) => {
+    if ($(id).parentElement !== parent) parent.appendChild($(id));
+  };
+  place('Etot-field', rates ? $('rates-settings-fields') : $('condition-a').querySelector('.field-row'));
+  place('concUnit-field', rates ? $('rates-settings-fields') : $('units-row'));
+  place('timeUnit-field', rates ? $('rates-settings-fields') : $('units-row'));
+}
+
 function syncFieldStates() {
   const kinetics = state.mode === 'kinetics';
   const inhibition = state.mode === 'inhibition';
@@ -1896,7 +1805,11 @@ function syncFieldStates() {
   $('demo-controls').hidden = collect;
   $('collect-controls').hidden = !collect;
   $('product-card').hidden = !rates;
-  $('species-card').hidden = !rates;
+  $('lb-card').hidden = rates;
+  $('rates-settings').hidden = !rates;
+  document.querySelector('[data-panel="enzyme"]').hidden = rates;
+  placeSharedFields(rates);
+  $('entry-note-rates').hidden = !rates;
   $('entry-box').hidden = rates && !collect;
   const pressedType = challenge.active ? challenge.guess : state.type;
   document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === pressedType));
@@ -1999,7 +1912,7 @@ function commit() {
   const signature = JSON.stringify([state.params, state.units]);
   if (signature === state.signature) return;
   state.signature = signature;
-  const ratesKey = JSON.stringify([state.params.Km, state.params.kcat, state.params.Etot, state.units]);
+  const ratesKey = JSON.stringify([state.rates.enzymes.collect, state.params.Etot, state.units]);
   if (ratesKey !== state.rates.key) {
     state.rates.key = ratesKey;
     state.rates.runs = [];
@@ -2164,7 +2077,7 @@ for (const mode of ['rates', 'kinetics', 'inhibition']) {
 
 document.querySelectorAll('[data-rates-view]').forEach(button => button.addEventListener('click', () => {
   state.rates.view = button.dataset.ratesView;
-  syncFieldStates();
+  commit();         // each view has its own enzyme
   refreshRates();
 }));
 
@@ -2218,6 +2131,7 @@ $('reset').addEventListener('click', () => {
   state.rates.runs = [];
   state.rates.selected = 2;
   state.rates.windowPct = DEFAULT_WINDOW_PCT;
+  state.rates.enzymes = { ...RATES_ENZYMES };
   $('measure-window').value = DEFAULT_WINDOW_PCT;
   $('runS').value = '';
   $('run-message').textContent = '';
@@ -2226,7 +2140,7 @@ $('reset').addEventListener('click', () => {
   refreshRates();
 });
 
-const PANEL_NAMES = { model: 'enzyme model', scheme: 'reaction scheme', enzyme: 'enzyme parameters', product: 'product vs. time plot', species: 'species vs. time plot', mm: 'Michaelis–Menten plot', lb: 'Lineweaver–Burk plot' };
+const PANEL_NAMES = { model: 'enzyme model', scheme: 'reaction scheme', enzyme: 'enzyme parameters', product: 'product vs. time plot', mm: 'Michaelis–Menten plot', lb: 'Lineweaver–Burk plot' };
 
 function syncView() {
   const { collapsed, zoomed } = view;
@@ -2246,7 +2160,7 @@ function syncView() {
     document.querySelector(`[data-panel="${name}"]`).classList.toggle('zoomed', isZoomed);
     if (collapsed[name]) plots[name].hover = null;
   }
-  const shown = state.mode === 'rates' ? ['product', 'mm', 'lb', 'species'] : ['mm', 'lb'];
+  const shown = state.mode === 'rates' ? ['product', 'mm'] : ['mm', 'lb'];
   $('plot-hint').hidden = shown.every(name => collapsed[name]);
   refitPlots();
 }
@@ -2263,14 +2177,25 @@ document.querySelectorAll('[data-zoom]').forEach(button => button.addEventListen
 $('random').addEventListener('click', () => {
   challenge.active = false;
   const values = randomParameters();
-  NUMBER_FIELDS.forEach(f => { $(f).value = values[f]; });
-  state.kiPrimeText = String(values.KiP);
-  state.type = values.type;
+  if (state.mode === 'rates') {
+    // New hidden enzymes only; the Km and kcat fields on the other tabs must not hold them.
+    const second = randomParameters(Math.random, { conc: values.concUnit, time: values.timeUnit });
+    state.rates.enzymes = {
+      demo: { Km: values.Km, kcat: values.kcat },
+      collect: { Km: second.Km, kcat: second.kcat },
+    };
+    $('Etot').value = Math.min(values.Etot, second.Etot);
+  } else {
+    NUMBER_FIELDS.forEach(f => { $(f).value = values[f]; });
+    state.kiPrimeText = String(values.KiP);
+    state.type = values.type;
+  }
   $('concUnit').value = values.concUnit;
   $('timeUnit').value = values.timeUnit;
   entry.revealed = false;
   commit();
   renderEntryTable();   // clears typed answers even if no value changed
+  refreshRates();
 });
 
 $('guides').addEventListener('click', () => {
