@@ -179,7 +179,7 @@
     }
     .field.off label { color: var(--text-disabled); font-weight: 400; }
 
-    input[type=number], select, .entry-cell input {
+    input[type=number], select, .entry-cell input, #challenge-box input {
       width: 100%;
       padding: 7px 10px;
       background: #FFFFFF;
@@ -190,7 +190,7 @@
       font-size: 14px;
       transition: border-color 0.2s;
     }
-    input[type=number]:focus, select:focus, .entry-cell input:focus { border-color: var(--ut-crimson); }
+    input[type=number]:focus, select:focus, .entry-cell input:focus, #challenge-box input:focus { border-color: var(--ut-crimson); }
     input:disabled, select:disabled {
       background: var(--bg-disabled);
       border-color: #BFBFBF;
@@ -284,6 +284,20 @@
     #run-list li { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #BFBFBF; }
     #run-list button { padding: 1px 8px; font-size: 0.85em; flex-shrink: 0; }
     .legend-empty { color: var(--text-secondary); }
+    .plot-tools { text-align: center; margin-top: 8px; }
+    .plot-tools button { padding: 3px 12px; font-size: 0.8em; }
+    #entry-feedback { font-size: 0.82em; line-height: 1.5; margin-top: 8px; }
+    #entry-feedback:empty { display: none; }
+
+    /* Identify the Inhibitor */
+    .challenge-start { margin-top: 12px; }
+    #challenge-box .readout { margin-bottom: 8px; }
+    #challenge-box input { flex: 1; min-width: 0; }
+    #challenge-fields { margin-bottom: 10px; }
+    .challenge-field-wrap { display: flex; align-items: center; gap: 3px; }
+    #challenge-result { font-size: 0.85em; line-height: 1.5; margin-top: 8px; }
+    #challenge-result:empty { display: none; }
+    .model-hidden { width: 100%; font-size: 0.85em; color: var(--text-secondary); text-align: center; padding: 24px 8px; }
 
     .entry-tools { margin-top: 10px; }
     .entry-tools button { padding: 5px 14px; }
@@ -464,6 +478,22 @@
           <div class="field" id="KiP-field"><label for="KiP">K<sub>i</sub>' (ES + I), <span data-u="conc">µM</span></label><input type="number" id="KiP" step="any" min="0"></div>
         </div>
         <p class="note" id="ki-note" hidden>K<sub>i</sub>' = K<sub>i</sub> for pure noncompetitive</p>
+        <div class="challenge-start"><button type="button" id="challenge-start">Identify the Inhibitor</button></div>
+      </section>
+
+      <section class="panel box" id="challenge-box" aria-labelledby="challenge-title" hidden>
+        <h2 class="panel-section-title" id="challenge-title">Identify the Inhibitor</h2>
+        <p class="readout" id="challenge-prompt"></p>
+        <div class="field-row" id="challenge-fields">
+          <div class="field" id="guessKi-field" hidden><label for="guessKi">K<sub>i</sub> (<span data-u="conc">µM</span>)</label><span class="challenge-field-wrap"><input type="text" id="guessKi" autocomplete="off" spellcheck="false"><span class="mark" id="guessKi-mark"></span></span></div>
+          <div class="field" id="guessKiP-field" hidden><label for="guessKiP">K<sub>i</sub>' (<span data-u="conc">µM</span>)</label><span class="challenge-field-wrap"><input type="text" id="guessKiP" autocomplete="off" spellcheck="false"><span class="mark" id="guessKiP-mark"></span></span></div>
+        </div>
+        <div class="entry-tools">
+          <button type="button" id="challenge-check">Check</button>
+          <button type="button" id="challenge-reveal">Reveal</button>
+          <button type="button" id="challenge-end">End Challenge</button>
+        </div>
+        <p id="challenge-result" role="status"></p>
       </section>
 
       <section class="panel box" id="experiment-box" aria-labelledby="experiment-title">
@@ -499,6 +529,7 @@
           <button type="button" id="entry-reveal">Reveal</button>
           <span class="score" id="entry-score" aria-live="polite"></span>
         </div>
+        <div id="entry-feedback" role="status"></div>
       </section>
     </div>
 
@@ -528,6 +559,7 @@
         <div class="panel-body">
           <div class="legend" id="mm-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
+          <div class="plot-tools"><button type="button" id="guides" aria-pressed="false">Show Guides</button></div>
         </div>
       </section>
       <section class="panel plot-card" data-panel="lb" aria-labelledby="lb-title">
@@ -601,10 +633,14 @@ const state = {
 
 const entry = { revealed: false };
 
+// While active, truth holds the hidden type, Ki and Ki' and the page's own fields stay blank.
+const challenge = { active: false, truth: null, guess: null, restore: null };
+
 // Page layout choices. "Reset to defaults" leaves these alone, as it does the open tab.
 const view = {
   collapsed: { model: false, scheme: false, enzyme: false, product: false, mm: false, lb: false, species: false },
   zoomed: { product: false, mm: false, lb: false, species: false },
+  guides: false,
 };
 
 
@@ -650,7 +686,10 @@ function v0(k, S) {
 
 // The uninhibited enzyme under Conditions A and Conditions B.
 function kineticsCurves(p) {
-  const curve = (id, label, Km, kcat, Etot) => ({ id, I: null, label, k: constants(kcat * Etot, Km, 1, 1) });
+  const curve = (id, label, Km, kcat, Etot) => ({
+    id, I: null, label, kcat,
+    k: { ...constants(kcat * Etot, Km, 1, 1), kcatOverKm: kcat / Km },
+  });
   return [
     curve('uninhibited', 'Conditions A', p.Km, p.kcat, p.Etot),
     curve('first', 'Conditions B', p.Km2, p.kcat2, p.Etot2),
@@ -963,6 +1002,21 @@ function niceScale(dataMax, targetTicks) {
   const ticks = [];
   for (let i = 0; i <= count; i++) ticks.push(Number((i * step).toPrecision(12)));
   return { max: ticks[count], ticks };
+}
+
+const CHALLENGE_TOLERANCE = 0.05;   // Ki comes from several steps, each with rounding
+
+// truth holds { type, Ki, KiP }; guess holds { type, Ki, KiP } with Ki and Ki' as typed text.
+// A constant is marked only once the type is right, and null means not marked.
+function checkInhibitorGuess(truth, guess) {
+  const type = guess.type === truth.type;
+  const active = ACTIVE_FIELDS[truth.type];
+  const mark = (used, text, value) => {
+    if (!type || !used || String(text).trim() === '') return null;
+    const answer = parseAnswer(text);
+    return Number.isFinite(answer) && Math.abs(answer - value) <= CHALLENGE_TOLERANCE * value * (1 + 1e-9);
+  };
+  return { type, Ki: mark(active.Ki, guess.Ki, truth.Ki), KiP: mark(active.KiP, guess.KiP, truth.KiP) };
 }
 
 // Accepts "0.5", "2.5e-3", "2.5 x 10^-3" and "2.50 × 10⁻³" (the page's own format).
@@ -1320,6 +1374,51 @@ function drawCurves(ctx, g, plot) {
   ctx.restore();
 }
 
+// Vmax, ½Vmax and Km of the first curve, labelled without numbers. In Collect Data they would
+// give the answer away, so they wait for Reveal.
+function guidesAvailable() {
+  return !state.ratesData || truthShown();
+}
+
+function drawGuides(ctx, g) {
+  const { Vmax, Km } = state.model.curves[0].k;
+  const right = g.left + g.plotW;
+  const xKm = g.sx(Km), yV = g.sy(Vmax), yHalf = g.sy(Vmax / 2);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(g.left, g.top, g.plotW, g.plotH);
+  ctx.clip();
+  ctx.strokeStyle = COLORS.text;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 3]);
+  ctx.beginPath();
+  ctx.moveTo(g.left, yV);
+  ctx.lineTo(right, yV);
+  ctx.moveTo(g.left, yHalf);
+  ctx.lineTo(xKm, yHalf);
+  ctx.lineTo(xKm, g.top + g.plotH);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // A white outline keeps each label readable where it crosses a curve.
+  const label = (text, x, y) => {
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+  };
+  ctx.fillStyle = COLORS.text;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.font = `600 10px ${FONT}`;
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'right';
+  label('Vmax', right - 2, yV - 1);
+  ctx.textAlign = 'left';
+  label('½Vmax', Math.max(g.left + 2, xKm + 3), yHalf - 1);
+  ctx.textBaseline = 'alphabetic';
+  label('Km', xKm + 3, g.top + g.plotH - 3);
+  ctx.restore();
+}
+
 // y = mx + b for each L-B line, in the plot's empty upper left. A line sample beside each
 // equation shows which curve it belongs to.
 function equationEntries() {
@@ -1470,6 +1569,7 @@ function drawPlot(plot) {
   plot.geom = g;
   drawAxes(ctx, g, plot);
   drawCurves(ctx, g, plot);
+  if (plot.kind === 'mm' && view.guides && guidesAvailable()) drawGuides(ctx, g);
   if (plot.kind === 'lb') drawEquations(ctx, g);
   if (plot.hover) drawHover(ctx, g, plot);
 }
@@ -1536,10 +1636,38 @@ function schedulePlotDraw(plot) {
 
 function entryRows() {
   const { conc, time } = state.units;
-  return [
+  const rows = [
     { key: 'appVmax', html: 'V<sub>max</sub>', plain: 'Vmax', unit: `${conc}/${time}` },
     { key: 'appKm',   html: 'K<sub>m</sub>',   plain: 'Km',   unit: conc },
   ];
+  if (state.params.mode === 'kinetics') {
+    rows.push({ key: 'kcatOverKm', html: 'k<sub>cat</sub>/K<sub>m</sub>', plain: 'kcat/Km', unit: `${conc}⁻¹ ${time}⁻¹` });
+  }
+  return rows;
+}
+
+function methodHint() {
+  const mode = state.params.mode;
+  let text = 'V<sub>max</sub> = 1/(y-intercept) and K<sub>m</sub> = slope/(y-intercept) of the Lineweaver–Burk line.';
+  if (mode === 'inhibition') text += ' For an inhibited line, these give the apparent values.';
+  if (mode === 'kinetics') text += ' k<sub>cat</sub>/K<sub>m</sub> is that condition\'s k<sub>cat</sub> divided by its K<sub>m</sub>.';
+  return `<b>Method:</b> ${text}`;
+}
+
+// The same method with this page's numbers, shown once the answers are revealed.
+function workedAnswers() {
+  const { conc, time } = state.units;
+  return state.model.curves.map(c => {
+    const { slope, yInt, appVmax, appKm, kcatOverKm } = c.k;
+    const parts = [
+      `V<sub>max</sub> = 1/${fmtSig(yInt)} = ${fmtSig(appVmax)} ${conc}/${time}`,
+      `K<sub>m</sub> = ${fmtSig(slope)}/${fmtSig(yInt)} = ${fmtSig(appKm)} ${conc}`,
+    ];
+    if (kcatOverKm !== undefined) {
+      parts.push(`k<sub>cat</sub>/K<sub>m</sub> = ${fmtSig(c.kcat)}/${fmtSig(c.k.Km)} = ${fmtSig(kcatOverKm)} ${conc}⁻¹ ${time}⁻¹`);
+    }
+    return `<div><b>${columnName(c)}:</b> ${parts.join('; ')}</div>`;
+  }).join('');
 }
 
 // Non-breaking spaces keep each + with its word in a narrow column.
@@ -1568,6 +1696,7 @@ function renderEntryTable() {
   $('entry-check').disabled = entry.revealed;
   $('entry-reveal').disabled = entry.revealed;
   $('entry-score').textContent = '';
+  $('entry-feedback').innerHTML = entry.revealed ? workedAnswers() : '';
 }
 
 function clearCellMark(cell) {
@@ -1599,6 +1728,7 @@ function checkEntries() {
   const right = results.filter(r => r === true).length;
   const blank = results.filter(r => r === null).length;
   $('entry-score').textContent = `${right} of ${cells.length} correct` + (blank ? ` (${blank} blank)` : '');
+  $('entry-feedback').innerHTML = results.includes(false) ? methodHint() : '';
 }
 
 
@@ -1617,15 +1747,15 @@ const SCENES = {
   },
   uncompetitive: {
     active: 'S', allosteric: true, blockedS: false,
-    caption: 'The inhibitor (I) binds the allosteric site only after S has bound, so it binds ES but not free E.',
+    caption: 'The inhibitor (I) binds the allosteric site only after S has bound, so it binds ES but not free E. This site only lowers activity here, so the curves stay hyperbolic, not sigmoidal as with cooperative allosteric enzymes.',
   },
   noncompetitive: {
     active: 'S', allosteric: true, blockedS: false,
-    caption: 'The inhibitor (I) binds the allosteric site of E or ES with the same affinity. S and I do not affect each other\'s binding.',
+    caption: 'The inhibitor (I) binds the allosteric site of E or ES with the same affinity. S and I do not affect each other\'s binding. This site only lowers activity here, so the curves stay hyperbolic, not sigmoidal as with cooperative allosteric enzymes.',
   },
   mixed: {
     active: 'S', allosteric: true, blockedS: false,
-    caption: 'The inhibitor (I) binds the allosteric site of E or ES, with a different affinity for each.',
+    caption: 'The inhibitor (I) binds the allosteric site of E or ES, with a different affinity for each. This site only lowers activity here, so the curves stay hyperbolic, not sigmoidal as with cooperative allosteric enzymes.',
   },
 };
 
@@ -1710,8 +1840,16 @@ function schemeSVG(kind) {
 
 function renderModel() {
   const kind = state.mode === 'inhibition' ? state.type : 'none';
-  if (kind === state.scene) return;
-  state.scene = kind;
+  const scene = challenge.active ? 'hidden' : kind;
+  if (scene === state.scene) return;
+  state.scene = scene;
+  if (challenge.active) {
+    const message = '<p class="model-hidden">Hidden during the challenge.</p>';
+    $('enzyme-model').innerHTML = message;
+    $('model-caption').textContent = '';
+    $('reaction-scheme').innerHTML = message;
+    return;
+  }
   $('enzyme-model').innerHTML = enzymeModelSVG(SCENES[kind]);
   $('model-caption').textContent = SCENES[kind].caption;
   $('reaction-scheme').innerHTML = schemeSVG(kind);
@@ -1728,6 +1866,9 @@ const DIFFERENCE_FACTOR = 2;
 function readRaw() {
   const raw = { mode: state.mode, type: state.type, compare: $('compare').checked };
   NUMBER_FIELDS.forEach(f => { raw[f] = $(f).value; });
+  if (challenge.active) {
+    Object.assign(raw, { type: challenge.truth.type, Ki: challenge.truth.Ki, KiP: challenge.truth.KiP, compare: false });
+  }
   return raw;
 }
 
@@ -1757,17 +1898,20 @@ function syncFieldStates() {
   $('product-card').hidden = !rates;
   $('species-card').hidden = !rates;
   $('entry-box').hidden = rates && !collect;
-  document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === state.type));
+  const pressedType = challenge.active ? challenge.guess : state.type;
+  document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === pressedType));
+  document.querySelector('[data-type="none"]').hidden = challenge.active;
+  $('challenge-box').hidden = !challenge.active;
   $('entry-note-inhibition').hidden = !inhibition;
   renderModel();
   $('type-buttons').hidden = !inhibition;
   $('difference-buttons').hidden = !kinetics;
-  $('inhib-box').hidden = !inhibition;
+  $('inhib-box').hidden = !inhibition || challenge.active;
   $('condition-b').hidden = !kinetics;
   $('conditions').classList.toggle('single', !kinetics);
   $('condition-a').setAttribute('role', kinetics ? 'group' : 'none');
 
-  const type = state.type;
+  const type = challenge.active ? 'none' : state.type;
   const active = ACTIVE_FIELDS[type];
   setFieldEnabled('I', active.I);
   setFieldEnabled('Ki', active.Ki);
@@ -1825,6 +1969,7 @@ function renderRatesControls() {
 // Redraws what depends on the runs or the selection, without touching typed answers.
 function refreshRates() {
   buildRatesData();
+  syncGuidesButton();
   Object.values(plots).forEach(plot => { plot.hover = null; });
   renderLegends();
   updateCanvasLabels();
@@ -1833,6 +1978,7 @@ function refreshRates() {
 }
 
 function renderAll() {
+  syncGuidesButton();
   renderRatesControls();
   renderLegends();
   updateCanvasLabels();
@@ -1876,15 +2022,127 @@ function applyDefaults() {
 }
 
 NUMBER_FIELDS.forEach(f => $(f).addEventListener('input', () => {
+  if (challenge.active) revealChallenge();   // changing the enzyme ends the challenge
   if (f === 'KiP') state.kiPrimeText = $('KiP').value;
   commit();
 }));
-['concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', commit));
+['concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', () => {
+  if (challenge.active) revealChallenge();
+  commit();
+}));
 
 document.querySelectorAll('[data-type]').forEach(button => button.addEventListener('click', () => {
+  if (challenge.active) {
+    challenge.guess = button.dataset.type;
+    clearChallengeMarks();
+    syncFieldStates();
+    syncChallengeFields();
+    return;
+  }
   state.type = button.dataset.type;
   commit();
 }));
+
+// ── Identify the Inhibitor ──
+
+const CHALLENGE_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'concUnit', 'timeUnit'];
+
+function clearChallengeMarks() {
+  for (const id of ['guessKi', 'guessKiP']) {
+    $(`${id}-mark`).textContent = '';
+    $(`${id}-mark`).removeAttribute('role');
+    $(`${id}-mark`).removeAttribute('aria-label');
+  }
+  $('challenge-result').textContent = '';
+}
+
+function syncChallengeFields() {
+  const active = ACTIVE_FIELDS[challenge.guess || 'none'];
+  $('guessKi-field').hidden = !active.Ki;
+  $('guessKiP-field').hidden = !active.KiP;
+  $('challenge-check').disabled = !challenge.guess;
+}
+
+function startChallenge() {
+  challenge.restore = { type: state.type, kiPrimeText: state.kiPrimeText, compare: $('compare').checked };
+  CHALLENGE_FIELDS.forEach(f => { challenge.restore[f] = $(f).value; });
+
+  const r = randomParameters();
+  ['Km', 'kcat', 'Etot', 'I'].forEach(f => { $(f).value = r[f]; });
+  $('concUnit').value = r.concUnit;
+  $('timeUnit').value = r.timeUnit;
+  // The page must not hold the answer, so the true values live only in challenge.truth.
+  $('Ki').value = '';
+  $('KiP').value = '';
+  state.kiPrimeText = '';
+  challenge.active = true;
+  challenge.truth = { type: r.type, Ki: r.Ki, KiP: r.type === 'noncompetitive' ? r.Ki : r.KiP };
+  challenge.guess = null;
+
+  $('guessKi').value = '';
+  $('guessKiP').value = '';
+  clearChallengeMarks();
+  syncChallengeFields();
+  $('challenge-prompt').textContent = `[I] = ${fmtCompact(r.I)} ${r.concUnit}. Compare the plots, choose the inhibition type above, then find the constants it needs.`;
+  entry.revealed = false;
+  commit();
+  renderEntryTable();
+  $('challenge-check').focus();
+}
+
+function checkChallenge() {
+  const result = checkInhibitorGuess(challenge.truth, { type: challenge.guess, Ki: $('guessKi').value, KiP: $('guessKiP').value });
+  clearChallengeMarks();
+  for (const [id, correct] of [['guessKi', result.Ki], ['guessKiP', result.KiP]]) {
+    if (correct === null) continue;
+    const mark = $(`${id}-mark`);
+    mark.textContent = correct ? '✓' : '✗';
+    mark.setAttribute('role', 'img');
+    mark.setAttribute('aria-label', correct ? 'correct' : 'incorrect');
+  }
+  $('challenge-result').textContent = result.type
+    ? `✓ Correct type.${result.Ki === false || result.KiP === false ? ' Check the constant marked ✗; constants count within ±5%.' : ''}`
+    : '✗ Not that type. Compare how the slope and y-intercept change with the inhibitor.';
+}
+
+// Leaves the challenge with the true type, Ki and Ki' in the normal controls.
+function revealChallenge() {
+  const { type, Ki, KiP } = challenge.truth;
+  challenge.active = false;
+  state.type = type;
+  $('Ki').value = Ki;
+  state.kiPrimeText = String(KiP);
+  $('compare').checked = false;
+}
+
+// Leaves the challenge and restores what was on the page before it.
+function endChallenge() {
+  const saved = challenge.restore;
+  challenge.active = false;
+  state.type = saved.type;
+  state.kiPrimeText = saved.kiPrimeText;
+  $('compare').checked = saved.compare;
+  CHALLENGE_FIELDS.forEach(f => { $(f).value = saved[f]; });
+}
+
+$('challenge-start').addEventListener('click', startChallenge);
+$('challenge-check').addEventListener('click', checkChallenge);
+$('challenge-reveal').addEventListener('click', () => {
+  revealChallenge();
+  commit();
+  $('challenge-start').focus();
+});
+$('challenge-end').addEventListener('click', () => {
+  endChallenge();
+  commit();
+  $('challenge-start').focus();
+});
+for (const id of ['guessKi', 'guessKiP']) {
+  $(id).addEventListener('input', clearChallengeMarks);
+  $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkChallenge();
+  });
+}
 
 // Conditions B becomes a copy of A with one parameter changed.
 document.querySelectorAll('[data-difference]').forEach(button => button.addEventListener('click', () => {
@@ -1897,6 +2155,7 @@ document.querySelectorAll('[data-difference]').forEach(button => button.addEvent
 
 for (const mode of ['rates', 'kinetics', 'inhibition']) {
   $(`tab-${mode}`).addEventListener('click', () => {
+    if (challenge.active && mode !== 'inhibition') endChallenge();
     state.mode = mode;
     commit();
     syncView();   // the plots shown differ by tab, so they need fitting and drawing
@@ -1953,6 +2212,7 @@ $('run-list').addEventListener('click', e => {
 });
 
 $('reset').addEventListener('click', () => {
+  challenge.active = false;
   applyDefaults();
   entry.revealed = false;
   state.rates.runs = [];
@@ -2001,6 +2261,7 @@ document.querySelectorAll('[data-zoom]').forEach(button => button.addEventListen
 }));
 
 $('random').addEventListener('click', () => {
+  challenge.active = false;
   const values = randomParameters();
   NUMBER_FIELDS.forEach(f => { $(f).value = values[f]; });
   state.kiPrimeText = String(values.KiP);
@@ -2011,6 +2272,18 @@ $('random').addEventListener('click', () => {
   commit();
   renderEntryTable();   // clears typed answers even if no value changed
 });
+
+$('guides').addEventListener('click', () => {
+  view.guides = !view.guides;
+  syncGuidesButton();
+  drawPlot(plots.mm);
+});
+
+function syncGuidesButton() {
+  setPressed($('guides'), view.guides);
+  $('guides').disabled = !guidesAvailable();
+  $('guides').title = guidesAvailable() ? '' : 'Available after Reveal, since the guides would show the answer';
+}
 
 $('entry-check').addEventListener('click', checkEntries);
 $('entry-reveal').addEventListener('click', () => {

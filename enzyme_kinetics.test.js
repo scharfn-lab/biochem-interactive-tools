@@ -140,6 +140,20 @@ test('differingParameter names the one parameter that differs, or null', () => {
   assert.equal(differingParameter({ ...p, Km2: 20, kcat2: 200 }), null);
 });
 
+test('kcat/Km: hand calculation, and it follows kcat and Km but not Et', () => {
+  const ratio = raw => kineticsModel(raw).curves[1].k.kcatOverKm;
+  assert.equal(kineticsModel({}).curves[0].k.kcatOverKm, 10);        // 100/10
+  assert.equal(ratio({ kcat2: '200' }), 20);
+  assert.equal(ratio({ Km2: '40' }), 2.5);
+  assert.equal(ratio({ Etot2: '0.5' }), 10);
+});
+
+test('kcat/Km sets the rate at low [S]: v₀ ≈ (kcat/Km)[E][S]', () => {
+  const c = kineticsModel({ kcat2: '250', Km2: '40', Etot2: '0.03' }).curves[1];
+  const S = 1e-6;
+  near(v0(c.k, S) / (c.k.kcatOverKm * 0.03 * S), 1, 1e-6);
+});
+
 test('auto [S] range covers both Km values', () => {
   const larger = kineticsModel({ Km2: '40' }).range;
   assert.equal(larger.Smax, 400);
@@ -383,6 +397,53 @@ test('the species model stays finite and valid across random enzymes', () => {
       assert.ok(series.every(p => Number.isFinite(p.x) && p.x > 0 && p.y >= -1e-9 && p.y <= 1 + 1e-9), JSON.stringify(r));
     }
     assert.ok(s.P[s.P.length - 1].y > 0.9, JSON.stringify(r));
+  }
+});
+
+// ── Identify the Inhibitor ───────────────────────────────────
+const checkInhibitorGuess = (truth, guess) => page.checkInhibitorGuess(truth, guess);
+
+test('the challenge marks the type, then only the constants that type uses', () => {
+  const mixed = { type: 'mixed', Ki: 6, KiP: 18 };
+  assert.deepEqual({ ...checkInhibitorGuess(mixed, { type: 'mixed', Ki: '6', KiP: '18' }) }, { type: true, Ki: true, KiP: true });
+  assert.deepEqual({ ...checkInhibitorGuess(mixed, { type: 'mixed', Ki: '7', KiP: '' }) }, { type: true, Ki: false, KiP: null });
+  const competitive = { type: 'competitive', Ki: 6, KiP: 18 };
+  assert.deepEqual({ ...checkInhibitorGuess(competitive, { type: 'competitive', Ki: '6', KiP: '999' }) }, { type: true, Ki: true, KiP: null });
+  const uncompetitive = { type: 'uncompetitive', Ki: 6, KiP: 18 };
+  assert.deepEqual({ ...checkInhibitorGuess(uncompetitive, { type: 'uncompetitive', Ki: '999', KiP: '18' }) }, { type: true, Ki: null, KiP: true });
+});
+
+test('a wrong type marks no constants, even if they are right', () => {
+  const truth = { type: 'competitive', Ki: 6, KiP: 18 };
+  assert.deepEqual({ ...checkInhibitorGuess(truth, { type: 'mixed', Ki: '6', KiP: '18' }) }, { type: false, Ki: null, KiP: null });
+  assert.equal(checkInhibitorGuess(truth, { type: null, Ki: '', KiP: '' }).type, false);
+});
+
+test('challenge constants count within ±5%, including an exact 5%, and read any notation', () => {
+  const truth = { type: 'competitive', Ki: 2, KiP: 2 };
+  const ki = text => checkInhibitorGuess(truth, { type: 'competitive', Ki: text, KiP: '' }).Ki;
+  assert.equal(ki('2.1'), true);
+  assert.equal(ki('1.9'), true);
+  assert.equal(ki('2.11'), false);
+  assert.equal(ki('abc'), false);
+  assert.equal(ki('2 x 10^0'), true);
+});
+
+test('Ki worked out from the page\'s rounded equation counts as correct, for every random draw', () => {
+  const rand = seededRandom(99);
+  for (let i = 0; i < 2000; i++) {
+    const r = randomParameters(rand);
+    const params = validate(asRaw(r, { mode: 'inhibition', compare: false })).params;
+    const [plain, inhibited] = buildModel(params).curves;
+    // What a student has: three significant figures from each line equation.
+    const read = x => Number(x.toPrecision(3));
+    const slopeRatio = read(inhibited.k.slope) / read(plain.k.slope);
+    const yRatio = read(inhibited.k.yInt) / read(plain.k.yInt);
+    const guess = { type: r.type, Ki: String(r.I / (slopeRatio - 1)), KiP: String(r.I / (yRatio - 1)) };
+    const truth = { type: r.type, Ki: r.Ki, KiP: r.type === 'noncompetitive' ? r.Ki : r.KiP };
+    const result = checkInhibitorGuess(truth, guess);
+    assert.notEqual(result.Ki, false, JSON.stringify([r, guess]));
+    assert.notEqual(result.KiP, false, JSON.stringify([r, guess]));
   }
 });
 
