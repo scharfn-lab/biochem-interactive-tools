@@ -334,7 +334,7 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .name-type-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
+    .name-type-btn:hover:not(:disabled) { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .name-type-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Interactions panel */
@@ -354,6 +354,13 @@
     @media (max-width: 620px) { .pair-grid { grid-template-columns: 1fr; } }
 
     .pair-note { font-size: 0.82rem; color: #685C53; line-height: 1.4; margin-top: 6px; }
+
+    .interact-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .interact-opt:disabled { cursor: default; }
+    .interact-opt[data-mark]::after { content: " " attr(data-mark); }
+    .interact-opt.opt-correct { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .interact-opt.opt-answer  { background: #DBEAFE; border: 1px dashed #1565C0; color: #000000; }
+    .interact-opt.opt-wrong   { background: #FFEBEE; border-color: #C8102E; color: #000000; }
 
     .explore-pickers { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
     .explore-pickers .field-group { flex: 1 1 200px; }
@@ -695,23 +702,21 @@
           </div>
         </div>
       </div>
-      <button class="btn btn-check" id="explore-random" onclick="showRandomExplorePair()">Show random pair</button>
+      <div style="text-align:center">
+        <button class="btn btn-check" id="explore-random" onclick="showRandomExplorePair()">Show random pair</button>
+      </div>
     </div>
 
     <p class="identify-question" id="interact-prompt" aria-live="polite" style="text-align:center; margin:12px 0"></p>
 
     <div id="interact-quiz">
-      <div class="field-group">
-        <label class="field-label" for="inp-choice">Interaction</label>
-        <div class="field-row">
-          <div class="combo">
-            <input class="field-input" id="inp-choice" type="text" autocomplete="off"
-                   placeholder="Click to see the choices"
-                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-choice" />
-            <ul class="combo-list" id="list-choice" role="listbox" aria-label="Interaction options" hidden></ul>
-          </div>
-          <span class="ind" id="ind-choice" aria-live="polite"></span>
-        </div>
+      <div class="interact-options" role="group" aria-label="Interactions">
+        <button class="name-type-btn interact-opt" data-interaction="salt"        aria-pressed="false" onclick="chooseInteraction('salt')">Salt bridge</button>
+        <button class="name-type-btn interact-opt" data-interaction="hbond"       aria-pressed="false" onclick="chooseInteraction('hbond')">Hydrogen bond</button>
+        <button class="name-type-btn interact-opt" data-interaction="hydrophobic" aria-pressed="false" onclick="chooseInteraction('hydrophobic')">Hydrophobic</button>
+        <button class="name-type-btn interact-opt" data-interaction="pi"          aria-pressed="false" onclick="chooseInteraction('pi')">Pi stacking</button>
+        <button class="name-type-btn interact-opt" data-interaction="disulfide"   aria-pressed="false" onclick="chooseInteraction('disulfide')">Disulfide bond</button>
+        <button class="name-type-btn interact-opt" data-interaction="repulsion"   aria-pressed="false" onclick="chooseInteraction('repulsion')">Charge repulsion</button>
       </div>
       <div class="btn-row" style="margin:12px 0 14px">
         <button class="btn btn-check" id="interact-btn-show" onclick="showAnswers()">Show Answer</button>
@@ -1870,19 +1875,14 @@ function renderInteractQuiz() {
     `<strong>${nameOfType(aaByCode(b), nameType)}</strong> <strong>(pH ${INTERACT_PH})</strong>?`;
   interactTried = [];
   interactRevealed = false;
-  COMBO_OPTIONS.choice = INTERACTIONS.map(([, name]) => name);
-  closeCombo('choice');
-  const el = document.getElementById('inp-choice');
-  el.value = '';
-  el.className = 'field-input';
-  el.disabled = false;
-  el.removeAttribute('aria-invalid');
-  const ind = document.getElementById('ind-choice');
-  ind.textContent = '';
-  ind.className = 'ind';
+  document.querySelectorAll('.interact-opt').forEach(btn => {
+    btn.className = 'name-type-btn interact-opt';
+    btn.disabled = false;
+    delete btn.dataset.mark;
+    btn.removeAttribute('aria-label');
+  });
   document.getElementById('interact-btn-show').disabled = false;
   drawCurrentPair();
-  el.focus();
 }
 
 function drawCurrentPair() {
@@ -1914,56 +1914,51 @@ function drawCurrentPair() {
   });
 }
 
-// Takes the entered choice: the first wrong one earns a second chance, with the structures to help
-function submitInteractionChoice() {
-  if (answered || interactActivity !== 'quiz') return;
-  const el = document.getElementById('inp-choice');
-  const typed = norm(el.value);
-  if (!typed) return;
-  const choice = INTERACTIONS.find(([, name]) => norm(name) === typed);
-  if (!choice || interactTried.includes(choice[1])) {
-    el.className = 'field-input bad';
-    el.setAttribute('aria-invalid', 'true');
-    return;
-  }
-  el.className = 'field-input';
-  el.removeAttribute('aria-invalid');
+const interactionButton = key => document.querySelector(`.interact-opt[data-interaction="${key}"]`);
+
+const interactionName = key => INTERACTIONS.find(([k]) => k === key)[1];
+
+function markInteractionButton(btn, className, mark, description) {
+  btn.classList.add(className);
+  btn.dataset.mark = mark;
+  btn.setAttribute('aria-label', `${interactionName(btn.dataset.interaction)}: ${description}`);
+}
+
+// Takes a clicked choice: the first wrong one earns a second chance, with the structures to help
+function chooseInteraction(key) {
+  if (answered || interactTried.includes(key)) return;
   const { a, b } = interactQuestion;
-  const right = correctInteractions(aaByCode(a), aaByCode(b)).includes(choice[0]);
+  const right = correctInteractions(aaByCode(a), aaByCode(b)).includes(key);
   interactRevealed = true;
   if (right || interactTried.length > 0) {
-    finishInteractionQuestion(right);
+    finishInteractionQuestion(right, key);
     return;
   }
-  interactTried.push(choice[1]);
-  COMBO_OPTIONS.choice = COMBO_OPTIONS.choice.filter(name => name !== choice[1]);
-  el.value = '';
-  const ind = document.getElementById('ind-choice');
-  ind.textContent = '✗';
-  ind.className = 'ind bad-ind';
+  interactTried.push(key);
+  const btn = interactionButton(key);
+  btn.disabled = true;
+  markInteractionButton(btn, 'opt-wrong', '✗', 'incorrect, you selected it');
+  // A disabled button loses keyboard focus, so hand it to the next choice
+  [...document.querySelectorAll('.interact-opt')].find(other => !other.disabled).focus();
   const fb = document.getElementById('feedback');
   fb.className = 'feedback show partial';
   fb.innerHTML = `<div class="fb-title">Not quite. Try once more.</div>
-    <div class="fb-answers"><b>${choice[1]}</b> is not correct. Use the structures to choose again.</div>`;
+    <div class="fb-answers"><b>${interactionName(key)}</b> is not correct. Use the structures to choose again.</div>`;
   drawCurrentPair();
 }
 
-// Leaving the box only enters a whole choice; partial text just stays there
-function submitCompleteChoice() {
-  const typed = norm(document.getElementById('inp-choice').value);
-  if (INTERACTIONS.some(([, name]) => norm(name) === typed)) submitInteractionChoice();
-}
-
-function finishInteractionQuestion(isRight) {
+// chosen is the last clicked choice, if any; Show Answer has none
+function finishInteractionQuestion(isRight, chosen) {
   const { a, b } = interactQuestion;
-  const el = document.getElementById('inp-choice');
+  const correct = correctInteractions(aaByCode(a), aaByCode(b));
   interactRevealed = true;
-  closeCombo('choice');
-  el.disabled = true;
-  el.className = `field-input ${isRight ? 'ok' : 'bad'}`;
-  const ind = document.getElementById('ind-choice');
-  ind.textContent = isRight ? '✓' : '✗';
-  ind.className = `ind ${isRight ? 'ok-ind' : 'bad-ind'}`;
+  INTERACTIONS.forEach(([key]) => {
+    const btn = interactionButton(key);
+    btn.disabled = true;
+    if (key === chosen && isRight) markInteractionButton(btn, 'opt-correct', '✓', 'correct, you selected it');
+    else if (correct.includes(key)) markInteractionButton(btn, 'opt-answer', isRight ? '✓ also correct' : '✓ answer', 'this is a correct answer');
+    else if (key === chosen) markInteractionButton(btn, 'opt-wrong', '✗', 'incorrect, you selected it');
+  });
   document.getElementById('interact-btn-show').disabled = true;
   completeQuestion({ interactions: isRight });
   drawCurrentPair();
@@ -2008,8 +2003,7 @@ const COMBO_OPTIONS = {
   name: AA_NAME_OPTIONS,
   type: Object.values(TYPE_LABELS),
   pairA: AA_NAME_OPTIONS,
-  pairB: AA_NAME_OPTIONS,
-  choice: INTERACTIONS.map(([, name]) => name)   // narrowed during a question's second chance
+  pairB: AA_NAME_OPTIONS
 };
 let comboActive = -1;   // highlighted option in the open list, -1 for none
 
@@ -2084,10 +2078,6 @@ function pickComboOption(id, option) {
     commitExplorePick(id);
     return;
   }
-  if (id === 'choice') {
-    submitInteractionChoice();
-    return;
-  }
   gradeField(id);
   if (!el.disabled) return;   // wrong: stay here to try again
   const nextField = getActiveFields().map(f => document.getElementById('inp-' + f)).find(f => !f.disabled);
@@ -2131,14 +2121,12 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('blur',  () => {
       closeCombo(id);
       if (EXPLORE_PICKERS[id]) commitExplorePick(id);
-      else if (id === 'choice') submitCompleteChoice();
       else                     gradeField(id);
     });
     el.addEventListener('keydown', e => {
       if (handleComboKey(id, e)) return;
       if (e.key === 'Enter') {
         if (EXPLORE_PICKERS[id]) commitExplorePick(id);
-        else if (id === 'choice') submitInteractionChoice();
         else if (!answered) gradeField(id);
         else           nextQuestion();
       }

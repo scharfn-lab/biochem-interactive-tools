@@ -809,10 +809,9 @@ const startInteract = (page, a = 'D', b = 'K', nameType = 'c3') => {
   page.run(`setDisplayMode('interact')`);
   askPair(page, a, b, nameType);
 };
-const enter = (page, text) => {
-  page.el('inp-choice').value = text;
-  page.el('inp-choice').fire('keydown', { key: 'Enter' });
-};
+const INTERACTION_KEYS = { 'Salt bridge': 'salt', 'Hydrogen bond': 'hbond', Hydrophobic: 'hydrophobic', 'Pi stacking': 'pi', 'Disulfide bond': 'disulfide', 'Charge repulsion': 'repulsion' };
+const enter = (page, label) => page.run(`chooseInteraction('${INTERACTION_KEYS[label]}')`);
+const option = (page, label) => page.q(`[data-interaction="${INTERACTION_KEYS[label]}"]`);
 const structuresShown = page => page.el('pair-grid').style.display !== 'none';
 
 // Worked out by hand from the side-chain chemistry, deliberately not from the page's own table
@@ -885,14 +884,15 @@ test('side-chain charges agree with the net charge of each structure', () => {
   }
 });
 
-test('the choices are the six agreed interactions, in an entry box', () => {
-  const page = loadPage();
-  assert.deepEqual(page.json('COMBO_OPTIONS.choice'),
+test('the choices are six buttons above the structures', () => {
+  const buttons = [...MARKUP.matchAll(/data-interaction="(\w+)"[^>]*onclick="chooseInteraction\('(\w+)'\)">([^<]+)</g)];
+  assert.deepEqual(buttons.map(m => m[3]),
     ['Salt bridge', 'Hydrogen bond', 'Hydrophobic', 'Pi stacking', 'Disulfide bond', 'Charge repulsion']);
+  for (const m of buttons) assert.equal(m[1], m[2]);
   assert.doesNotMatch(HTML, /cation/i);
   assert.doesNotMatch(HTML, /None of these/);
-  assert.doesNotMatch(HTML, /data-interaction|toggleInteraction|Check Answer/, 'no selection buttons remain');
-  assert.match(MARKUP, /<input [^>]*id="inp-choice"[^>]*role="combobox"/);
+  assert.doesNotMatch(HTML, /inp-choice|list-choice|Check Answer/, 'no entry box or separate check step');
+  assert.ok(MARKUP.indexOf('data-interaction="salt"') < MARKUP.indexOf('id="pair-grid"'));
 });
 
 test('the section shows its own panel and hides the others', () => {
@@ -936,31 +936,17 @@ test('structures stay hidden until a choice is entered', () => {
   const page = loadPage();
   startInteract(page, 'F', 'A');
   assert.equal(structuresShown(page), false);
-  page.el('inp-choice').fire('click');
-  assert.equal(structuresShown(page), false, 'opening the list is not a choice');
   enter(page, 'Hydrogen bond');
   assert.equal(structuresShown(page), true);
   assert.ok(page.el('pair-struct-a').innerHTML.includes(page.run(`aaByCode('F').smiles[7]`)));
   assert.ok(page.el('pair-struct-b').innerHTML.includes(page.run(`aaByCode('A').smiles[7]`)));
 });
 
-test('clicking the box lists the choices and typing narrows them', () => {
-  const page = loadPage();
-  startInteract(page);
-  assert.equal(listed(page, 'choice'), null, 'a new question does not open it');
-  page.el('inp-choice').fire('click');
-  assert.equal(listed(page, 'choice').length, 6);
-  typeInto(page, 'choice', 'h');
-  assert.deepEqual(listed(page, 'choice'), ['Hydrogen bond', 'Hydrophobic']);
-  page.el('list-choice').children[1].fire('click');
-  assert.equal(page.run('interactRevealed'), true, 'choosing from the list enters it');
-});
-
 test('a right first answer scores and shows the answer first, then its reason', () => {
   const page = loadPage();
   page.run('toggleScoreBreakdown()');
   startInteract(page);
-  enter(page, 'salt bridge');
+  enter(page, 'Salt bridge');
   assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
   assert.deepEqual(counts(page, 'Interactions'), [1, 0]);
   const text = page.el('feedback').innerHTML;
@@ -969,8 +955,10 @@ test('a right first answer scores and shows the answer first, then its reason', 
   assert.match(text, /interact-answer">Correct interaction: Salt bridge</);
   assert.match(text, /<b>Salt bridge:<\/b> Asp carboxylate COO⁻ and Lys ammonium NH₃⁺ carry opposite charges/);
   assert.ok(text.indexOf('interact-answer') < text.indexOf('interact-reasons'));
-  assert.equal(page.el('inp-choice').disabled, true);
-  assert.equal(page.el('ind-choice').textContent, '✓');
+  assert.ok(option(page, 'Salt bridge').classList.contains('opt-correct'));
+  assert.equal(option(page, 'Salt bridge').dataset.mark, '✓');
+  assert.ok(page.qa('.interact-opt').every(b => b.disabled));
+  assert.equal(option(page, 'Hydrophobic').dataset.mark, undefined, 'other choices stay unmarked');
   assert.equal(makeElement.focused, page.el('interact-btn-next'));
 });
 
@@ -996,15 +984,20 @@ test('a wrong first answer gives a second chance with the structures, and keeps 
   assert.doesNotMatch(text, /Salt bridge|interact-answer/, 'the answer stays hidden');
   assert.equal(page.el('pair-note-a').textContent, '', 'descriptions would give it away');
   assert.equal(structuresShown(page), true);
-  assert.equal(page.el('ind-choice').textContent, '✗');
-  assert.equal(page.el('inp-choice').value, '', 'ready for the next try');
-  assert.equal(page.el('inp-choice').disabled, false);
+  const used = option(page, 'Hydrophobic');
+  assert.ok(used.classList.contains('opt-wrong'));
+  assert.equal(used.dataset.mark, '✗');
+  assert.equal(used.disabled, true, 'the used choice cannot be picked again');
+  assert.equal(page.qa('.interact-opt').filter(b => !b.disabled).length, 5);
+  assert.equal(option(page, 'Salt bridge').dataset.mark, undefined, 'the answer is not marked yet');
+  assert.equal(makeElement.focused, option(page, 'Salt bridge'), 'keyboard focus moves to an open choice');
   assert.equal(page.run('answered'), false);
   assert.equal(page.run('score.total'), 0);
   assert.deepEqual(counts(page, 'Interactions'), [0, 0]);
-  page.el('inp-choice').fire('click');
-  assert.ok(!listed(page, 'choice').includes('Hydrophobic'), 'the used choice is gone');
-  assert.equal(listed(page, 'choice').length, 5);
+
+  enter(page, 'Hydrophobic');
+  assert.equal(page.run('answered'), false, 'clicking a used choice is not a second try');
+  assert.equal(page.run('interactTried.length'), 1);
 });
 
 test('a right second answer earns the point', () => {
@@ -1016,7 +1009,8 @@ test('a right second answer earns the point', () => {
   assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
   assert.deepEqual(counts(page, 'Interactions'), [1, 0]);
   assert.match(page.el('feedback').innerHTML, /Correct interaction: Salt bridge/);
-  assert.equal(page.el('ind-choice').textContent, '✓');
+  assert.ok(option(page, 'Salt bridge').classList.contains('opt-correct'));
+  assert.ok(option(page, 'Hydrophobic').classList.contains('opt-wrong'), 'the first try stays marked');
 });
 
 test('a wrong second answer shows the answer and scores zero', () => {
@@ -1029,9 +1023,11 @@ test('a wrong second answer shows the answer and scores zero', () => {
   assert.deepEqual(counts(page, 'Interactions'), [0, 1]);
   assert.equal(page.el('feedback').className, 'feedback show wrong');
   assert.match(page.el('feedback').innerHTML, /Correct interaction: Salt bridge/);
-  assert.equal(page.el('inp-choice').value, 'Hydrogen bond');
-  assert.equal(page.el('inp-choice').disabled, true);
-  assert.equal(page.el('ind-choice').textContent, '✗');
+  assert.ok(option(page, 'Hydrogen bond').classList.contains('opt-wrong'));
+  assert.ok(option(page, 'Hydrophobic').classList.contains('opt-wrong'));
+  assert.ok(option(page, 'Salt bridge').classList.contains('opt-answer'));
+  assert.equal(option(page, 'Salt bridge').dataset.mark, '✓ answer');
+  assert.ok(page.qa('.interact-opt').every(b => b.disabled));
 });
 
 test('the hydrogen bond does not stand in for a salt bridge', () => {
@@ -1051,33 +1047,14 @@ test('when two interactions form, either one is right and both are explained', (
     assert.match(text, /Correct interactions: Hydrophobic, Pi stacking/);
     assert.match(text, /<b>Hydrophobic:<\/b>/);
     assert.match(text, /<b>Pi stacking:<\/b>/);
+    const other = choice === 'Hydrophobic' ? 'Pi stacking' : 'Hydrophobic';
+    assert.ok(option(page, choice).classList.contains('opt-correct'));
+    assert.equal(option(page, other).dataset.mark, '✓ also correct');
   }
 });
 
-test('text that is not a choice is not counted as a try', () => {
-  const page = loadPage();
-  startInteract(page);
-  enter(page, 'covalent');
-  assert.equal(page.el('inp-choice').className, 'field-input bad');
-  assert.equal(page.el('inp-choice').getAttribute('aria-invalid'), 'true');
-  assert.equal(structuresShown(page), false);
-  assert.equal(page.run('interactTried.length'), 0);
-  enter(page, 'Salt bridge');
-  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
-  assert.equal(page.el('inp-choice').getAttribute('aria-invalid'), null);
-});
-
-test('leaving the box enters a complete choice, but not partial or empty text', () => {
-  const page = loadPage();
-  startInteract(page);
-  page.el('inp-choice').fire('blur');
-  assert.equal(structuresShown(page), false, 'empty');
-  page.el('inp-choice').value = 'Salt';
-  page.el('inp-choice').fire('blur');
-  assert.equal(page.run('answered'), false, 'partial');
-  page.el('inp-choice').value = 'Salt bridge';
-  page.el('inp-choice').fire('blur');
-  assert.equal(page.run('answered'), true);
+test('Show random pair is centered', () => {
+  assert.match(MARKUP, /<div style="text-align:center">\s*<button [^>]*id="explore-random"/);
 });
 
 test('side-chain descriptions appear under each structure once the question ends', () => {
@@ -1119,7 +1096,7 @@ test('returning to a finished pair reopens it without scoring it again', () => {
   page.run('showAnswers()');
   page.run(`setDisplayMode('structure'); setDisplayMode('interact')`);
   assert.equal(page.run('answered'), false);
-  assert.equal(page.el('inp-choice').disabled, false);
+  assert.ok(page.qa('.interact-opt').every(b => !b.disabled && b.className === 'name-type-btn interact-opt'), 'marks are cleared');
   assert.equal(structuresShown(page), false, 'hidden again');
   assert.equal(page.el('feedback').innerHTML, '');
   enter(page, 'Salt bridge');
