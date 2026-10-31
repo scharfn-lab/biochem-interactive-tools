@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enzyme Kinetics</title>
+  <style>
+    :root {
+      --ut-crimson:  #C8102E;
+      --ut-taupe:    #685C53;
+      --ut-lavender: #FFCDFF;
+      --ut-purple:   #6A0DAD;
+      --bg-page:     #FFFFFF;
+      --bg-panel:    #FFF8FF;
+      --bg-active:   #FFCDD2;
+      --bg-disabled: #F0F0F0;
+      --text-primary:   #000000;
+      --text-secondary: #685C53;
+      --text-accent:    #C8102E;
+      --text-disabled:  #5F5F5F;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    [hidden] { display: none !important; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      color: var(--ut-crimson);
+      font-size: 1.7em;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.85em;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    #main-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    canvas { display: block; }
+
+    :focus-visible {
+      outline: 3px solid var(--ut-crimson);
+      outline-offset: 2px;
+    }
+
+    /* ── Buttons ── */
+    #top-buttons, .quiz-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    #top-buttons { justify-content: center; }
+
+    button {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font: inherit;
+      font-size: 0.88em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    button.active { background: var(--bg-active); border-color: var(--ut-crimson); color: #000000; }
+    button:disabled { background: var(--bg-disabled); color: var(--text-disabled); cursor: not-allowed; }
+
+    /* ── Control panel ── */
+    .panel {
+      background: var(--bg-panel);
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    }
+
+    #panel { padding: 22px; }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px 28px;
+    }
+
+    #enzyme-section { flex: 3 1 300px; }
+    #units-section  { flex: 2 1 190px; }
+    #inhib-section  { flex: 4 1 480px; }
+    #second-section { flex: 1 1 170px; }
+    #range-section  { flex: 3 1 300px; }
+    #controls > section { min-width: 0; }
+
+    .panel-section-title {
+      font-size: 0.75em;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ut-crimson);
+      margin-bottom: 10px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    /* Wide enough for "Noncompetitive" in the type dropdown */
+    #inhib-fields { display: flex; flex-wrap: wrap; }
+    #inhib-fields .field { flex: 1 1 92px; min-width: 0; }
+    #inhib-fields .type-field { flex: 1.4 1 150px; }
+
+    sub { line-height: 0; }   /* keeps labels with subscripts level with those without */
+
+    .field label {
+      display: block;
+      font-size: 0.82em;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .field.off label { color: var(--text-disabled); font-weight: 400; }
+
+    input[type=number], select, .quiz-cell input {
+      width: 100%;
+      padding: 7px 10px;
+      background: #FFFFFF;
+      border: 1px solid var(--ut-taupe);
+      border-radius: 6px;
+      color: #000000;
+      font: inherit;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    input[type=number]:focus, select:focus, .quiz-cell input:focus { border-color: var(--ut-crimson); }
+    input:disabled, select:disabled {
+      background: var(--bg-disabled);
+      border-color: #BFBFBF;
+      color: var(--text-disabled);
+      cursor: not-allowed;
+    }
+    input::placeholder { color: var(--text-disabled); opacity: 1; }
+
+    input[aria-invalid="true"] {
+      border: 2px solid var(--ut-crimson);
+      padding: 6px 9px;
+    }
+
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88em;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .check-label input { width: 16px; height: 16px; accent-color: var(--ut-crimson); cursor: inherit; }
+    .check-label.off { color: var(--text-disabled); cursor: not-allowed; }
+
+    .note {
+      font-size: 0.8em;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    #errors {
+      margin-top: 14px;
+      padding: 8px 12px;
+      font-size: 0.88em;
+      line-height: 1.5;
+      background: #FFFFFF;
+      border: 2px solid var(--ut-crimson);
+      border-radius: 6px;
+    }
+    #errors b { color: var(--ut-crimson); }
+
+    /* ── Plots and results ── */
+    #plot-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      align-items: start;
+    }
+
+    .plot-card { padding: 14px; min-width: 0; }
+
+    .plot-hint {
+      font-size: 0.8em;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 6px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 16px;
+      min-height: 22px;
+      margin-bottom: 6px;
+      font-size: 0.85em;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-item svg { flex-shrink: 0; }
+
+    .canvas-wrap { width: 100%; max-width: 500px; margin: 0 auto; }
+
+    .plot-canvas {
+      width: 100%;
+      border-radius: 6px;
+      background: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      cursor: crosshair;
+      touch-action: pan-y;   /* keep vertical page scrolling on phones; sideways drags scrub the readout */
+    }
+
+    .results { margin-top: 14px; }
+    .quiz-tools { margin-bottom: 8px; }
+    .quiz-tools button { padding: 5px 14px; }
+    .score { font-size: 0.85em; }
+
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88em;
+    }
+    th, td {
+      padding: 5px 6px;
+      border-bottom: 1px solid #BFBFBF;
+      text-align: right;
+      white-space: nowrap;
+    }
+    thead th, thead td { border-bottom: 2px solid var(--ut-taupe); }
+    thead th {
+      font-weight: 600;
+      white-space: normal;
+      vertical-align: bottom;
+    }
+    tbody th { text-align: left; font-weight: 600; }
+    th .unit { font-weight: 400; color: var(--text-secondary); }
+    td.revealed { font-style: italic; }
+
+    .quiz-cell { padding: 3px; }
+    .cell-wrap { display: flex; align-items: center; gap: 3px; }
+    .quiz-cell input { min-width: 54px; padding: 4px 5px; font-size: 13px; text-align: right; }
+    .mark { flex: 0 0 13px; font-weight: 700; text-align: center; }
+    .quiz-cell.correct { background: var(--ut-lavender); }
+    .quiz-cell.wrong { outline: 2px solid var(--ut-crimson); outline-offset: -2px; }
+    .quiz-cell.wrong .mark { color: var(--ut-crimson); }
+
+    @media (max-width: 900px) {
+      #plot-row { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 480px) {
+      #panel { padding: 16px; }
+      .plot-card { padding: 10px; }
+      th, td { padding: 4px; }
+      table { font-size: 0.82em; }
+      th .unit { display: block; }
+      .quiz-cell input { min-width: 44px; padding: 4px 3px; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Enzyme Kinetics</h1>
+<p class="subtitle">CHE 317 · Michaelis–Menten and Lineweaver–Burk plots with reversible inhibition</p>
+
+<main id="main-layout">
+
+  <div id="top-buttons">
+    <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode: Off</button>
+    <button type="button" id="reveal-all" hidden>Reveal all</button>
+    <button type="button" id="reset">Reset to defaults</button>
+  </div>
+
+  <!-- Control panel -->
+  <div id="panel" class="panel">
+    <div id="controls">
+
+      <section id="enzyme-section" aria-labelledby="enzyme-title">
+        <h2 class="panel-section-title" id="enzyme-title">Enzyme parameters</h2>
+        <div class="field-row">
+          <div class="field"><label for="Km">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km" step="any" min="0"></div>
+          <div class="field"><label for="kcat">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat" step="any" min="0"></div>
+          <div class="field"><label for="Etot">[E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
+        </div>
+      </section>
+
+      <section id="units-section" aria-labelledby="units-title">
+        <h2 class="panel-section-title" id="units-title">Units</h2>
+        <div class="field-row">
+          <div class="field">
+            <label for="concUnit">Concentration</label>
+            <select id="concUnit">
+              <option value="M">M</option>
+              <option value="mM">mM</option>
+              <option value="µM">µM</option>
+              <option value="nM">nM</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="timeUnit">Time</label>
+            <select id="timeUnit">
+              <option value="s">s</option>
+              <option value="min">min</option>
+              <option value="h">h</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section id="inhib-section" aria-labelledby="inhib-title">
+        <h2 class="panel-section-title" id="inhib-title">Inhibition</h2>
+        <div class="field-row" id="inhib-fields">
+          <div class="field type-field">
+            <label for="type">Type</label>
+            <select id="type">
+              <option value="none">None</option>
+              <option value="competitive">Competitive</option>
+              <option value="uncompetitive">Uncompetitive</option>
+              <option value="noncompetitive">Noncompetitive</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </div>
+          <div class="field" id="I-field"><label for="I">[I] (<span data-u="conc">µM</span>)</label><input type="number" id="I" step="any" min="0"></div>
+          <div class="field" id="Ki-field"><label for="Ki">K<sub>i</sub> (E + I), <span data-u="conc">µM</span></label><input type="number" id="Ki" step="any" min="0"></div>
+          <div class="field" id="KiP-field"><label for="KiP">K<sub>i</sub>' (ES + I), <span data-u="conc">µM</span></label><input type="number" id="KiP" step="any" min="0"></div>
+        </div>
+        <p class="note" id="ki-note" hidden>K<sub>i</sub>' = K<sub>i</sub> for pure noncompetitive</p>
+      </section>
+
+      <section id="second-section" aria-labelledby="second-title">
+        <h2 class="panel-section-title" id="second-title">Second [I] (optional)</h2>
+        <label class="check-label" id="compare-label"><input type="checkbox" id="compare"> Compare a second [I]</label>
+        <div class="field" id="I2-field" hidden><label for="I2">Second [I] (<span data-u="conc">µM</span>)</label><input type="number" id="I2" step="any" min="0"></div>
+      </section>
+
+      <section id="range-section" aria-labelledby="range-title">
+        <h2 class="panel-section-title" id="range-title">[S] range</h2>
+        <label class="check-label"><input type="checkbox" id="auto"> Auto</label>
+        <div class="field-row">
+          <div class="field" id="Smax-field"><label for="Smax">[S]<sub>max</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Smax" step="any" min="0" placeholder="auto"></div>
+          <div class="field" id="Smin-field"><label for="Smin">[S]<sub>min</sub>, L-B (<span data-u="conc">µM</span>)</label><input type="number" id="Smin" step="any" min="0" placeholder="auto"></div>
+          <div class="field" id="points-field"><label for="points">Number of points</label><input type="number" id="points" step="1" min="2" placeholder="auto"></div>
+        </div>
+      </section>
+
+    </div>
+    <div id="errors" role="alert" hidden></div>
+  </div>
+
+  <!-- Plot row -->
+  <div id="plot-row">
+
+    <section class="panel plot-card" aria-labelledby="mm-title">
+      <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
+      <div class="legend" id="mm-legend"></div>
+      <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
+      <p class="plot-hint">Hover or tap the plot to read the nearest point.</p>
+      <div class="results">
+        <div class="quiz-tools" id="mm-tools" hidden>
+          <button type="button" data-check="mm">Check</button>
+          <button type="button" data-reveal="mm">Reveal</button>
+          <span class="score" id="mm-score" aria-live="polite"></span>
+        </div>
+        <div class="table-scroll" id="mm-table" role="region" aria-label="Michaelis–Menten results" tabindex="0"></div>
+      </div>
+    </section>
+
+    <section class="panel plot-card" aria-labelledby="lb-title">
+      <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
+      <div class="legend" id="lb-legend"></div>
+      <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
+      <p class="plot-hint">Hover or tap the plot to read the nearest point. The x-axis starts at 0, so the x-intercept lies off the plot to the left.</p>
+      <div class="results">
+        <div class="quiz-tools" id="lb-tools" hidden>
+          <button type="button" data-check="lb">Check</button>
+          <button type="button" data-reveal="lb">Reveal</button>
+          <span class="score" id="lb-score" aria-live="polite"></span>
+        </div>
+        <div class="table-scroll" id="lb-table" role="region" aria-label="Lineweaver–Burk results" tabindex="0"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+'use strict';
+
+// ═══ 1. STATE ═════════════════════════════════════════════════
+
+const DEFAULTS = {
+  Km: 10, kcat: 100, Etot: 0.01,
+  concUnit: 'µM', timeUnit: 's',
+  type: 'competitive', I: 10, Ki: 5, KiP: 5,
+  compare: false, I2: 20,
+  auto: true,
+};
+
+const state = {
+  params: null,       // last valid numeric parameters
+  units: null,        // { conc, time }; always current, even while a field is invalid
+  model: null,        // curves and samples built from params
+  signature: '',      // detects real parameter changes, so a no-op edit keeps quiz answers
+  kiPrimeText: '',    // the student's own Ki', restored after leaving pure noncompetitive
+};
+
+const quiz = { on: false, revealed: { mm: false, lb: false } };
+
+
+// ═══ 2. KINETICS MATH AND FORMATTING (no DOM access) ═════════
+
+// Which of [I], Ki and Ki' each inhibition type uses.
+const ACTIVE_FIELDS = {
+  none:           { I: false, Ki: false, KiP: false },
+  competitive:    { I: true,  Ki: true,  KiP: false },
+  uncompetitive:  { I: true,  Ki: false, KiP: true  },
+  noncompetitive: { I: true,  Ki: true,  KiP: false },   // Ki' mirrors Ki
+  mixed:          { I: true,  Ki: true,  KiP: true  },
+};
+
+const AUTO_POINTS = 200;
+const MAX_POINTS = 5000;
+
+function factors(type, I, Ki, KiP) {
+  switch (type) {
+    case 'competitive':    return { alpha: 1 + I / Ki, alphaP: 1 };
+    case 'uncompetitive':  return { alpha: 1, alphaP: 1 + I / KiP };
+    case 'noncompetitive': return { alpha: 1 + I / Ki, alphaP: 1 + I / Ki };
+    case 'mixed':          return { alpha: 1 + I / Ki, alphaP: 1 + I / KiP };
+    default:               return { alpha: 1, alphaP: 1 };
+  }
+}
+
+function constants(Vmax, Km, alpha, alphaP) {
+  const appVmax = Vmax / alphaP;
+  const appKm = alpha * Km / alphaP;
+  return {
+    Vmax, Km, alpha, alphaP, appVmax, appKm,
+    slope: appKm / appVmax,
+    yInt: 1 / appVmax,
+    xInt: -1 / appKm,
+  };
+}
+
+function v0(k, S) {
+  return k.Vmax * S / (k.alpha * k.Km + k.alphaP * S);
+}
+
+function buildCurves(p) {
+  const Vmax = p.kcat * p.Etot;
+  const curve = (id, I) => {
+    const { alpha, alphaP } = factors(p.type, I, p.Ki, p.KiP);
+    return { id, I, k: constants(Vmax, p.Km, alpha, alphaP) };
+  };
+  const curves = [{ id: 'uninhibited', I: null, k: constants(Vmax, p.Km, 1, 1) }];
+  if (p.type !== 'none') {
+    curves.push(curve('first', p.I));
+    if (p.compare) curves.push(curve('second', p.I2));
+  }
+  return curves;
+}
+
+function autoRange(p, curves) {
+  const largestKm = Math.max(p.Km, ...curves.map(c => c.k.appKm));
+  return { Smax: 10 * largestKm, Smin: 0.1 * p.Km, points: AUTO_POINTS };
+}
+
+// M-M samples evenly in [S] from 0, so the curve starts at the origin.
+function sampleMM(k, range) {
+  const pts = [];
+  for (let i = 0; i < range.points; i++) {
+    const S = range.Smax * i / (range.points - 1);
+    pts.push({ x: S, y: v0(k, S) });
+  }
+  return pts;
+}
+
+// L-B samples evenly in 1/[S], so the readout is as dense at high 1/[S] as at low.
+// [S] stays within [S]min..[S]max and is never 0.
+function sampleLB(k, range) {
+  const xLo = 1 / range.Smax, xHi = 1 / range.Smin;
+  const pts = [];
+  for (let i = 0; i < range.points; i++) {
+    const x = xLo + (xHi - xLo) * i / (range.points - 1);
+    pts.push({ x, y: 1 / v0(k, 1 / x) });
+  }
+  return pts;
+}
+
+function buildModel(p) {
+  const curves = buildCurves(p);
+  const range = p.auto ? autoRange(p, curves) : { Smax: p.Smax, Smin: p.Smin, points: p.points };
+  for (const c of curves) {
+    c.mm = sampleMM(c.k, range);
+    c.lb = sampleLB(c.k, range);
+  }
+  return { curves, range };
+}
+
+const FIELD_NAMES = {
+  Km: 'Km', kcat: 'kcat', Etot: '[E]total', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
+  Smax: '[S]max', Smin: '[S]min', points: 'Number of points',
+};
+
+function parseField(text) {
+  const t = String(text).trim();
+  return t === '' ? NaN : Number(t);
+}
+
+// raw holds field text plus { type, compare, auto }. Disabled fields are not checked.
+function validate(raw) {
+  const errors = [];
+  const params = { type: raw.type, compare: raw.compare && raw.type !== 'none', auto: raw.auto };
+  const read = (field, allowZero) => {
+    const value = parseField(raw[field]);
+    params[field] = value;
+    if (!Number.isFinite(value) || value < 0 || (value === 0 && !allowZero)) {
+      errors.push({ field, message: `${FIELD_NAMES[field]} must be ${allowZero ? 'zero or positive' : 'a positive number'}.` });
+    }
+  };
+
+  read('Km'); read('kcat'); read('Etot');
+
+  const active = ACTIVE_FIELDS[raw.type];
+  if (active.I) read('I', true);
+  if (active.Ki) read('Ki');
+  if (active.KiP) read('KiP');
+  if (raw.type === 'noncompetitive') params.KiP = params.Ki;
+  if (params.compare) read('I2', true);
+
+  if (!raw.auto) {
+    read('Smax'); read('Smin');
+    if (params.Smin >= params.Smax) errors.push({ field: 'Smin', message: '[S]min must be less than [S]max.' });
+    const n = parseField(raw.points);
+    params.points = n;
+    if (!Number.isInteger(n) || n < 2 || n > MAX_POINTS) {
+      errors.push({ field: 'points', message: `Number of points must be a whole number from 2 to ${MAX_POINTS}.` });
+    }
+  }
+
+  // Values can each be fine yet overflow when combined.
+  if (!errors.length) {
+    const allFinite = buildCurves(params).every(c => Object.values(c.k).every(v => Number.isFinite(v) && v !== 0));
+    if (!allFinite) errors.push({ field: 'Km', message: 'These values are too extreme to calculate.' });
+  }
+  return { errors, params };
+}
+
+const SUPERSCRIPTS = { '-': '⁻', '+': '', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+
+function pow10Text(exponent) {
+  return '10' + String(exponent).split('').map(ch => SUPERSCRIPTS[ch]).join('');
+}
+
+// 3 significant figures; scientific notation when |x| < 0.01 or >= 10⁴.
+function fmtSig(x) {
+  if (!Number.isFinite(x)) return '—';
+  if (x === 0) return '0';
+  const rounded = Number(x.toPrecision(3));
+  let text;
+  if (Math.abs(x) < 0.01 || Math.abs(rounded) >= 1e4) {
+    const [mantissa, exponent] = x.toExponential(2).split('e');
+    text = `${mantissa} × ${pow10Text(Number(exponent))}`;
+  } else {
+    // toPrecision alone would print 1234 as "1.23e+3".
+    const exponent = Number(rounded.toExponential().split('e')[1]);
+    text = exponent >= 2 ? String(rounded) : rounded.toFixed(2 - exponent);
+  }
+  return text.replace('-', '−');
+}
+
+// Like fmtSig without trailing zeros, for [I] labels: "[I] = 5 µM".
+function fmtCompact(x) {
+  if (x === 0) return '0';
+  if (Math.abs(x) < 0.01 || Math.abs(Number(x.toPrecision(3))) >= 1e4) {
+    const [mantissa, exponent] = x.toExponential(2).split('e');
+    return `${Number(mantissa)} × ${pow10Text(Number(exponent))}`;
+  }
+  return String(Number(x.toPrecision(3)));
+}
+
+// Every tick on an axis uses the same notation.
+function tickLabels(ticks) {
+  const useSci = ticks.some(t => t !== 0 && (Math.abs(t) < 0.01 || Math.abs(t) >= 1e4));
+  return ticks.map(t => {
+    if (t === 0) return '0';
+    if (!useSci) return String(Number(t.toPrecision(3)));
+    const [mantissa, exponent] = t.toExponential(2).split('e');
+    return `${Number(mantissa)} × ${pow10Text(Number(exponent))}`;
+  });
+}
+
+function niceStep(rough) {
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+  const fraction = rough / magnitude;
+  const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+  return nice * magnitude;
+}
+
+// Axis from 0 up to the first nice tick at or above dataMax.
+function niceScale(dataMax, targetTicks) {
+  const step = niceStep(dataMax / targetTicks);
+  const count = Math.ceil(dataMax / step - 1e-9);
+  const ticks = [];
+  for (let i = 0; i <= count; i++) ticks.push(Number((i * step).toPrecision(12)));
+  return { max: ticks[count], ticks };
+}
+
+// Accepts "0.5", "2.5e-3", "2.5 x 10^-3" and "2.50 × 10⁻³" (the page's own format).
+function parseAnswer(text) {
+  const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  const t = String(text).replace(/\s+/g, '').replace(/[−–]/g, '-')
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, ch => SUP.indexOf(ch)).replace(/⁻/g, '-');
+  if (t === '') return NaN;
+  const sci = t.match(/^([+-]?(?:\d+\.?\d*|\.\d+))[xX×*]10\^?([+-]?\d+)$/);
+  return sci ? Number(`${sci[1]}e${sci[2]}`) : Number(t);
+}
+
+// Within ±2% of the true value. The tiny tolerance keeps an exact 2% answer from failing on rounding.
+function isCorrect(answer, truth) {
+  return Number.isFinite(answer) && Math.abs(answer - truth) <= 0.02 * Math.abs(truth) * (1 + 1e-9);
+}
+
+
+// ═══ 3. PLOTTING ══════════════════════════════════════════════
+
+// All colors here match the :root tokens above.
+const COLORS = { taupe: '#685C53', crimson: '#C8102E', purple: '#6A0DAD', grid: '#BFBFBF', text: '#000000' };
+
+// Both inhibited curves are solid, so the second [I] also carries diamond markers
+// and the two can be told apart without color.
+const CURVE_STYLES = {
+  uninhibited: { color: COLORS.taupe,   dash: [7, 5], width: 2.25 },
+  first:       { color: COLORS.crimson, dash: [],     width: 2.5 },
+  second:      { color: COLORS.purple,  dash: [],     width: 2.5, diamonds: true },
+};
+const DRAW_ORDER = ['second', 'first', 'uninhibited'];   // dashed line on top, so it shows where curves overlap
+const DIAMOND_COUNT = 7;
+const FONT = "'Segoe UI', Arial, sans-serif";
+
+const plots = {
+  mm: {
+    kind: 'mm', canvas: document.getElementById('mm-canvas'), hover: null, geom: null,
+    xName: '[S]', yName: 'v₀',
+    xUnit: u => u.conc, yUnit: u => `${u.conc}/${u.time}`,
+    extent: m => ({ x: m.range.Smax, y: m.curves[0].k.Vmax * 1.08 }),
+  },
+  lb: {
+    kind: 'lb', canvas: document.getElementById('lb-canvas'), hover: null, geom: null,
+    xName: '1/[S]', yName: '1/v₀',
+    xUnit: u => `${u.conc}⁻¹`, yUnit: u => `${u.time}/${u.conc}`,
+    extent: m => ({
+      x: 1 / m.range.Smin,
+      y: Math.max(...m.curves.map(c => c.lb[c.lb.length - 1].y)) * 1.05,
+    }),
+  },
+};
+
+function curveName(curve) {
+  return curve.I === null ? 'Uninhibited' : `[I] = ${fmtCompact(curve.I)} ${state.units.conc}`;
+}
+
+function resizeCanvas(plot) {
+  const cssWidth = plot.canvas.parentElement.clientWidth;
+  if (!cssWidth) return;
+  const cssHeight = Math.max(280, Math.round(cssWidth * 0.84));
+  const dpr = window.devicePixelRatio || 1;
+  plot.canvas.style.height = cssHeight + 'px';
+  plot.canvas.width = Math.round(cssWidth * dpr);
+  plot.canvas.height = Math.round(cssHeight * dpr);
+  plot.cssWidth = cssWidth;
+  plot.cssHeight = cssHeight;
+  plot.dpr = dpr;
+}
+
+function computeGeometry(plot, ctx) {
+  const W = plot.cssWidth, H = plot.cssHeight;
+  const extent = plot.extent(state.model);
+  const top = 14, bottom = 48;
+
+  ctx.font = `12px ${FONT}`;
+  // The y-axis ends exactly at the data's headroom rather than at the next nice tick,
+  // which could leave up to 50% empty space above Vmax.
+  const yTicks = niceScale(extent.y, Math.max(3, Math.min(7, Math.floor((H - top - bottom) / 50)))).ticks
+    .filter(t => t <= extent.y);
+  const yScale = { max: extent.y, ticks: yTicks };
+  const yLabels = tickLabels(yTicks);
+  const left = 30 + Math.max(...yLabels.map(t => ctx.measureText(t).width));
+
+  // Use the most x ticks whose labels fit without touching.
+  let xScale, xLabels, right;
+  for (let target = 7; target >= 1; target--) {
+    xScale = niceScale(extent.x, target);
+    xLabels = tickLabels(xScale.ticks);
+    const widest = Math.max(...xLabels.map(t => ctx.measureText(t).width));
+    right = Math.max(14, widest / 2 + 4);
+    if ((W - left - right) / xScale.ticks.slice(1).length >= widest + 12) break;
+  }
+
+  const plotW = W - left - right, plotH = H - top - bottom;
+  return {
+    W, H, left, top, plotW, plotH, xScale, yScale, xLabels, yLabels,
+    sx: v => left + v / xScale.max * plotW,
+    sy: v => top + plotH - v / yScale.max * plotH,
+  };
+}
+
+function drawAxes(ctx, g, plot) {
+  const units = state.units;
+  ctx.font = `12px ${FONT}`;
+  ctx.lineWidth = 1;
+
+  // Dashed gridlines
+  ctx.strokeStyle = COLORS.grid;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  g.xScale.ticks.slice(1).forEach(t => { ctx.moveTo(g.sx(t), g.top); ctx.lineTo(g.sx(t), g.top + g.plotH); });
+  g.yScale.ticks.slice(1).forEach(t => { ctx.moveTo(g.left, g.sy(t)); ctx.lineTo(g.left + g.plotW, g.sy(t)); });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Axis lines
+  ctx.strokeStyle = COLORS.taupe;
+  ctx.beginPath();
+  ctx.moveTo(g.left, g.top);
+  ctx.lineTo(g.left, g.top + g.plotH);
+  ctx.lineTo(g.left + g.plotW, g.top + g.plotH);
+  ctx.stroke();
+
+  // Tick labels
+  ctx.fillStyle = COLORS.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  g.xScale.ticks.forEach((t, i) => ctx.fillText(g.xLabels[i], g.sx(t), g.top + g.plotH + 6));
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  g.yScale.ticks.forEach((t, i) => ctx.fillText(g.yLabels[i], g.left - 6, g.sy(t)));
+
+  // Axis titles
+  ctx.font = `600 13px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`${plot.xName} (${plot.xUnit(units)})`, g.left + g.plotW / 2, g.H - 6);
+  ctx.save();
+  ctx.translate(14, g.top + g.plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${plot.yName} (${plot.yUnit(units)})`, 0, 0);
+  ctx.restore();
+}
+
+function drawDiamond(ctx, x, y, color) {
+  const r = 5;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r, y);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r, y);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1.5;
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawCurves(ctx, g, plot) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(g.left, g.top, g.plotW, g.plotH);
+  ctx.clip();
+  for (const id of DRAW_ORDER) {
+    const curve = state.model.curves.find(c => c.id === id);
+    if (!curve) continue;
+    const style = CURVE_STYLES[id];
+    const pts = curve[plot.kind];
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.width;
+    ctx.lineJoin = 'round';
+    ctx.setLineDash(style.dash);
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      if (i) ctx.lineTo(g.sx(p.x), g.sy(p.y));
+      else ctx.moveTo(g.sx(p.x), g.sy(p.y));
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (style.diamonds) {
+      for (let i = 0; i < DIAMOND_COUNT; i++) {
+        const p = pts[Math.round((i + 0.5) / DIAMOND_COUNT * (pts.length - 1))];
+        drawDiamond(ctx, g.sx(p.x), g.sy(p.y), style.color);
+      }
+    }
+  }
+  ctx.restore();
+}
+
+// Nearest sampled point on any curve, measured in screen pixels.
+function nearestPoint(plot, g, px, py) {
+  let best = null, bestDist = Infinity;
+  for (const curve of state.model.curves) {
+    for (const p of curve[plot.kind]) {
+      const dist = (g.sx(p.x) - px) ** 2 + (g.sy(p.y) - py) ** 2;
+      if (dist < bestDist) { bestDist = dist; best = { curve, p }; }
+    }
+  }
+  return best;
+}
+
+function drawHover(ctx, g, plot) {
+  const { x: px, y: py } = plot.hover;
+  if (px < g.left || px > g.left + g.plotW || py < g.top || py > g.top + g.plotH) return;
+
+  // Crosshair
+  ctx.strokeStyle = COLORS.taupe;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
+  ctx.moveTo(px, g.top); ctx.lineTo(px, g.top + g.plotH);
+  ctx.moveTo(g.left, py); ctx.lineTo(g.left + g.plotW, py);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Nearest point
+  const { curve, p } = nearestPoint(plot, g, px, py);
+  const dotX = g.sx(p.x), dotY = g.sy(p.y);
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = CURVE_STYLES[curve.id].color;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+
+  // Tooltip, flipped or clamped to stay on the canvas
+  const lines = [
+    curveName(curve),
+    `${plot.xName} = ${fmtSig(p.x)} ${plot.xUnit(state.units)}`,
+    `${plot.yName} = ${fmtSig(p.y)} ${plot.yUnit(state.units)}`,
+  ];
+  ctx.font = `12px ${FONT}`;
+  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16;
+  const boxH = lines.length * 16 + 10;
+  let boxX = px + 12, boxY = py - boxH - 12;
+  if (boxX + boxW > g.W - 2) boxX = px - boxW - 12;
+  if (boxX < 2) boxX = 2;
+  if (boxY < 2) boxY = py + 12;
+  if (boxY + boxH > g.H - 2) boxY = g.H - boxH - 2;
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = COLORS.taupe;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxW, boxH, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.text;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  lines.forEach((line, i) => {
+    ctx.font = `${i === 0 ? '600 ' : ''}12px ${FONT}`;
+    ctx.fillText(line, boxX + 8, boxY + 6 + i * 16);
+  });
+}
+
+function drawPlot(plot) {
+  if (!state.model || !plot.cssWidth) return;
+  const ctx = plot.canvas.getContext('2d');
+  ctx.setTransform(plot.dpr, 0, 0, plot.dpr, 0, 0);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, plot.cssWidth, plot.cssHeight);
+  const g = computeGeometry(plot, ctx);
+  plot.geom = g;
+  drawAxes(ctx, g, plot);
+  drawCurves(ctx, g, plot);
+  if (plot.hover) drawHover(ctx, g, plot);
+}
+
+function legendSwatch(style) {
+  const dash = style.dash.length ? ` stroke-dasharray="${style.dash.join(' ')}"` : '';
+  const diamond = style.diamonds
+    ? `<path d="M18 2 L23 7 L18 12 L13 7 Z" fill="${style.color}" stroke="#FFFFFF" stroke-width="1.5"/>`
+    : '';
+  return `<svg width="36" height="14" aria-hidden="true"><line x1="0" y1="7" x2="36" y2="7" stroke="${style.color}" stroke-width="${style.width}"${dash}/>${diamond}</svg>`;
+}
+
+function renderLegends() {
+  const items = state.model.curves
+    .map(c => `<span class="legend-item">${legendSwatch(CURVE_STYLES[c.id])}${curveName(c)}</span>`)
+    .join('');
+  document.getElementById('mm-legend').innerHTML = items;
+  document.getElementById('lb-legend').innerHTML = items;
+}
+
+// Describes the plots without giving away quiz answers.
+function updateCanvasLabels() {
+  const names = state.model.curves.map(curveName).join(', ');
+  const u = state.units;
+  plots.mm.canvas.setAttribute('aria-label',
+    `Michaelis–Menten plot of v₀ in ${u.conc}/${u.time} against [S] in ${u.conc}. Curves: ${names}. Kinetic constants are in the table below.`);
+  plots.lb.canvas.setAttribute('aria-label',
+    `Lineweaver–Burk plot of 1/v₀ in ${u.time}/${u.conc} against 1/[S] in ${u.conc}⁻¹. Lines: ${names}. Slopes and intercepts are in the table below.`);
+}
+
+function schedulePlotDraw(plot) {
+  if (plot.frame) return;
+  plot.frame = requestAnimationFrame(() => {
+    plot.frame = 0;
+    drawPlot(plot);
+  });
+}
+
+
+// ═══ 4. RESULTS TABLES AND QUIZ ═══════════════════════════════
+
+function tableRows(tableId) {
+  const { conc, time } = state.units;
+  if (tableId === 'mm') {
+    return [
+      { key: 'Vmax',    html: 'V<sub>max</sub>',    plain: 'Vmax',    unit: `${conc}/${time}` },
+      { key: 'appVmax', html: 'appV<sub>max</sub>', plain: 'appVmax', unit: `${conc}/${time}` },
+      { key: 'Km',      html: 'K<sub>m</sub>',      plain: 'Km',      unit: conc },
+      { key: 'appKm',   html: 'appK<sub>m</sub>',   plain: 'appKm',   unit: conc },
+      { key: 'alpha',   html: 'α',                  plain: 'α',       unit: 'unitless' },
+      { key: 'alphaP',  html: "α'",                 plain: "α'",      unit: 'unitless' },
+    ];
+  }
+  return [
+    { key: 'slope', html: 'Slope',       plain: 'Slope',       unit: time },
+    { key: 'yInt',  html: 'y-intercept', plain: 'y-intercept', unit: `${time}/${conc}` },
+    { key: 'xInt',  html: 'x-intercept', plain: 'x-intercept', unit: `${conc}⁻¹` },
+  ];
+}
+
+function columnName(curve) {
+  if (curve.id === 'uninhibited') return 'Uninhibited';
+  const sub = curve.id === 'first' ? '₁' : '₂';
+  return `[I]${sub} = ${fmtCompact(curve.I)} ${state.units.conc}`;
+}
+
+function renderTable(tableId) {
+  const curves = state.model.curves;
+  const asInputs = quiz.on && !quiz.revealed[tableId];
+  const rows = tableRows(tableId);
+
+  const head = curves.map(c => `<th scope="col">${columnName(c)}</th>`).join('');
+  const body = rows.map((row, r) => {
+    const cells = curves.map((c, col) => {
+      if (asInputs) {
+        const label = `${row.plain}, ${columnName(c)}`;
+        return `<td class="quiz-cell" data-row="${r}" data-col="${col}"><span class="cell-wrap">` +
+          `<input type="text" autocomplete="off" spellcheck="false" aria-label="${label}"><span class="mark"></span></span></td>`;
+      }
+      return `<td${quiz.on ? ' class="revealed"' : ''}>${fmtSig(c.k[row.key])}</td>`;
+    }).join('');
+    return `<tr><th scope="row">${row.html} <span class="unit">(${row.unit})</span></th>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById(`${tableId}-table`).innerHTML =
+    `<table><thead><tr><td></td>${head}</tr></thead><tbody>${body}</tbody></table>`;
+
+  const tools = document.getElementById(`${tableId}-tools`);
+  tools.hidden = !quiz.on;
+  tools.querySelectorAll('button').forEach(b => { b.disabled = quiz.revealed[tableId]; });
+  document.getElementById(`${tableId}-score`).textContent = '';
+}
+
+function renderTables() {
+  renderTable('mm');
+  renderTable('lb');
+}
+
+function clearCellMark(cell) {
+  cell.classList.remove('correct', 'wrong');
+  const mark = cell.querySelector('.mark');
+  mark.textContent = '';
+  mark.removeAttribute('role');
+  mark.removeAttribute('aria-label');
+}
+
+function checkCell(tableId, cell) {
+  clearCellMark(cell);
+  const input = cell.querySelector('input');
+  if (input.value.trim() === '') return null;   // an unanswered cell is not marked wrong
+  const row = tableRows(tableId)[Number(cell.dataset.row)];
+  const truth = state.model.curves[Number(cell.dataset.col)].k[row.key];
+  const correct = isCorrect(parseAnswer(input.value), truth);
+  const mark = cell.querySelector('.mark');
+  cell.classList.add(correct ? 'correct' : 'wrong');
+  mark.textContent = correct ? '✓' : '✗';
+  mark.setAttribute('role', 'img');
+  mark.setAttribute('aria-label', correct ? 'correct' : 'incorrect');
+  return correct;
+}
+
+function checkTable(tableId) {
+  const cells = [...document.querySelectorAll(`#${tableId}-table .quiz-cell`)];
+  const results = cells.map(cell => checkCell(tableId, cell));
+  const right = results.filter(r => r === true).length;
+  const blank = results.filter(r => r === null).length;
+  document.getElementById(`${tableId}-score`).textContent =
+    `${right} of ${cells.length} correct` + (blank ? ` (${blank} blank)` : '');
+}
+
+function revealTable(tableId) {
+  quiz.revealed[tableId] = true;
+  renderTable(tableId);
+}
+
+function clearQuizAnswers() {
+  quiz.revealed = { mm: false, lb: false };
+}
+
+function setQuizMode(on) {
+  quiz.on = on;
+  clearQuizAnswers();
+  const toggle = document.getElementById('quiz-toggle');
+  toggle.textContent = `Quiz Mode: ${on ? 'On' : 'Off'}`;
+  toggle.setAttribute('aria-pressed', String(on));
+  toggle.classList.toggle('active', on);
+  document.getElementById('reveal-all').hidden = !on;
+  if (state.model) renderTables();
+}
+
+
+// ═══ 5. UI WIRING ═════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const NUMBER_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Smax', 'Smin', 'points'];
+
+function readRaw() {
+  const raw = { type: $('type').value, compare: $('compare').checked, auto: $('auto').checked };
+  NUMBER_FIELDS.forEach(f => { raw[f] = $(f).value; });
+  return raw;
+}
+
+function setFieldEnabled(field, enabled) {
+  $(field).disabled = !enabled;
+  $(`${field}-field`).classList.toggle('off', !enabled);
+}
+
+function syncFieldStates() {
+  const type = $('type').value;
+  const active = ACTIVE_FIELDS[type];
+  setFieldEnabled('I', active.I);
+  setFieldEnabled('Ki', active.Ki);
+  setFieldEnabled('KiP', active.KiP);
+
+  const noncompetitive = type === 'noncompetitive';
+  $('KiP').value = noncompetitive ? $('Ki').value : state.kiPrimeText;
+  $('ki-note').hidden = !noncompetitive;
+
+  // A second [I] means nothing without an inhibitor.
+  const none = type === 'none';
+  $('compare').disabled = none;
+  $('compare-label').classList.toggle('off', none);
+  $('I2-field').hidden = !$('compare').checked || none;
+
+  const auto = $('auto').checked;
+  ['Smax', 'Smin', 'points'].forEach(f => setFieldEnabled(f, !auto));
+}
+
+function syncUnits() {
+  const conc = $('concUnit').value, time = $('timeUnit').value;
+  state.units = { conc, time };
+  document.querySelectorAll('[data-u="conc"]').forEach(el => { el.textContent = conc; });
+  document.querySelectorAll('[data-u="perTime"]').forEach(el => { el.textContent = `${time}⁻¹`; });
+}
+
+function showErrors(errors) {
+  const box = $('errors');
+  NUMBER_FIELDS.forEach(f => $(f).removeAttribute('aria-invalid'));
+  errors.forEach(e => $(e.field).setAttribute('aria-invalid', 'true'));
+  box.hidden = !errors.length;
+  box.innerHTML = errors.length
+    ? `<b>⚠ Plots show the last valid values.</b> ${[...new Set(errors.map(e => e.message))].join(' ')}`
+    : '';
+}
+
+function renderAll() {
+  renderLegends();
+  updateCanvasLabels();
+  renderTables();
+  Object.values(plots).forEach(drawPlot);
+}
+
+// Single hub: every control change comes through here.
+function commit() {
+  syncFieldStates();
+  syncUnits();
+  const { errors, params } = validate(readRaw());
+  showErrors(errors);
+  if (!errors.length) state.params = params;
+
+  const signature = JSON.stringify([state.params, state.units]);
+  if (signature === state.signature) return;
+  state.signature = signature;
+  state.model = buildModel(state.params);
+  plots.mm.hover = plots.lb.hover = null;
+  clearQuizAnswers();
+  renderAll();
+}
+
+function applyDefaults() {
+  ['Km', 'kcat', 'Etot', 'I', 'Ki', 'I2'].forEach(f => { $(f).value = DEFAULTS[f]; });
+  $('concUnit').value = DEFAULTS.concUnit;
+  $('timeUnit').value = DEFAULTS.timeUnit;
+  $('type').value = DEFAULTS.type;
+  $('compare').checked = DEFAULTS.compare;
+  $('auto').checked = DEFAULTS.auto;
+  ['Smax', 'Smin', 'points'].forEach(f => { $(f).value = ''; });
+  state.kiPrimeText = String(DEFAULTS.KiP);
+}
+
+NUMBER_FIELDS.forEach(f => $(f).addEventListener('input', () => {
+  if (f === 'KiP') state.kiPrimeText = $('KiP').value;
+  commit();
+}));
+['type', 'concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', commit));
+
+// Unchecking Auto starts the manual fields from the current automatic range.
+$('auto').addEventListener('change', () => {
+  const auto = $('auto').checked;
+  const r = state.model.range;
+  $('Smax').value = auto ? '' : Number(r.Smax.toPrecision(4));
+  $('Smin').value = auto ? '' : Number(r.Smin.toPrecision(4));
+  $('points').value = auto ? '' : r.points;
+  commit();
+});
+
+$('reset').addEventListener('click', () => {
+  applyDefaults();
+  setQuizMode(false);
+  commit();
+});
+
+$('quiz-toggle').addEventListener('click', () => setQuizMode(!quiz.on));
+$('reveal-all').addEventListener('click', () => { revealTable('mm'); revealTable('lb'); });
+
+for (const tableId of ['mm', 'lb']) {
+  const container = $(`${tableId}-table`);
+  document.querySelector(`[data-check="${tableId}"]`).addEventListener('click', () => checkTable(tableId));
+  document.querySelector(`[data-reveal="${tableId}"]`).addEventListener('click', () => revealTable(tableId));
+  container.addEventListener('input', e => clearCellMark(e.target.closest('.quiz-cell')));
+  container.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches('.quiz-cell input')) checkCell(tableId, e.target.closest('.quiz-cell'));
+  });
+}
+
+// Hover readout. A touch has no "leave", so its readout stays until the next tap elsewhere.
+for (const plot of Object.values(plots)) {
+  const setHover = e => {
+    const rect = plot.canvas.getBoundingClientRect();
+    plot.hover = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    schedulePlotDraw(plot);
+  };
+  plot.canvas.addEventListener('pointerdown', setHover);
+  plot.canvas.addEventListener('pointermove', setHover);
+  plot.canvas.addEventListener('pointerleave', e => {
+    if (e.pointerType !== 'mouse') return;
+    plot.hover = null;
+    schedulePlotDraw(plot);
+  });
+}
+document.addEventListener('pointerdown', e => {
+  for (const plot of Object.values(plots)) {
+    if (e.target !== plot.canvas && plot.hover) {
+      plot.hover = null;
+      schedulePlotDraw(plot);
+    }
+  }
+});
+
+new ResizeObserver(() => {
+  for (const plot of Object.values(plots)) {
+    const before = plot.cssWidth;
+    if (plot.canvas.parentElement.clientWidth === before) continue;
+    resizeCanvas(plot);
+    drawPlot(plot);
+  }
+}).observe($('plot-row'));
+
+
+// ═══ 6. STARTUP ═══════════════════════════════════════════════
+
+applyDefaults();
+Object.values(plots).forEach(resizeCanvas);
+commit();
+</script>
+</body>
+</html>
