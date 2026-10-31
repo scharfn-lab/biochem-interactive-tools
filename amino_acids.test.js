@@ -1151,6 +1151,16 @@ test('focus stays visible on every control', () => {
   assert.match(css, /button:focus-visible, input:focus-visible, select:focus-visible\s*{\s*outline: 3px solid/);
 });
 
+test('unselected option buttons are grayed out but stay readable', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  for (const selector of ['mode-btn', 'qtype-btn', 'name-hide-btn', 'name-ph-btn']) {
+    const rule = css.match(new RegExp(`\\.${selector}\\s*{([^}]*)}`))[1];
+    assert.match(rule, /background: #E9E9E9;/, selector);
+    assert.match(rule, /color: #5F5F5F;/, selector);  // 5.26:1 on the gray fill
+    assert.match(css, new RegExp(`\\.${selector}\\.active\\s*{[^}]*color: #(C8102E|FFFFFF);`), `${selector} when selected`);
+  }
+});
+
 test('correct and incorrect choices look different', () => {
   const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
   const background = selector => css.match(new RegExp(`${selector}\\s*{[^}]*background:\\s*(#[0-9a-fA-F]{6})`))[1];
