@@ -250,9 +250,9 @@
     .feedback .fb-answers b { color: #000000; }
     .feedback .fb-note { font-size: 0.85rem; color: #000000; margin-top: 8px; line-height: 1.4; }
 
-    .reset-link {
-      display: block;
-      margin: 16px auto 0;
+    .score-links { display: flex; justify-content: center; gap: 20px; margin-top: 16px; }
+
+    .score-link {
       background: none;
       border: none;
       font: inherit;
@@ -261,7 +261,21 @@
       cursor: pointer;
       text-decoration: underline;
     }
-    .reset-link:hover { color: #C8102E; }
+    .score-link:hover { color: #C8102E; }
+
+    /* Score breakdown table */
+    .score-breakdown { margin-top: 14px; overflow-x: auto; }
+    .score-breakdown table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .score-breakdown th, .score-breakdown td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #BFBFBF;
+      text-align: center;
+    }
+    .score-breakdown th:first-child, .score-breakdown td:first-child { text-align: left; }
+    .score-breakdown thead th { background: rgba(104,92,83,0.08); color: #000000; }
+    .score-breakdown thead th.correct-col { color: #1565C0; }
+    .score-breakdown thead th.incorrect-col { color: #8B0000; }
+    .score-breakdown tfoot th, .score-breakdown tfoot td { font-weight: 700; border-bottom: none; }
 
     /* Display mode toggle */
     .mode-toggle-row {
@@ -281,6 +295,7 @@
       cursor: pointer;
       transition: all 0.15s;
     }
+    .mode-sub { display: block; font-size: 0.75rem; font-weight: 400; margin-top: 1px; }
     .mode-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .mode-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
@@ -358,6 +373,7 @@
       background: #DBEAFE;
     }
     .identify-cell.locked { cursor: default; }
+    .identify-cell.locked.wrong { cursor: pointer; }
     .identify-cell.locked.post-answer:not(.correct) {
       cursor: pointer;
     }
@@ -452,9 +468,9 @@
 
   <!-- Display mode toggle -->
   <div class="mode-toggle-row" role="group" aria-label="Display mode">
-    <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Determine Properties (From Structure)</button>
-    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Determine Property (From Name)</button>
-    <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Structure (From Name + pH)</button>
+    <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Structure <span class="mode-sub">(From Name + pH)</span></button>
+    <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Determine Properties <span class="mode-sub">(From Structure)</span></button>
+    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Determine Property <span class="mode-sub">(From Name)</span></button>
   </div>
 
   <!-- Identify-mode name style controls (only one can be selected) -->
@@ -573,7 +589,7 @@
       <p class="identify-question" aria-live="polite">
         Which structure correctly represents
         <strong id="identify-aa-name"></strong> at
-        <span class="ph-badge" id="identify-ph-badge">pH ?</span>?
+        <strong id="identify-ph-badge">pH ?</strong>?
       </p>
     </div>
     <div class="identify-grid" id="identify-grid" role="group" aria-label="Structure options">
@@ -588,7 +604,11 @@
   <!-- Feedback -->
   <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
 
-  <button type="button" class="reset-link" onclick="resetScore()">Reset score</button>
+  <div class="score-links">
+    <button type="button" class="score-link" onclick="resetScore()">Reset score</button>
+    <button type="button" class="score-link" id="breakdown-btn" aria-expanded="false" aria-controls="score-breakdown" onclick="toggleScoreBreakdown()">Score breakdown</button>
+  </div>
+  <div class="score-breakdown" id="score-breakdown" style="display:none"></div>
 </div>
 
 <script>
@@ -791,6 +811,7 @@ const TYPE_LABELS = {
 let current      = null;       // { aa, ph, counted, hadWrong, identifyOptions }
 let answered     = false;      // true only when ALL active fields are correct
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
+let breakdown    = {};         // per response type: { correct, incorrect }
 let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
 let displayMode    = 'structure';       // 'structure' | 'name' | 'identify'
 let structureNameType  = 'random'; // structure mode: name asked for, 'random' | 'c1' | 'c3' | 'name'
@@ -1196,8 +1217,11 @@ function handleIdentifyClick(index) {
     return;
   }
 
-  // Mid-question: ignore already-eliminated cells
-  if (cell.classList.contains('locked')) return;
+  // Mid-question: an eliminated cell explains itself again, with no further penalty
+  if (cell.classList.contains('locked')) {
+    showWrongPick(chosen);
+    return;
+  }
 
   if (chosen.isCorrect) {
     cell.classList.add('correct');
@@ -1208,11 +1232,10 @@ function handleIdentifyClick(index) {
     v.textContent = '✓';
     cell.appendChild(v);
     cell.setAttribute('aria-label', `Structure option ${index + 1}: correct`);
-    completeQuestion(current.hadWrong ? 0 : 1);
+    completeQuestion({ structure: !current.hadWrong });
   } else {
     current.hadWrong = true;
     cell.classList.add('wrong', 'locked');
-    cell.setAttribute('aria-disabled', 'true');
     cell.setAttribute('aria-label', `Structure option ${index + 1}: incorrect, ${chosen.aa.code3} at pH ${chosen.ph}`);
     const vw = document.createElement('span');
     vw.className = 'cell-verdict';
@@ -1222,11 +1245,15 @@ function handleIdentifyClick(index) {
     lbl.className = 'cell-label';
     lbl.textContent = `${chosen.aa.code3} pH ${chosen.ph}`;
     cell.appendChild(lbl);
-    const fb = document.getElementById('feedback');
-    fb.className = 'feedback show wrong';
-    fb.innerHTML = `<div class="fb-title">Incorrect — keep trying!</div>
-      <div class="fb-answers">The structure you selected is <b>${chosen.aa.code3}</b> at pH <b>${chosen.ph}</b></div>`;
+    showWrongPick(chosen);
   }
+}
+
+function showWrongPick(chosen) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show wrong';
+  fb.innerHTML = `<div class="fb-title">Incorrect — keep trying!</div>
+    <div class="fb-answers">The structure you selected is <b>${chosen.aa.code3}</b> at pH <b>${chosen.ph}</b></div>`;
 }
 
 // ─── pH helpers ───────────────────────────────────────────────────────────────
@@ -1322,10 +1349,12 @@ function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
 }
 
-function completeQuestion(pts) {
+// results: { responseType: true when the student got it right without help }
+function completeQuestion(results) {
   if (answered) return;
   answered = true;
 
+  const pts    = Object.values(results).filter(Boolean).length;
   const maxPts = getMaxPts();
   const { aa } = current;
 
@@ -1338,16 +1367,17 @@ function completeQuestion(pts) {
     score.maxPts += maxPts;
     if (pts === maxPts) score.correct++;
     else if (pts >= 1)  score.partial++;
+    Object.entries(results).forEach(([type, right]) => {
+      breakdown[type] = breakdown[type] || { correct: 0, incorrect: 0 };
+      breakdown[type][right ? 'correct' : 'incorrect']++;
+    });
     updateScore();
   }
 
   document.getElementById('ph-badge').textContent = `pH ${current.ph}`;
   document.getElementById('btn-check').disabled = true;
   if (displayMode === 'identify') {
-    document.querySelectorAll('.identify-cell').forEach(c => {
-      c.classList.add('post-answer');
-      c.removeAttribute('aria-disabled');
-    });
+    document.querySelectorAll('.identify-cell').forEach(c => c.classList.add('post-answer'));
   }
 
   const n     = maxPts;
@@ -1417,7 +1447,7 @@ function gradeField(id) {
     document.getElementById('inp-' + fid).disabled &&
     document.getElementById('inp-' + fid).classList.contains('ok')
   );
-  if (allDone) completeQuestion(getMaxPts());
+  if (allDone) completeQuestion(Object.fromEntries(activeFields.map(fid => [fid, true])));
 }
 
 function showAnswers() {
@@ -1434,7 +1464,7 @@ function showAnswers() {
     v.textContent = '✓';
     cells[correctIdx].appendChild(v);
     cells[correctIdx].setAttribute('aria-label', `Structure option ${correctIdx + 1}: correct answer`);
-    completeQuestion(0);
+    completeQuestion({ structure: false });
     return;
   }
 
@@ -1445,11 +1475,11 @@ function showAnswers() {
     type: aa.type, ph: String(current.ph)
   };
 
-  // Count how many fields user already got correct
-  let pts = 0;
+  // Record which fields user already got correct
+  const results = {};
   activeFields.forEach(id => {
     const el = document.getElementById('inp-' + id);
-    if (el.disabled && el.classList.contains('ok')) pts++;
+    results[id] = el.disabled && el.classList.contains('ok');
   });
 
   // Reveal remaining fields
@@ -1466,7 +1496,7 @@ function showAnswers() {
     }
   });
 
-  completeQuestion(pts);
+  completeQuestion(results);
 }
 
 // ─── Score ────────────────────────────────────────────────────────────────────
@@ -1478,11 +1508,49 @@ function updateScore() {
     ? Math.round(score.pts / score.maxPts * 100) + '%'
     : '—';
   document.getElementById('s-pct').textContent = pct;
+  renderScoreBreakdown();
 }
 
 function resetScore() {
   score = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
+  breakdown = {};
   updateScore();
+}
+
+const BREAKDOWN_ROWS = [
+  ['structure', 'Structure'],
+  ['c1',        'Name (1-letter)'],
+  ['c3',        'Name (3-letter)'],
+  ['name',      'Name (full)'],
+  ['type',      'Property'],
+  ['ph',        'pH']
+];
+
+function renderScoreBreakdown() {
+  const rows = BREAKDOWN_ROWS.map(([type, label]) => {
+    const { correct = 0, incorrect = 0 } = breakdown[type] || {};
+    return { label, correct, incorrect };
+  });
+  const sum = key => rows.reduce((total, r) => total + r[key], 0);
+  document.getElementById('score-breakdown').innerHTML = `<table>
+    <thead><tr>
+      <th scope="col">Question type</th>
+      <th scope="col" class="correct-col">Correct Responses</th>
+      <th scope="col" class="incorrect-col">Incorrect Responses</th>
+    </tr></thead>
+    <tbody>${rows.map(r =>
+      `<tr><th scope="row">${r.label}</th><td>${r.correct}</td><td>${r.incorrect}</td></tr>`
+    ).join('')}</tbody>
+    <tfoot><tr><th scope="row">Total</th><td>${sum('correct')}</td><td>${sum('incorrect')}</td></tr></tfoot>
+  </table>`;
+}
+
+function toggleScoreBreakdown() {
+  const panel = document.getElementById('score-breakdown');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? '' : 'none';
+  document.getElementById('breakdown-btn').setAttribute('aria-expanded', open);
+  if (open) renderScoreBreakdown();
 }
 
 // ─── Keyboard ─────────────────────────────────────────────────────────────────

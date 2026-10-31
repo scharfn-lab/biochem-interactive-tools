@@ -608,6 +608,108 @@ test('Reset score clears the tally and keeps the question', () => {
   assert.equal(page.run('current'), before);
 });
 
+// ── Score breakdown ────────────────────────────────────────────
+const breakdownRows = page => [...page.el('score-breakdown').innerHTML.matchAll(/<tr><th scope="row">([^<]+)<\/th><td>(\d+)<\/td><td>(\d+)<\/td><\/tr>/g)]
+  .map(m => [m[1], +m[2], +m[3]]);
+const counts = (page, label) => breakdownRows(page).find(r => r[0] === label).slice(1);
+
+test('the breakdown button sits beside Reset score and toggles a table', () => {
+  assert.match(MARKUP, /class="score-links"[\s\S]*Reset score<\/button>\s*<button[^>]*id="breakdown-btn"[^>]*>Score breakdown</);
+  const page = loadPage();
+  const panel = page.el('score-breakdown');
+  assert.equal(panel.style.display, 'none');
+  assert.equal(page.el('breakdown-btn').getAttribute('aria-expanded'), 'false');
+
+  page.run('toggleScoreBreakdown()');
+  assert.equal(panel.style.display, '');
+  assert.equal(page.el('breakdown-btn').getAttribute('aria-expanded'), 'true');
+  assert.match(panel.innerHTML, /Correct Responses/);
+  assert.match(panel.innerHTML, /Incorrect Responses/);
+  assert.deepEqual(breakdownRows(page).map(r => r[0]),
+    ['Structure', 'Name (1-letter)', 'Name (3-letter)', 'Name (full)', 'Property', 'pH', 'Total']);
+  assert.ok(breakdownRows(page).every(r => r[1] === 0 && r[2] === 0), 'starts empty');
+
+  page.run('toggleScoreBreakdown()');
+  assert.equal(panel.style.display, 'none');
+});
+
+test('each response counts toward its own row, and the open table stays current', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  page.run(`toggleQuestionType('properties'); toggleQuestionType('ph')`);
+
+  ask(page, 'A', 7);  // right name, right property, revealed pH
+  answer(page, 'c1', 'A');
+  answer(page, 'type', 'nonpolar');
+  page.run('showAnswers()');
+  assert.deepEqual(counts(page, 'Name (1-letter)'), [1, 0]);
+  assert.deepEqual(counts(page, 'Property'), [1, 0]);
+  assert.deepEqual(counts(page, 'pH'), [0, 1]);
+
+  pickNameType(page, 'name');
+  ask(page, 'G', 1);  // all three revealed
+  page.run('showAnswers()');
+  assert.deepEqual(counts(page, 'Name (full)'), [0, 1]);
+  assert.deepEqual(counts(page, 'Property'), [1, 1]);
+  assert.deepEqual(counts(page, 'pH'), [0, 2]);
+  assert.deepEqual(counts(page, 'Name (1-letter)'), [1, 0], 'other name types are untouched');
+  assert.deepEqual(counts(page, 'Total'), [2, 4]);
+});
+
+test('structure questions count as correct only on a clean first pick', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  startIdentify(page);
+  clickCorrect(page);
+  assert.deepEqual(counts(page, 'Structure'), [1, 0]);
+  ask(page, 'G', 7);
+  clickWrong(page);
+  assert.deepEqual(counts(page, 'Structure'), [1, 0], 'not counted until the question ends');
+  clickCorrect(page);
+  assert.deepEqual(counts(page, 'Structure'), [1, 1]);
+  ask(page, 'V', 7);
+  page.run('showAnswers()');
+  assert.deepEqual(counts(page, 'Structure'), [1, 2]);
+});
+
+test('the breakdown always adds up to the score points', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  page.run(`toggleQuestionType('properties')`);
+  ask(page, 'A', 7);
+  answer(page, 'c1', 'A');
+  page.run('showAnswers()');
+  ask(page, 'W', 13);
+  answer(page, 'c1', 'x');
+  answer(page, 'c1', 'W');
+  answer(page, 'type', 'nonpolar');
+  startIdentify(page, 'K', 1);
+  clickWrong(page);
+  clickCorrect(page);
+  assert.deepEqual(counts(page, 'Total'), [page.run('score.pts'), page.run('score.maxPts') - page.run('score.pts')]);
+});
+
+test('a reopened question adds nothing to the breakdown', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  ask(page, 'A', 7);
+  page.run('showAnswers()');
+  pickNameType(page, 'c3');
+  answer(page, 'c3', 'Ala');
+  assert.deepEqual(counts(page, 'Total'), [0, 1]);
+});
+
+test('Reset score clears the breakdown', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  ask(page, 'A', 7);
+  page.run('showAnswers()');
+  assert.deepEqual(counts(page, 'Total'), [0, 1]);
+  page.run('resetScore()');
+  assert.deepEqual(counts(page, 'Total'), [0, 0]);
+  assert.equal(page.el('score-breakdown').style.display, '', 'the table stays open');
+});
+
 test('every combination of settings leaves something to answer', () => {
   const page = loadPage();
   const types = ['name', 'ph', 'properties'];
@@ -718,10 +820,16 @@ test('each section remembers its own name type', () => {
 });
 
 test('the mode buttons have their new names', () => {
-  assert.match(MARKUP, /id="mode-btn-structure"[^>]*>Determine Properties \(From Structure\)</);
-  assert.match(MARKUP, /id="mode-btn-name"[^>]*>Determine Property \(From Name\)</);
-  assert.match(MARKUP, /id="mode-btn-identify"[^>]*>Determine Structure \(From Name \+ pH\)</);
+  const labels = [...MARKUP.matchAll(/id="mode-btn-(\w+)"[^>]*>([^<]+)<span class="mode-sub">([^<]+)<\/span>/g)]
+    .map(m => [m[1], m[2].trim(), m[3]]);
+  assert.deepEqual(labels, [
+    ['identify', 'Determine Structure', '(From Name + pH)'],
+    ['structure', 'Determine Properties', '(From Structure)'],
+    ['name', 'Determine Property', '(From Name)'],
+  ], 'Determine Structure comes first, with each parenthetical on its own line');
   assert.doesNotMatch(HTML, /Show Amino Acid/);
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /\.mode-sub\s*{[^}]*display: block;[^}]*font-size: 0\.75rem;[^}]*font-weight: 400;/);
 });
 
 // ── Display mode switching ─────────────────────────────────────
@@ -879,12 +987,45 @@ test('structure options are real buttons with labels that do not give away the a
   const wrong = page.json('current.identifyOptions')[optionIndex(page, false)];
   clickWrong(page);
   const wrongCell = cells(page)[optionIndex(page, false)];
-  assert.equal(wrongCell.getAttribute('aria-disabled'), 'true');
+  assert.equal(wrongCell.getAttribute('aria-disabled'), null, 'it can be clicked again');
   assert.match(wrongCell.getAttribute('aria-label'), new RegExp(`incorrect, ${wrong.aa.code3} at pH ${wrong.ph}`));
 
   clickCorrect(page);
   assert.match(cells(page)[optionIndex(page, true)].getAttribute('aria-label'), /: correct$/);
-  assert.equal(wrongCell.getAttribute('aria-disabled'), null, 'it can be explored again');
+});
+
+test('the pH in the identify question is plain red text like the name, not a bubble', () => {
+  const question = MARKUP.match(/class="identify-question"[\s\S]*?<\/p>/)[0];
+  assert.match(question, /<strong id="identify-aa-name">/);
+  assert.match(question, /<strong id="identify-ph-badge">/);
+  assert.doesNotMatch(question, /class="ph-badge"/);
+  assert.match(HTML, /\.identify-question strong \{ color: #C8102E; \}/);
+});
+
+test('re-clicking an eliminated choice explains it again without a new penalty', () => {
+  const page = loadPage();
+  startIdentify(page);
+  const options = page.json('current.identifyOptions');
+  const wrongs = options.map((o, i) => (o.isCorrect ? -1 : i)).filter(i => i >= 0);
+  const [first, second] = wrongs;
+  const explains = i => `<b>${options[i].aa.code3}</b> at pH <b>${options[i].ph}</b>`;
+
+  cells(page)[first].onclick();
+  cells(page)[second].onclick();
+  assert.ok(page.el('feedback').innerHTML.includes(explains(second)));
+
+  cells(page)[first].onclick();
+  const fb = page.el('feedback');
+  assert.ok(fb.innerHTML.includes(explains(first)), 'shows the earlier choice again');
+  assert.equal(fb.className, 'feedback show wrong');
+  assert.match(fb.innerHTML, /Incorrect/);
+  assert.equal(cells(page)[first].children.length, 3, 'no duplicate marks');
+  assert.equal(page.run('answered'), false, 'the question stays open');
+  assert.equal(page.run('score.total'), 0);
+
+  clickCorrect(page);
+  assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
+  assert.match(HTML, /\.identify-cell\.locked\.wrong \{ cursor: pointer; \}/);
 });
 
 test('exactly one name style is selected, starting with Randomly select first', () => {
@@ -940,7 +1081,7 @@ test('a wrong pick is labeled, then the eventual correct pick earns nothing', ()
   assert.equal(page.el('s-total').textContent, '', 'not scored until the question ends');
 
   clickWrong(page);
-  assert.equal(cell.children.length, 3, 'clicking an eliminated cell again does nothing');
+  assert.equal(cell.children.length, 3, 'clicking an eliminated cell again adds no marks');
 
   clickCorrect(page);
   assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
