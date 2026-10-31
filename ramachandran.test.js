@@ -1105,3 +1105,100 @@ test('zoomed-out views list the ϕ/ψ angles in a corner instead of crowding the
   redraw(page);
   assert.equal(angleLabels().length, 0, 'Hide ϕ/ψ Angles hides the corner labels too');
 });
+
+// ── Steric clashes ─────────────────────────────────────────────
+const clashesFor = (page, keys = 'Object.keys(buildChain())') => page.run(`findClashes(buildChain(), ${keys})`);
+const shownClashes = page => page.run(`(() => {
+  const found = [], original = drawClash;
+  drawClash = (...args) => { found.push(args); original(...args); };
+  renderDipeptide();
+  drawClash = original;
+  return found.length;
+})()`);
+
+for (const name of ['alpha', 'helix310', 'antiparallel', 'parallel', 'ppII']) {
+  test(`the ${name} preset has no steric clashes`, () => {
+    const page = loadPage();
+    page.run(`goToStructure('${name}')`);
+    assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
+    assert.equal(page.el('clash-display').className, '');
+    assert.equal(shownClashes(page), 0);
+  });
+}
+
+test('the default conformation has no steric clashes', () => {
+  const page = loadPage();
+  assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
+});
+
+test('the left-handed helix clashes only through Cβ···O of the same residue', () => {
+  const page = loadPage();
+  page.run("goToStructure('leftHelix')");
+  const clashes = clashesFor(page);
+  assert.ok(clashes.length > 0);
+  for (const { a, b } of clashes) assert.match(`${a}-${b}`, /^(Cb(\d)-O\2|O(\d)-Cb\3)$/);
+});
+
+test('ϕ = ψ = 0 clashes and the readout reports the closest pair', () => {
+  const page = loadPage();
+  page.run('setAngles(0, 0)');
+  const clashes = page.run("findClashes(buildChain(), Object.keys({ ...ATOM_STYLE }))");
+  assert.ok(clashes.length > 0);
+  const atoms = page.run('buildChain()');
+  for (let i = 0; i < clashes.length; i++) {
+    assertClose(clashes[i].d, dist(atoms[clashes[i].a], atoms[clashes[i].b]), 1e-9, `${clashes[i].a}-${clashes[i].b}`);
+    if (i) assert.ok(clashes[i].d >= clashes[i - 1].d, 'closest first');
+  }
+  const text = page.el('clash-display').textContent;
+  assert.ok(text.includes(clashes[0].d.toFixed(2)), text);
+  assert.ok(text.includes('steric clash'), text);
+  assert.equal(page.el('clash-display').className, 'has-clash');
+});
+
+test('directly bonded and 1–3 pairs never count, but 1–4 pairs can', () => {
+  const page = loadPage();
+  page.run('setAngles(0, 0)');
+  const clashes = clashesFor(page);
+  for (const { a, b } of clashes) assert.equal(page.run(`withinTwoBonds('${a}', '${b}')`), false, `${a}-${b}`);
+  // C4–N5–Ca5–C5 is the 1–4 pair ϕ rotates: at ϕ = 0 the two carbons are eclipsed
+  assert.ok(clashes.some(c => [c.a, c.b].sort().join() === 'C4,C5'), 'C4···C5 at ϕ = 0');
+});
+
+test('only atoms on screen can clash', () => {
+  const page = loadPage();
+  page.run('setAngles(0, 0)');
+  const bare = page.el('clash-display').textContent;
+  page.run('toggleExtra4()');
+  const full = page.el('clash-display').textContent;
+  assert.notEqual(bare, full);
+  const shown = Object.keys(page.run('({ ...ATOM_STYLE })'));
+  for (const { a, b } of page.run(`findClashes(buildChain(), ${JSON.stringify(shown)})`)) {
+    assert.ok(shown.includes(a) && shown.includes(b), `${a}-${b}`);
+  }
+});
+
+test('the viewer marks at most MAX_CLASHES_DRAWN pairs but the readout counts them all', () => {
+  const page = loadPage();
+  page.run('toggleExtra4(); setAngles(180, 0)');
+  const total = clashesFor(page).length;
+  assert.ok(total > page.run('MAX_CLASHES_DRAWN'));
+  assert.equal(shownClashes(page), page.run('MAX_CLASHES_DRAWN'));
+  assert.ok(page.el('clash-display').textContent.includes(`${total} steric clashes`));
+});
+
+test('the amide N···H contact at ψ = 0 is not a clash', () => {
+  const page = loadPage();
+  page.run('setAngles(-90, 0)');
+  const atoms = page.run('buildChain()');
+  assert.ok(dist(atoms.N5, atoms.HN6) < 2.2, 'the pair is inside the N···H limit');
+  assert.equal(clashesFor(page).filter(c => [c.a, c.b].sort().join() === 'HN6,N5').length, 0);
+});
+
+test('β-turn presets flag only their strained side-chain contacts', () => {
+  const page = loadPage();
+  const pairs = () => clashesFor(page).map(c => [c.a, c.b].sort().join('-')).sort().join();
+  page.run('setBetaTurnTypeI()');
+  assert.equal(pairs(), 'Cb7-O7');
+  page.run('setBetaTurnTypeI(); setBetaTurnTypeII()');
+  assert.equal(pairs(), 'C4-Cb5,Cb5-O4', 'the i+2 Cβ at positive ϕ: why Type II favors glycine there');
+});

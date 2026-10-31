@@ -132,6 +132,9 @@
     .reg-allowed    { background: #F5E6FF; color: #000000; border-color: #685C53; }
     .reg-disallowed { background: #FFEBEE; color: #000000; border-color: #C8102E; }
 
+    #clash-display { font-size: 0.88em; text-align: center; color: #000000; }
+    #clash-display.has-clash { font-weight: 600; color: #C8102E; }
+
     .legend {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -393,6 +396,7 @@
       </div>
 
       <div id="region-display" class="reg-favored" aria-live="polite">Favored — alpha-helix</div>
+      <div id="clash-display" aria-live="polite"></div>
   </div>
 
   <!-- Dipeptide 3D viewer -->
@@ -1287,6 +1291,81 @@ function drawAngleArc(pivot2, fromVec2, toVec2, radius, color, labelText) {
 
 const ARC_MIN_SCALE = 34, ANGLE_CORNER_X = 12;
 
+// ── Steric clashes ─────────────────────────────────────────────
+// Closest allowed contacts between non-bonded atoms (Å): Ramachandran's outer limits
+const CONTACT_LIMITS = { CC:2.9, CH:2.2, CN:2.8, CO:2.7, HH:1.9, HN:2.2, HO:2.2, NN:2.6, NO:2.6, OO:2.6 };
+const MAX_CLASHES_DRAWN = 12;
+const atomElement = key => (key.startsWith('HN') || key.startsWith('Ha')) ? 'H' : key[0];
+
+const covalentNeighbors = {};
+for (const [a, b] of [...BOND_DEFS, ...NTERM_BOND_DEFS, ...CTERM_BOND_DEFS, ...EXTRA2_BOND_DEFS, ...EXTRA4_BOND_DEFS]) {
+  (covalentNeighbors[a] ||= new Set()).add(b);
+  (covalentNeighbors[b] ||= new Set()).add(a);
+}
+// 1–2 and 1–3 pairs have fixed distances. 1–4 pairs stay in: they cause the classic ϕ/ψ clashes.
+function withinTwoBonds(a, b) {
+  const near = covalentNeighbors[a];
+  if (!near) return false;
+  if (near.has(b)) return true;
+  for (const m of near) if (covalentNeighbors[m]?.has(b)) return true;
+  return false;
+}
+
+// N(i)···HN(i+1) is the N–H···N contact of the next amide, routine in real proteins at ψ near 0
+function isAmideContact(a, b) {
+  const [n, hn] = a.startsWith('HN') ? [b, a] : [a, b];
+  return hn.startsWith('HN') && n[0] === 'N' && +hn.slice(2) === +n.slice(1) + 1;
+}
+
+// Pairs of the shown atoms closer than their contact limit, closest first.
+// N–H···O is an H-bond, not a clash, and the terminal HN1 is only a placeholder position.
+function findClashes(atoms, shownKeys) {
+  const keys = shownKeys.filter(k => k !== 'HN1');
+  const clashes = [];
+  for (let i = 0; i < keys.length; i++) {
+    for (let j = i + 1; j < keys.length; j++) {
+      const a = keys[i], b = keys[j];
+      if (withinTwoBonds(a, b)) continue;
+      const pair = [atomElement(a), atomElement(b)].sort().join('');
+      if (pair === 'HO' && (a.startsWith('HN') || b.startsWith('HN'))) continue;
+      if (isAmideContact(a, b)) continue;
+      const d = len3(sub3(atoms[a], atoms[b]));
+      if (d < CONTACT_LIMITS[pair]) clashes.push({ a, b, d });
+    }
+  }
+  return clashes.sort((x, y) => x.d - y.d);
+}
+
+function describeClashes(clashes, atomStyle) {
+  if (clashes.length === 0) return 'No steric clashes among the atoms shown';
+  const { a, b, d } = clashes[0];
+  const pair = `${atomStyle[a].label}···${atomStyle[b].label} ${d.toFixed(2)} Å`;
+  return clashes.length === 1 ? `⚠ 1 steric clash: ${pair}` : `⚠ ${clashes.length} steric clashes, closest ${pair}`;
+}
+
+// A zigzag between the two atoms and a ring on each, so a clash doesn't rely on color alone
+function drawClash(pa, pb, ra, rb) {
+  const dx = pb.x - pa.x, dy = pb.y - pa.y, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, TEETH = 6, AMP = 3;
+  dc.save();
+  dc.globalAlpha = 1;
+  dc.strokeStyle = '#C8102E';
+  dc.lineWidth = 1.5;
+  dc.setLineDash([]);
+  dc.beginPath();
+  dc.moveTo(pa.x, pa.y);
+  for (let k = 1; k < TEETH; k++) {
+    const side = k % 2 ? AMP : -AMP;
+    dc.lineTo(pa.x + dx * k / TEETH - uy * side, pa.y + dy * k / TEETH + ux * side);
+  }
+  dc.lineTo(pb.x, pb.y);
+  dc.stroke();
+  for (const [p, r] of [[pa, ra], [pb, rb]]) {
+    dc.beginPath(); dc.arc(p.x, p.y, r + 2, 0, Math.PI * 2); dc.stroke();
+  }
+  dc.restore();
+}
+
 // ── Main dipeptide renderer ────────────────────────────────────
 function renderDipeptide() {
   dc.clearRect(0, 0, DW, DH);
@@ -1402,6 +1481,15 @@ function renderDipeptide() {
       drawAtom(proj[item.key], scaledAtomStyle[item.key], proj[item.key].z);
     }
   }
+
+  // ── Steric clashes ─────────────────────────────────────────────
+  const clashes = findClashes(atoms, Object.keys(atomStyle));
+  for (const { a, b } of clashes.slice(0, MAX_CLASHES_DRAWN)) {
+    drawClash(proj[a], proj[b], scaledAtomStyle[a].r, scaledAtomStyle[b].r);
+  }
+  const clashText = document.getElementById('clash-display');
+  clashText.textContent = describeClashes(clashes, atomStyle);
+  clashText.className = clashes.length ? 'has-clash' : '';
 
   // ── Labels (drawn on top of everything) ───────────────────────
   dc.globalAlpha = 1;
