@@ -808,3 +808,49 @@ test('Type II sheet bonds are drawn only while the flanks keep them in range', (
   page.run('setAngles(-95, 100)');
   assert.equal(drawnHBonds(page), 'HN1-O8,HN3-O6,O1-HN8,O3-HN6');
 });
+
+// ── β-turn framing ─────────────────────────────────────────────
+for (const t of TURNS) {
+  const box = page => {
+    const p = Object.values(projected(page));
+    const xs = p.map(q => q.x), ys = p.map(q => q.y);
+    return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+  };
+
+  test(`${t.fn} centers the whole peptide on the canvas from any prior view`, () => {
+    const priors = ['0', 'applyRotStep(4, 7); applyZoom(60); applyPan(-120, 90)', 'toggleExtra4(); setAngles(-60, -45); applyZoom(-30)'];
+    const first = [];
+    for (const prior of priors) {
+      const page = loadPage();
+      page.run(prior);
+      page.run(`${t.fn}()`);
+      const b = box(page);
+      assertClose((b.minX + b.maxX) / 2, 250, 1e-6, `x center after ${prior}`);
+      assertClose((b.minY + b.maxY) / 2, 145, 1e-6, `y center after ${prior}`);
+      // Largest atom radius at this zoom must also stay on the canvas
+      const r = 14 * page.run('dipScale') / 44;
+      assert.ok(b.minX - r >= 0 && b.maxX + r <= 500, `x range ${b.minX}–${b.maxX}`);
+      assert.ok(b.minY - r >= 0 && b.maxY + r <= 290, `y range ${b.minY}–${b.maxY}`);
+      first.push(JSON.stringify(b));
+    }
+    assert.equal(new Set(first).size, 1, 'the framing does not depend on the prior view');
+  });
+
+  test(`${t.fn} faces the sheet to the viewer with the turn on the right`, () => {
+    const page = loadPage();
+    page.run(`${t.fn}()`);
+    const m = page.run('viewMatrix');
+    for (let i = 0; i < 3; i++) assertClose(mag(m[i]), 1, 1e-9, `row ${i} length`);
+    assertClose(dot(cross(m[0], m[1]), m[2]), 1, 1e-9, 'determinant');
+    const a = projected(page);
+    assert.ok((a.Ca4.x + a.Ca5.x) / 2 > (a.Ca1.x + a.Ca8.x) / 2, 'turn right of the strand ends');
+  });
+
+  test(`${t.fn} keeps the framing while the sliders move the flanks`, () => {
+    const page = loadPage();
+    page.run(`${t.fn}()`);
+    const before = [page.run('dipScale'), page.run('dipOffX'), page.run('dipOffY')];
+    page.run('setAngles(-110, 110)');
+    assert.deepEqual([page.run('dipScale'), page.run('dipOffX'), page.run('dipOffY')], before);
+  });
+}

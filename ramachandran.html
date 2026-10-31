@@ -1507,6 +1507,30 @@ function resetToOneAA() {
   setAngles(-120, 130);
 }
 
+// Frames a β-turn preset: sheet facing the viewer, strands horizontal with the turn on the
+// right, zoomed so every atom fits and panned so the peptide is centered on the canvas.
+function frameBetaTurn() {
+  const atoms = buildChain();
+  const midpoint = (a, b) => sc3(0.5, add3(a, b));
+  const right = norm3(sub3(midpoint(atoms.Ca4, atoms.Ca5), midpoint(atoms.Ca1, atoms.Ca8)));
+  const across = sub3(atoms.Ca1, atoms.Ca8);
+  const up = norm3(sub3(across, sc3(dot3(across,right), right)));
+  const toward = cross3(right, up);
+  viewMatrix = [[right.x,right.y,right.z],[up.x,up.y,up.z],[toward.x,toward.y,toward.z]];
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const pos of Object.values(atoms)) {
+    const p = rotateView(sub3(pos, atoms.Ca5));
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  const PAD_X = 50, PAD_Y = 30;  // room for the largest atoms and the arrow buttons
+  dipScale = Math.max(8, Math.min(44, (DW - 2*PAD_X) / (maxX - minX), (DH - 2*PAD_Y) / (maxY - minY)));
+  // renderDipeptide places Cα5 at (DW*0.48 + dipOffX, DH*0.52 + dipOffY), with y flipped
+  dipOffX = DW*0.5 - DW*0.48 - dipScale * (minX + maxX) / 2;
+  dipOffY = DH*0.5 - DH*0.52 + dipScale * (minY + maxY) / 2;
+}
+
 function setBetaTurnTypeI() {
   if (betaTurnMode === 'typeI') { betaTurnMode = null; setAngles(phi, psi); return; }
   if (!showNterm)  toggleNterm();
@@ -1515,7 +1539,6 @@ function setBetaTurnTypeI() {
   if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeI';
   phi = -114; psi = 102;          // average of aa1, aa2, aa7 and aa8, shown on the plot
-  dipOffX = 0; dipOffY = 0;
   // Each strand residue has its own angles so both sheet pairs close.
   // H···O: O3–HN6 1.92 Å, HN3–O6 2.18 Å, O1–HN8 2.14 Å, HN1–O8 2.15 Å
   residueAngles.aa1.phi = -128; residueAngles.aa1.psi = 131;
@@ -1527,6 +1550,7 @@ function setBetaTurnTypeI() {
   residueAngles.aa7.phi = -95;  residueAngles.aa7.psi = 81;
   residueAngles.aa8.phi = -122; residueAngles.aa8.psi = 110;
   residueAngles.aa9.phi = phi;  residueAngles.aa9.psi = psi;   // no H-bond partner
+  frameBetaTurn();
   renderPlot(); updateUI(); renderDipeptide();
 }
 
@@ -1538,7 +1562,6 @@ function setBetaTurnTypeII() {
   if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeII';
   phi = -95; psi = 100;           // flanks tuned so the AA1 ↔ AA8 pair closes
-  dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
     residueAngles[key].phi = -95; residueAngles[key].psi = 100;
   }
@@ -1547,6 +1570,7 @@ function setBetaTurnTypeII() {
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = 120;
   residueAngles.aa5.phi = 80;   residueAngles.aa5.psi = 0;
   residueAngles.aa6.phi = -140; residueAngles.aa6.psi = 95;
+  frameBetaTurn();
   renderPlot(); updateUI(); renderDipeptide();
 }
 
