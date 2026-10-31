@@ -334,7 +334,7 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .name-type-btn:hover:not(:disabled) { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
+    .name-type-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .name-type-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Interactions panel */
@@ -353,20 +353,14 @@
     .pair-struct svg { max-width: 100%; height: auto; }
     @media (max-width: 620px) { .pair-grid { grid-template-columns: 1fr; } }
 
-    .interact-options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
-    .interact-opt:disabled { cursor: default; }
-    .interact-opt[data-mark]::after { content: " " attr(data-mark); }
-    .interact-opt.opt-correct { background: #DBEAFE; border-color: #1565C0; color: #000000; }
-    .interact-opt.opt-missed  { background: #DBEAFE; border: 1px dashed #1565C0; color: #000000; }
-    .interact-opt.opt-wrong   { background: #FFEBEE; border-color: #C8102E; color: #000000; }
+    .pair-note { font-size: 0.82rem; color: #685C53; line-height: 1.4; margin-top: 6px; }
 
-    .explore-pickers { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 14px; }
+    .explore-pickers { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
     .explore-pickers .field-group { flex: 1 1 200px; }
-    .explore-ph { display: flex; gap: 6px; padding-bottom: 6px; }
     #explore-results { margin-bottom: 6px; }
 
-    .side-states { font-size: 0.85rem; color: #685C53; line-height: 1.5; margin-top: 6px; }
-    .interact-reasons { list-style: none; font-size: 0.85rem; color: #000000; line-height: 1.45; margin-top: 8px; }
+    .interact-answer { font-size: 0.95rem; font-weight: 700; color: #000000; margin-top: 4px; }
+    .interact-reasons { list-style: none; font-size: 0.85rem; color: #000000; line-height: 1.45; margin-top: 6px; }
     .interact-reasons li { margin-top: 4px; }
 
     /* Identify-mode panel */
@@ -438,7 +432,7 @@
 
     /* Name-mode structure pH selector buttons */
     #name-ph-btns { display: flex; }
-    .explore-ph-btn, .name-ph-btn {
+    .name-ph-btn {
       padding: 4px 14px;
       border: 1.5px solid #8A8A8A;
       border-radius: 6px;
@@ -448,12 +442,12 @@
       cursor: pointer;
       color: #555555;
     }
-    .explore-ph-btn.active, .name-ph-btn.active {
+    .name-ph-btn.active {
       background: #D0012B;
       border-color: #D0012B;
       color: #FFFFFF;
     }
-    .explore-ph-btn:hover:not(.active), .name-ph-btn:hover:not(.active) {
+    .name-ph-btn:hover:not(.active) {
       background: #E6E0CC;
       color: #282828;
     }
@@ -682,60 +676,62 @@
       <button class="name-type-btn"        data-activity="explore" aria-pressed="false" onclick="setInteractActivity('explore')">Explore</button>
     </div>
 
-    <div class="explore-pickers" id="explore-controls" style="display:none">
-      <div class="field-group">
-        <label class="field-label" for="inp-pairA">First Amino Acid</label>
-        <div class="combo">
-          <input class="field-input" id="inp-pairA" type="text" autocomplete="off"
-                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-pairA" />
-          <ul class="combo-list" id="list-pairA" role="listbox" aria-label="First amino acid options" hidden></ul>
+    <div id="explore-controls" style="display:none">
+      <div class="explore-pickers">
+        <div class="field-group">
+          <label class="field-label" for="inp-pairA">First Amino Acid</label>
+          <div class="combo">
+            <input class="field-input" id="inp-pairA" type="text" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-pairA" />
+            <ul class="combo-list" id="list-pairA" role="listbox" aria-label="First amino acid options" hidden></ul>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="inp-pairB">Second Amino Acid</label>
+          <div class="combo">
+            <input class="field-input" id="inp-pairB" type="text" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-pairB" />
+            <ul class="combo-list" id="list-pairB" role="listbox" aria-label="Second amino acid options" hidden></ul>
+          </div>
         </div>
       </div>
+      <button class="btn btn-check" id="explore-random" onclick="showRandomExplorePair()">Show random pair</button>
+    </div>
+
+    <p class="identify-question" id="interact-prompt" aria-live="polite" style="text-align:center; margin:12px 0"></p>
+
+    <div id="interact-quiz">
       <div class="field-group">
-        <label class="field-label" for="inp-pairB">Second Amino Acid</label>
-        <div class="combo">
-          <input class="field-input" id="inp-pairB" type="text" autocomplete="off"
-                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-pairB" />
-          <ul class="combo-list" id="list-pairB" role="listbox" aria-label="Second amino acid options" hidden></ul>
+        <label class="field-label" for="inp-choice">Interaction</label>
+        <div class="field-row">
+          <div class="combo">
+            <input class="field-input" id="inp-choice" type="text" autocomplete="off"
+                   placeholder="Click to see the choices"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="list-choice" />
+            <ul class="combo-list" id="list-choice" role="listbox" aria-label="Interaction options" hidden></ul>
+          </div>
+          <span class="ind" id="ind-choice" aria-live="polite"></span>
         </div>
       </div>
-      <div class="explore-ph" role="group" aria-label="pH">
-        <button class="explore-ph-btn"        data-explore-ph="1"  aria-pressed="false" onclick="setExplorePH(1)">pH 1</button>
-        <button class="explore-ph-btn active" data-explore-ph="7"  aria-pressed="true"  onclick="setExplorePH(7)">pH 7</button>
-        <button class="explore-ph-btn"        data-explore-ph="13" aria-pressed="false" onclick="setExplorePH(13)">pH 13</button>
+      <div class="btn-row" style="margin:12px 0 14px">
+        <button class="btn btn-check" id="interact-btn-show" onclick="showAnswers()">Show Answer</button>
+        <button class="btn btn-next"  id="interact-btn-next" onclick="nextQuestion()">Next Pair →</button>
       </div>
     </div>
 
-    <p class="identify-question" id="interact-prompt" aria-live="polite" style="text-align:center; margin-bottom:12px"></p>
-
-    <div class="pair-grid">
+    <div class="pair-grid" id="pair-grid">
       <div class="pair-panel">
         <div class="pair-caption" id="pair-name-a"></div>
         <div class="pair-struct" id="pair-struct-a"></div>
+        <div class="pair-note" id="pair-note-a"></div>
       </div>
       <div class="pair-panel">
         <div class="pair-caption" id="pair-name-b"></div>
         <div class="pair-struct" id="pair-struct-b"></div>
+        <div class="pair-note" id="pair-note-b"></div>
       </div>
     </div>
     <p class="struct-msg" id="interact-unavailable" hidden></p>
-
-    <div id="interact-quiz">
-      <div class="interact-options" role="group" aria-label="Interactions">
-        <button class="name-type-btn interact-opt" data-interaction="salt"        aria-pressed="false" onclick="toggleInteraction('salt')">Salt bridge</button>
-        <button class="name-type-btn interact-opt" data-interaction="hbond"       aria-pressed="false" onclick="toggleInteraction('hbond')">Hydrogen bond</button>
-        <button class="name-type-btn interact-opt" data-interaction="hydrophobic" aria-pressed="false" onclick="toggleInteraction('hydrophobic')">Hydrophobic</button>
-        <button class="name-type-btn interact-opt" data-interaction="pi"          aria-pressed="false" onclick="toggleInteraction('pi')">Pi stacking</button>
-        <button class="name-type-btn interact-opt" data-interaction="disulfide"   aria-pressed="false" onclick="toggleInteraction('disulfide')">Disulfide bond</button>
-        <button class="name-type-btn interact-opt" data-interaction="repulsion"   aria-pressed="false" onclick="toggleInteraction('repulsion')">Charge repulsion</button>
-        <button class="name-type-btn interact-opt" data-interaction="none"        aria-pressed="false" onclick="toggleInteraction('none')">None of these</button>
-      </div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-next"  id="interact-btn-check" onclick="checkInteractions()">Check Answer</button>
-        <button class="btn btn-check" id="interact-btn-show"  onclick="showAnswers()">Show Answer</button>
-        <button class="btn btn-next"  id="interact-btn-next"  onclick="nextQuestion()">Next Pair →</button>
-      </div>
-    </div>
 
     <div id="explore-results" aria-live="polite" style="display:none"></div>
   </div>
@@ -1003,9 +999,10 @@ let nameModeSource       = 'random'; // name mode: question asked from, 'random'
 let nameStructPH         = 7;      // active pH in name-mode structure view
 let questionBag          = [];     // amino acids left in this round, so all 20 come up
 let interactActivity     = 'quiz'; // interactions section: 'quiz' | 'explore'
-let interactQuestion     = null;   // { a, b, ph, counted }, separate from the single amino acid question
-let interactSelected     = new Set();
-let explorePair          = { a: 'D', b: 'K', ph: 7 };
+let interactQuestion     = null;   // { a, b, nameType, counted }, separate from the single amino acid question
+let interactTried        = [];     // wrong choices already entered for this question
+let interactRevealed     = false;  // true once a choice has been entered, so the structures show
+let explorePair          = { a: 'D', b: 'K' };
 
 // fields: which inp-* IDs to check
 const QTYPE = {
@@ -1134,9 +1131,12 @@ function randomNameField() {
   return ['c1', 'c3', 'name'][Math.floor(Math.random() * 3)];
 }
 
+function nameOfType(aa, type) {
+  return type === 'c1' ? aa.code1 : type === 'c3' ? aa.code3 : aa.name;
+}
+
 function resolveIdentifyName(aa) {
-  const style = identifyNameStyle === 'random' ? randomNameField() : identifyNameStyle;
-  return style === 'c1' ? aa.code1 : style === 'c3' ? aa.code3 : aa.name;
+  return nameOfType(aa, identifyNameStyle === 'random' ? randomNameField() : identifyNameStyle);
 }
 
 // A random choice is kept on the question so re-rendering it doesn't change the name
@@ -1280,9 +1280,7 @@ function drawNameDisplay(aa) {
   const box = document.getElementById('struct-box');
   labelStructBox(false);
 
-  const type = activeNameType();
-  const text = type === 'c1' ? aa.code1 : type === 'c3' ? aa.code3 : aa.name;
-  box.innerHTML = `<div class="name-display"><div class="name-display-main">${text}</div></div>`;
+  box.innerHTML = `<div class="name-display"><div class="name-display-main">${nameOfType(aa, activeNameType())}</div></div>`;
 }
 
 // ─── Identify mode helpers ────────────────────────────────────────────────────
@@ -1453,7 +1451,7 @@ function drawAminoAcid() {
 
 function nextQuestion() {
   if (displayMode === 'interact') {
-    interactQuestion = pickInteractionQuestion();
+    interactQuestion = pickInteractionQuestion(interactQuestion);
     renderQuestion();
     return;
   }
@@ -1572,7 +1570,7 @@ function completeQuestion(results) {
   const fb = document.getElementById('feedback');
   fb.className = `feedback show ${cls}`;
   const details = displayMode === 'interact'
-    ? interactionDetailsHTML(aaByCode(question.a), aaByCode(question.b), question.ph)
+    ? interactionDetailsHTML(aaByCode(question.a), aaByCode(question.b))
     : `<div class="fb-answers">
       <b>${aa.code1}</b> &nbsp;·&nbsp; <b>${aa.code3}</b> &nbsp;·&nbsp;
       <b>${aa.name}</b> &nbsp;·&nbsp; <b>${TYPE_LABELS[aa.type]}</b> &nbsp;·&nbsp;
@@ -1747,6 +1745,7 @@ function toggleScoreBreakdown() {
 }
 
 // ─── Interactions between two amino acids ─────────────────────────────────────
+const INTERACT_PH = 7;
 const INTERACTIONS = [
   ['salt',        'Salt bridge'],
   ['hbond',       'Hydrogen bond'],
@@ -1769,116 +1768,78 @@ function hbondRole(state) {
   return 'cannot form hydrogen bonds';
 }
 
-// For each interaction between two side chains: { forms, reason }
+// For each interaction between two side chains: why it forms, or null when it doesn't
 function interactionsBetween(a, b, ph) {
   const sa = SIDE_CHAINS[a.code1][ph];
   const sb = SIDE_CHAINS[b.code1][ph];
   const labelA = `${a.code3} ${sa.group}`;
   const labelB = `${b.code3} ${sb.group}`;
-  const charges = `${a.code3} is ${chargeWord(sa.charge)} and ${b.code3} is ${chargeWord(sb.charge)}`;
   const chargeProduct = sa.charge * sb.charge;
   const isHydrophobic = aa => aa.type === 'nonpolar' && aa.code1 !== 'G';
   const bothAromatic = AROMATIC.includes(a.code1) && AROMATIC.includes(b.code1);
-  const bothCys = a.code1 === 'C' && b.code1 === 'C';
-
   const aDonates = sa.donor && sb.acceptor;
   const bDonates = sb.donor && sa.acceptor;
-  const hbondForms = aDonates || bDonates;
-  const piForms = bothAromatic && chargeProduct <= 0;
   const saltForms = chargeProduct < 0;
 
   return {
-    salt: {
-      forms: saltForms,
-      reason: saltForms
-        ? `${labelA} and ${labelB} carry opposite charges.`
-        : `Needs opposite charges, but ${charges}.`
-    },
+    salt: saltForms ? `${labelA} and ${labelB} carry opposite charges.` : null,
     // A salt bridge overrides the hydrogen bond within it, so that bond isn't asked for separately
-    hbond: {
-      forms: hbondForms && !saltForms,
-      included: saltForms,
-      reason: saltForms
-        ? 'Already part of the salt bridge, so selecting the salt bridge is enough.'
-        : hbondForms
-        ? (aDonates ? `${labelA} can donate and ${labelB} can accept.` : `${labelB} can donate and ${labelA} can accept.`)
-        : `Needs a donor and an acceptor, but ${a.code3} ${hbondRole(sa)} and ${b.code3} ${hbondRole(sb)}.`
-    },
-    hydrophobic: {
-      forms: isHydrophobic(a) && isHydrophobic(b),
-      reason: isHydrophobic(a) && isHydrophobic(b)
-        ? 'Both side chains are nonpolar, so they cluster away from water.'
-        : 'Needs two nonpolar side chains.'
-    },
-    pi: {
-      forms: piForms,
-      reason: piForms ? 'Both side chains have aromatic rings that can stack.'
-        : bothAromatic ? 'Both are aromatic, but their like charges keep the rings apart.'
-        : 'Needs two aromatic rings.'
-    },
-    disulfide: {
-      forms: bothCys,
-      reason: bothCys ? 'Two cysteine thiols can oxidize to an S–S bond under oxidizing conditions.'
-        : 'Only two cysteines can form one.'
-    },
-    repulsion: {
-      forms: chargeProduct > 0,
-      reason: chargeProduct > 0
-        ? `${labelA} and ${labelB} carry the same charge, so they push apart.`
-        : `Needs two like charges, but ${charges}.`
-    }
+    hbond: saltForms || !(aDonates || bDonates) ? null
+      : aDonates ? `${labelA} can donate and ${labelB} can accept.`
+      : `${labelB} can donate and ${labelA} can accept.`,
+    hydrophobic: isHydrophobic(a) && isHydrophobic(b)
+      ? 'Both side chains are nonpolar, so they cluster away from water.' : null,
+    pi: bothAromatic && chargeProduct <= 0 ? 'Both side chains have aromatic rings that can stack.' : null,
+    disulfide: a.code1 === 'C' && b.code1 === 'C'
+      ? 'Two cysteine thiols can oxidize to an S–S bond under oxidizing conditions.' : null,
+    repulsion: chargeProduct > 0 ? `${labelA} and ${labelB} carry the same charge, so they push apart.` : null
   };
 }
 
-// The pH values a pair is shown at. Acidic and basic amino acids only appear at pH 7, the
-// only pH where this page has salt bridges. Two cysteines leave out pH 13, where both are thiolates.
-function allowedPHs(a, b) {
-  const chargeable = aa => aa.type === 'acidic' || aa.type === 'basic';
-  if (chargeable(a) || chargeable(b)) return [7];
-  if (a.code1 === 'C' && b.code1 === 'C') return [1, 7];
-  return [1, 7, 13];
-}
-
-// The answer keys for a pair: the interactions that form, or 'none'
-function correctInteractions(a, b, ph) {
+function correctInteractions(a, b, ph = INTERACT_PH) {
   const results = interactionsBetween(a, b, ph);
-  const formed = INTERACTIONS.map(([key]) => key).filter(key => results[key].forms);
-  return formed.length ? formed : ['none'];
+  return INTERACTIONS.map(([key]) => key).filter(key => results[key]);
 }
 
-function interactionDetailsHTML(a, b, ph) {
-  const results = interactionsBetween(a, b, ph);
-  const state = aa => {
-    const s = SIDE_CHAINS[aa.code1][ph];
-    return `<div><b>${aa.code3}</b> at pH ${ph}: ${s.group}, ${chargeWord(s.charge)}, ${hbondRole(s)}.</div>`;
-  };
-  const rows = INTERACTIONS.map(([key, label]) =>
-    `<li><b>${results[key].forms ? '✓' : results[key].included ? '–' : '✗'} ${label}:</b> ${results[key].reason}</li>`
-  ).join('');
-  return `<div class="side-states">${state(a)}${state(b)}</div><ul class="interact-reasons">${rows}</ul>`;
+function describeSideChain(aa) {
+  const s = SIDE_CHAINS[aa.code1][INTERACT_PH];
+  return `Side chain: ${s.group}, ${chargeWord(s.charge)}, ${hbondRole(s)}.`;
 }
 
-// Picks an outcome evenly first, since rare ones like a disulfide would hardly ever come up by pair
-function pickInteractionQuestion() {
-  const outcomes = [...INTERACTIONS.map(([key]) => key), 'none'];
+// Only the interactions that form: the answer first, then why
+function interactionDetailsHTML(a, b) {
+  const results = interactionsBetween(a, b, INTERACT_PH);
+  const formed = INTERACTIONS.filter(([key]) => results[key]);
+  if (formed.length === 0) {
+    return `<div class="interact-answer">No interaction</div>
+      <div class="interact-reasons">These side chains don't form any of these interactions at pH ${INTERACT_PH}.</div>`;
+  }
+  const label = formed.length === 1 ? 'Correct interaction' : 'Correct interactions';
+  const rows = formed.map(([key, name]) => `<li><b>${name}:</b> ${results[key]}</li>`).join('');
+  return `<div class="interact-answer">${label}: ${formed.map(([, name]) => name).join(', ')}</div>
+    <ul class="interact-reasons">${rows}</ul>`;
+}
+
+// Picks an interaction evenly first, since rare ones like a disulfide would hardly ever come up by
+// pair. Only pairs with an interaction are asked, so every question has an answer to enter.
+function pickInteractionQuestion(previous) {
+  const repeats = (a, b) => previous &&
+    ((a.code1 === previous.a && b.code1 === previous.b) || (a.code1 === previous.b && b.code1 === previous.a));
+  const pairs = [];
+  AA.forEach((a, i) => AA.slice(i).forEach(b => {
+    if (!repeats(a, b)) pairs.push({ a: a.code1, b: b.code1, formed: correctInteractions(a, b) });
+  }));
+  // An interaction whose only pair was just asked (the disulfide) sits this one out
+  const outcomes = INTERACTIONS.map(([key]) => key).filter(key => pairs.some(p => p.formed.includes(key)));
   const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-  const candidates = [];
-  AA.forEach((a, i) => AA.slice(i).forEach(b => allowedPHs(a, b).forEach(ph => {
-    if (correctInteractions(a, b, ph).includes(outcome)) candidates.push({ a: a.code1, b: b.code1, ph });
-  })));
-  const same = (p, q) => q && p.a === q.a && p.b === q.b && p.ph === q.ph;
-  const unseen = candidates.filter(c => !same(c, interactionPairInOrder()));
-  const pool = unseen.length ? unseen : candidates;
+  const pool = pairs.filter(p => p.formed.includes(outcome));
   const pick = pool[Math.floor(Math.random() * pool.length)];
-  return Math.random() < 0.5 ? pick : { a: pick.b, b: pick.a, ph: pick.ph };
-}
-
-// The last question's pair in database order, to compare against new candidates
-function interactionPairInOrder() {
-  if (!interactQuestion) return null;
-  const { a, b, ph } = interactQuestion;
-  const inOrder = AA.findIndex(x => x.code1 === a) <= AA.findIndex(x => x.code1 === b);
-  return inOrder ? { a, b, ph } : { a: b, b: a, ph };
+  const inOrder = Math.random() < 0.5;
+  return {
+    a: inOrder ? pick.a : pick.b,
+    b: inOrder ? pick.b : pick.a,
+    nameType: randomNameField()
+  };
 }
 
 function setInteractActivity(activity) {
@@ -1903,36 +1864,49 @@ function renderInteractPanel() {
 
 function renderInteractQuiz() {
   if (!interactQuestion) interactQuestion = pickInteractionQuestion();
-  const { a, b, ph } = interactQuestion;
+  const { a, b, nameType } = interactQuestion;
   document.getElementById('interact-prompt').innerHTML =
-    `Which interactions can form between the side chains of <strong>${aaByCode(a).code3}</strong> and ` +
-    `<strong>${aaByCode(b).code3}</strong> at <strong>pH ${ph}</strong>?`;
-  interactSelected = new Set();
-  document.querySelectorAll('.interact-opt').forEach(btn => {
-    btn.className = 'name-type-btn interact-opt';
-    btn.disabled = false;
-    setActive(btn, false);
-    delete btn.dataset.mark;
-    btn.removeAttribute('aria-label');
-  });
-  document.getElementById('interact-btn-check').disabled = true;
+    `Which interaction can form between the side chains of <strong>${nameOfType(aaByCode(a), nameType)}</strong> and ` +
+    `<strong>${nameOfType(aaByCode(b), nameType)}</strong> <strong>(pH ${INTERACT_PH})</strong>?`;
+  interactTried = [];
+  interactRevealed = false;
+  COMBO_OPTIONS.choice = INTERACTIONS.map(([, name]) => name);
+  closeCombo('choice');
+  const el = document.getElementById('inp-choice');
+  el.value = '';
+  el.className = 'field-input';
+  el.disabled = false;
+  el.removeAttribute('aria-invalid');
+  const ind = document.getElementById('ind-choice');
+  ind.textContent = '';
+  ind.className = 'ind';
   document.getElementById('interact-btn-show').disabled = false;
   drawCurrentPair();
+  el.focus();
 }
 
 function drawCurrentPair() {
-  const pair = interactActivity === 'quiz' ? interactQuestion : explorePair;
+  const quiz = interactActivity === 'quiz';
+  const pair = quiz ? interactQuestion : explorePair;
   if (!pair) return;
+  // The quiz keeps its structures hidden until the first choice is entered
+  const showStructures = !quiz || interactRevealed;
   const unavailable = document.getElementById('interact-unavailable');
-  unavailable.hidden = !rdkitFailed;
+  unavailable.hidden = !(rdkitFailed && showStructures);
   unavailable.textContent = rdkitFailed ? RDKIT_FAILED_MSG : '';
+  document.getElementById('pair-grid').style.display = showStructures ? '' : 'none';
+  if (!showStructures) return;
+  // Side-chain descriptions wait for the answer in the quiz, since they would give it away
+  const showDetails = !quiz || answered;
   [['a', pair.a], ['b', pair.b]].forEach(([side, code]) => {
     const aa = aaByCode(code);
     const box = document.getElementById('pair-struct-' + side);
-    document.getElementById('pair-name-' + side).textContent = `${aa.name} (${aa.code3})`;
-    if (drawStructureInto(aa.smiles[pair.ph], box, 300, 170)) {
+    document.getElementById('pair-name-' + side).textContent =
+      showDetails ? `${aa.name} (${aa.code3})` : nameOfType(aa, pair.nameType);
+    document.getElementById('pair-note-' + side).textContent = showDetails ? describeSideChain(aa) : '';
+    if (drawStructureInto(aa.smiles[INTERACT_PH], box, 300, 170)) {
       box.setAttribute('role', 'img');
-      box.setAttribute('aria-label', `Structure of ${aa.name} at pH ${pair.ph}`);
+      box.setAttribute('aria-label', `Structure of ${nameOfType(aa, showDetails ? 'name' : pair.nameType)} at pH ${INTERACT_PH}`);
     } else {
       box.removeAttribute('role');
       box.removeAttribute('aria-label');
@@ -1940,89 +1914,76 @@ function drawCurrentPair() {
   });
 }
 
-function toggleInteraction(key) {
-  if (answered) return;
-  if (interactSelected.has(key)) {
-    interactSelected.delete(key);
-  } else {
-    // "None of these" can't be combined with an interaction
-    if (key === 'none') interactSelected.clear();
-    else interactSelected.delete('none');
-    interactSelected.add(key);
+// Takes the entered choice: the first wrong one earns a second chance, with the structures to help
+function submitInteractionChoice() {
+  if (answered || interactActivity !== 'quiz') return;
+  const el = document.getElementById('inp-choice');
+  const typed = norm(el.value);
+  if (!typed) return;
+  const choice = INTERACTIONS.find(([, name]) => norm(name) === typed);
+  if (!choice || interactTried.includes(choice[1])) {
+    el.className = 'field-input bad';
+    el.setAttribute('aria-invalid', 'true');
+    return;
   }
-  document.querySelectorAll('.interact-opt').forEach(btn =>
-    setActive(btn, interactSelected.has(btn.dataset.interaction))
-  );
-  document.getElementById('interact-btn-check').disabled = interactSelected.size === 0;
+  el.className = 'field-input';
+  el.removeAttribute('aria-invalid');
+  const { a, b } = interactQuestion;
+  const right = correctInteractions(aaByCode(a), aaByCode(b)).includes(choice[0]);
+  interactRevealed = true;
+  if (right || interactTried.length > 0) {
+    finishInteractionQuestion(right);
+    return;
+  }
+  interactTried.push(choice[1]);
+  COMBO_OPTIONS.choice = COMBO_OPTIONS.choice.filter(name => name !== choice[1]);
+  el.value = '';
+  const ind = document.getElementById('ind-choice');
+  ind.textContent = '✗';
+  ind.className = 'ind bad-ind';
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show partial';
+  fb.innerHTML = `<div class="fb-title">Not quite. Try once more.</div>
+    <div class="fb-answers"><b>${choice[1]}</b> is not correct. Use the structures to choose again.</div>`;
+  drawCurrentPair();
 }
 
-function checkInteractions() {
-  if (answered || interactSelected.size === 0) return;
-  const { a, b, ph } = interactQuestion;
-  const results = interactionsBetween(aaByCode(a), aaByCode(b), ph);
-  const correct = correctInteractions(aaByCode(a), aaByCode(b), ph);
-  // Also selecting the hydrogen bond inside a salt bridge isn't a mistake
-  const picks = [...interactSelected].filter(key => !(results[key] && results[key].included));
-  finishInteractionQuestion(
-    correct.length === picks.length && correct.every(key => picks.includes(key))
-  );
+// Leaving the box only enters a whole choice; partial text just stays there
+function submitCompleteChoice() {
+  const typed = norm(document.getElementById('inp-choice').value);
+  if (INTERACTIONS.some(([, name]) => norm(name) === typed)) submitInteractionChoice();
 }
 
-function finishInteractionQuestion(isExact) {
-  const { a, b, ph } = interactQuestion;
-  const results = interactionsBetween(aaByCode(a), aaByCode(b), ph);
-  const correct = correctInteractions(aaByCode(a), aaByCode(b), ph);
-  document.querySelectorAll('.interact-opt').forEach(btn => {
-    const key = btn.dataset.interaction;
-    const label = btn.textContent;
-    const forms = correct.includes(key);
-    const picked = interactSelected.has(key);
-    btn.disabled = true;
-    if (picked && results[key] && results[key].included) {
-      btn.classList.add('opt-correct');
-      btn.dataset.mark = '✓';
-      btn.setAttribute('aria-label', `${label}: part of the salt bridge, you selected it`);
-    } else if (forms && picked) {
-      btn.classList.add('opt-correct');
-      btn.dataset.mark = '✓';
-      btn.setAttribute('aria-label', `${label}: correct, you selected it`);
-    } else if (forms) {
-      btn.classList.add('opt-missed');
-      btn.dataset.mark = '✓ answer';
-      btn.setAttribute('aria-label', `${label}: this was also correct`);
-    } else if (picked) {
-      btn.classList.add('opt-wrong');
-      btn.dataset.mark = '✗';
-      btn.setAttribute('aria-label', `${label}: incorrect, you selected it`);
-    }
-  });
-  document.getElementById('interact-btn-check').disabled = true;
+function finishInteractionQuestion(isRight) {
+  const { a, b } = interactQuestion;
+  const el = document.getElementById('inp-choice');
+  interactRevealed = true;
+  closeCombo('choice');
+  el.disabled = true;
+  el.className = `field-input ${isRight ? 'ok' : 'bad'}`;
+  const ind = document.getElementById('ind-choice');
+  ind.textContent = isRight ? '✓' : '✗';
+  ind.className = `ind ${isRight ? 'ok-ind' : 'bad-ind'}`;
   document.getElementById('interact-btn-show').disabled = true;
-  completeQuestion({ interactions: isExact });
+  completeQuestion({ interactions: isRight });
+  drawCurrentPair();
   document.getElementById('interact-btn-next').focus();
 }
 
 function renderExplorer() {
   const a = aaByCode(explorePair.a);
   const b = aaByCode(explorePair.b);
-  const allowed = allowedPHs(a, b);
-  if (!allowed.includes(explorePair.ph)) explorePair.ph = 7;
-  document.querySelectorAll('.explore-ph-btn').forEach(btn => {
-    btn.style.display = allowed.includes(parseInt(btn.dataset.explorePh)) ? '' : 'none';
-  });
   document.getElementById('interact-prompt').innerHTML =
-    `Side chains of <strong>${a.code3}</strong> and <strong>${b.code3}</strong> at <strong>pH ${explorePair.ph}</strong>`;
+    `Side chains of <strong>${a.code3}</strong> and <strong>${b.code3}</strong> <strong>(pH ${INTERACT_PH})</strong>`;
   document.getElementById('inp-pairA').value = a.name;
   document.getElementById('inp-pairB').value = b.name;
-  document.querySelectorAll('.explore-ph-btn').forEach(btn =>
-    setActive(btn, parseInt(btn.dataset.explorePh) === explorePair.ph)
-  );
-  document.getElementById('explore-results').innerHTML = interactionDetailsHTML(a, b, explorePair.ph);
+  document.getElementById('explore-results').innerHTML = interactionDetailsHTML(a, b);
   drawCurrentPair();
 }
 
-function setExplorePH(ph) {
-  explorePair.ph = ph;
+function showRandomExplorePair() {
+  const { a, b } = pickInteractionQuestion(explorePair);
+  explorePair = { a, b };
   renderExplorer();
 }
 
@@ -2047,7 +2008,8 @@ const COMBO_OPTIONS = {
   name: AA_NAME_OPTIONS,
   type: Object.values(TYPE_LABELS),
   pairA: AA_NAME_OPTIONS,
-  pairB: AA_NAME_OPTIONS
+  pairB: AA_NAME_OPTIONS,
+  choice: INTERACTIONS.map(([, name]) => name)   // narrowed during a question's second chance
 };
 let comboActive = -1;   // highlighted option in the open list, -1 for none
 
@@ -2122,6 +2084,10 @@ function pickComboOption(id, option) {
     commitExplorePick(id);
     return;
   }
+  if (id === 'choice') {
+    submitInteractionChoice();
+    return;
+  }
   gradeField(id);
   if (!el.disabled) return;   // wrong: stay here to try again
   const nextField = getActiveFields().map(f => document.getElementById('inp-' + f)).find(f => !f.disabled);
@@ -2165,12 +2131,14 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('blur',  () => {
       closeCombo(id);
       if (EXPLORE_PICKERS[id]) commitExplorePick(id);
+      else if (id === 'choice') submitCompleteChoice();
       else                     gradeField(id);
     });
     el.addEventListener('keydown', e => {
       if (handleComboKey(id, e)) return;
       if (e.key === 'Enter') {
         if (EXPLORE_PICKERS[id]) commitExplorePick(id);
+        else if (id === 'choice') submitInteractionChoice();
         else if (!answered) gradeField(id);
         else           nextQuestion();
       }
