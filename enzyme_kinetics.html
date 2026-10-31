@@ -271,8 +271,10 @@
 
     /* Measuring Rates controls */
     #rates-settings-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    #demo-s-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    #demo-s-buttons button { padding: 3px 9px; font-size: 0.8em; }
+    /* Up to 1 × Km on the first row, higher values on the second */
+    #demo-s-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+    #demo-s-buttons button { padding: 3px 4px; font-size: 0.8em; }
+    #demo-s-buttons button.previous { background: #BFBFBF; border: 1px dashed #000000; color: #000000; }
     .readout { font-size: 0.85em; line-height: 1.5; }
     .control-label { display: block; font-size: 0.82em; font-weight: 600; margin-bottom: 4px; }
     #run-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
@@ -508,7 +510,7 @@
           <span class="control-label">Selected starting [S]</span>
           <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
           <p class="readout" id="demo-readout" aria-live="polite"></p>
-          <p class="note">Each curve on the product plot is one experiment at a fixed starting [S]. Product forms in a straight line at first, and that slope is v₀, one point on the M-M plot. As substrate runs out the curve bends, so rates are measured early.</p>
+          <p class="note">One point on the Michaelis-Menten plot represents the initial rate (slope of product formation over time) at one [Substrate].</p>
         </div>
         <div id="collect-controls">
           <div id="run-row">
@@ -553,6 +555,7 @@
         <div class="panel-body">
           <div class="legend" id="product-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="product-canvas" role="img"></canvas></div>
+          <p class="note" id="product-note">As the substrate runs out, the curve bends indicating a decrease in the rate as the reaction approaches equilibrium.</p>
         </div>
       </section>
       <section class="panel plot-card" data-panel="mm" aria-labelledby="mm-title">
@@ -623,6 +626,7 @@ const state = {
     view: 'demo',     // 'demo' or 'collect'
     enzymes: { ...RATES_ENZYMES },   // hidden; never written to the page before Reveal
     selected: 2,      // index into DEMO_S_FACTORS
+    previous: null,   // the index selected before that, also drawn on the product plot
     runs: [],         // starting [S] of each experiment the student has run
     windowPct: DEFAULT_WINDOW_PCT,
     key: '',          // the enzyme and units the runs belong to; a change clears them
@@ -1062,7 +1066,8 @@ function buildRatesData() {
     rate: demo ? v0(k, S0) : measuredRate(k, S0, tWindow),
   }));
   const focus = demo ? experiments[selected] : experiments[experiments.length - 1];
-  state.ratesData = { demo, k, tEnd, tWindow, experiments, focus };
+  const previous = demo && state.rates.previous !== null ? experiments[state.rates.previous] : null;
+  state.ratesData = { demo, k, tEnd, tWindow, experiments, focus, previous };
 }
 
 // The true curve shows in the demonstration, and in Collect Data only after Reveal.
@@ -1071,14 +1076,15 @@ function truthShown() {
 }
 
 function ratesSeries(kind) {
-  const { demo, tEnd, tWindow, experiments, focus } = state.ratesData;
+  const { demo, tEnd, tWindow, experiments, focus, previous } = state.ratesData;
   const named = e => `[S] = ${fmtCompact(e.S0)} ${state.units.conc}`;
   const others = experiments.filter(e => e !== focus);
   const series = [];
 
   if (kind === 'product') {
-    const label = demo ? 'Other [S]' : 'Earlier runs';
-    for (const e of others) series.push({ name: named(e), legend: label, style: RATE_STYLES.other, pts: e.pts });
+    // The demonstration compares the selected [S] with the one before it.
+    if (demo && previous) series.push({ name: named(previous), legend: 'Previous [S]', style: RATE_STYLES.other, pts: previous.pts });
+    if (!demo) for (const e of others) series.push({ name: named(e), legend: 'Earlier runs', style: RATE_STYLES.other, pts: e.pts });
     if (focus) {
       series.push({ name: named(focus), legend: demo ? 'Selected [S]' : 'Latest run', style: RATE_STYLES.selected, pts: focus.pts });
       series.push({
@@ -1097,7 +1103,7 @@ function ratesSeries(kind) {
   const point = e => ({ x: e.S0, y: e.rate });
   if (truthShown()) series.push({ name: 'True curve', style: RATE_STYLES.truth, pts: state.model.curves[0].mm });
   if (demo) {
-    series.push({ name: 'Other experiments', style: RATE_STYLES.otherDot, pts: others.map(point) });
+    series.push({ name: 'Other [S]', style: RATE_STYLES.otherDot, pts: others.map(point) });
     series.push({ name: named(focus), legend: 'Selected [S]', style: RATE_STYLES.selectedDot, pts: [point(focus)] });
   } else if (experiments.length) {
     series.push({ name: 'Your measurements', style: RATE_STYLES.selectedDot, pts: experiments.map(point) });
@@ -1502,7 +1508,9 @@ function updateCanvasLabels() {
   plots.lb.canvas.setAttribute('aria-label',
     `Lineweaver–Burk plot of 1/v₀ in ${u.time}/${u.conc} against 1/[S] in ${u.conc}⁻¹. Lines: ${equations || 'none yet'}.`);
   if (!state.ratesData) return;
-  const runs = state.ratesData.experiments.map(e => fmtCompact(e.S0)).join(', ');
+  const { demo, focus, previous, experiments } = state.ratesData;
+  const drawn = demo ? [previous, focus].filter(Boolean) : experiments;
+  const runs = drawn.map(e => fmtCompact(e.S0)).join(', ');
   plots.product.canvas.setAttribute('aria-label',
     `Product concentration in ${u.conc} against time in ${u.time}, one curve for each starting [S]: ${runs || 'none yet'} ${u.conc}.`);
 }
@@ -1804,6 +1812,7 @@ function syncFieldStates() {
   $('experiment-box').hidden = !rates;
   $('demo-controls').hidden = collect;
   $('collect-controls').hidden = !collect;
+  $('product-note').hidden = collect;
   $('product-card').hidden = !rates;
   $('lb-card').hidden = rates;
   $('rates-settings').hidden = !rates;
@@ -1864,13 +1873,14 @@ function renderRatesControls() {
   if (!state.ratesData) return;
   const { experiments, focus, tWindow } = state.ratesData;
   const { conc, time } = state.units;
-  const { selected, windowPct } = state.rates;
+  const { selected, previous, windowPct } = state.rates;
 
-  $('demo-s-buttons').innerHTML = DEMO_S_FACTORS.map((f, i) =>
-    `<button type="button" data-demo-s="${i}" aria-pressed="${i === selected}"${i === selected ? ' class="active"' : ''}>${f} × K<sub>m</sub></button>`).join('');
+  $('demo-s-buttons').innerHTML = DEMO_S_FACTORS.map((f, i) => {
+    const look = i === selected ? ' class="active"' : i === previous ? ` class="previous" aria-label="${f} × Km, previously selected"` : '';
+    return `<button type="button" data-demo-s="${i}" aria-pressed="${i === selected}"${look}>${f} × K<sub>m</sub></button>`;
+  }).join('');
   if (state.ratesData.demo) {
-    const used = focus.pts[focus.pts.length - 1].y / focus.S0 * 100;
-    $('demo-readout').textContent = `[S] = ${fmtSig(focus.S0)} ${conc}: v₀ = ${fmtSig(focus.rate)} ${conc}/${time}. By the end of the plot, ${used.toFixed(0)}% of the substrate is used.`;
+    $('demo-readout').textContent = `[S] = ${fmtSig(focus.S0)} ${conc}, v₀ = ${fmtSig(focus.rate)} ${conc}/${time}`;
   } else {
     $('window-readout').textContent = `Measurement window: first ${windowPct}% of the time axis (0 to ${fmtSig(tWindow)} ${time})`;
     $('run-list').innerHTML = experiments.map((e, i) =>
@@ -2084,7 +2094,11 @@ document.querySelectorAll('[data-rates-view]').forEach(button => button.addEvent
 $('demo-s-buttons').addEventListener('click', e => {
   const button = e.target.closest('[data-demo-s]');
   if (!button) return;
-  state.rates.selected = Number(button.dataset.demoS);
+  const chosen = Number(button.dataset.demoS);
+  if (chosen !== state.rates.selected) {
+    state.rates.previous = state.rates.selected;
+    state.rates.selected = chosen;
+  }
   refreshRates();
   $('demo-s-buttons').querySelector(`[data-demo-s="${state.rates.selected}"]`).focus();
 });
@@ -2130,6 +2144,7 @@ $('reset').addEventListener('click', () => {
   entry.revealed = false;
   state.rates.runs = [];
   state.rates.selected = 2;
+  state.rates.previous = null;
   state.rates.windowPct = DEFAULT_WINDOW_PCT;
   state.rates.enzymes = { ...RATES_ENZYMES };
   $('measure-window').value = DEFAULT_WINDOW_PCT;
@@ -2179,6 +2194,7 @@ $('random').addEventListener('click', () => {
   const values = randomParameters();
   if (state.mode === 'rates') {
     // New hidden enzymes only; the Km and kcat fields on the other tabs must not hold them.
+    state.rates.previous = null;
     const second = randomParameters(Math.random, { conc: values.concUnit, time: values.timeUnit });
     state.rates.enzymes = {
       demo: { Km: values.Km, kcat: values.kcat },
