@@ -114,8 +114,8 @@ function loadPage({ rdkit = true } = {}) {
 // ── Helpers ────────────────────────────────────────────────────
 const FIELDS = ['c1', 'c3', 'name', 'type', 'ph'];
 const visibleFields = page => FIELDS.filter(id => page.el('fg-' + id).style.display !== 'none');
-// Fixes the default "Randomly select" name type on the 1-letter code
-const ask = (page, code, ph) => page.run(`current = { aa: AA.find(a => a.code1 === '${code}'), ph: ${ph}, randomNameType: 'c1' }; renderQuestion()`);
+// Fixes the default "Randomly select" choices: the 1-letter code, and in name mode a question from the name
+const ask = (page, code, ph) => page.run(`current = { aa: AA.find(a => a.code1 === '${code}'), ph: ${ph}, randomNameType: 'c1', randomSource: 'name' }; renderQuestion()`);
 const pickNameType = (page, type) => page.run(`setNameType('${type}')`);
 const answer = (page, id, value) => {
   page.el('inp-' + id).value = value;
@@ -738,9 +738,9 @@ test('the name type row sits below the question types and needs "Determine name"
   page.run(`toggleQuestionType('name'); setDisplayMode('identify')`);
   assert.equal(row.style.display, 'none');
   page.run(`setDisplayMode('name')`);
-  assert.equal(row.style.display, '', 'name mode always offers it');
+  assert.equal(row.style.display, 'none', 'name mode only offers it for From Name');
   page.run(`setDisplayMode('structure')`);
-  assert.equal(row.style.display, 'none', 'name mode switched Determine name off');
+  assert.equal(row.style.display, 'none', 'Determine name is still off');
 });
 
 test('the row is labeled Name Type and no button says Hide', () => {
@@ -770,7 +770,7 @@ test('in structure mode exactly one name type is selected and it is the one aske
 
 test('in name mode exactly one name type is selected and it is the one shown', () => {
   const page = loadPage();
-  page.run(`setDisplayMode('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('name')`);
   assert.deepEqual(selectedNameTypes(page), ['random']);
   ask(page, 'W', 7);
   for (const [type, text] of [['c1', 'W'], ['c3', 'Trp'], ['name', 'Tryptophan']]) {
@@ -795,7 +795,7 @@ test('Randomly select picks one name type per question and keeps it through re-r
     assert.deepEqual(visibleFields(page), [type], 'same question, same field');
   }
 
-  page.run(`setDisplayMode('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('name')`);
   for (const [r, text] of [[0, 'W'], [0.5, 'Trp'], [0.9, 'Tryptophan']]) {
     page.run(`current = { aa: AA.find(a => a.code1 === 'W'), ph: 7 }`);
     setRandom(page, r);
@@ -825,7 +825,7 @@ test('the mode buttons have their new names', () => {
   assert.deepEqual(labels, [
     ['identify', 'Determine Structure', '(From Name + pH)'],
     ['structure', 'Determine Properties', '(From Structure)'],
-    ['name', 'Determine Property', '(From Name)'],
+    ['name', 'Determine Property', '(From Name or Structure)'],
   ], 'Determine Structure comes first, with each parenthetical on its own line');
   assert.doesNotMatch(HTML, /Show Amino Acid/);
   const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
@@ -836,18 +836,19 @@ test('the mode buttons have their new names', () => {
 test('each mode shows its own panels and marks its own button', () => {
   const shown = id => id.style.display !== 'none';
   const expected = {
-    // Name mode turned Determine name off, so the name type row is gone on returning to structure mode
-    structure: { grid: true, identify: false, qtype: true, toggles: false, identifyToggles: false, phBadge: true, structControls: false },
-    name: { grid: true, identify: false, qtype: true, toggles: true, identifyToggles: false, phBadge: false, structControls: true },
-    identify: { grid: false, identify: true, qtype: false, toggles: false, identifyToggles: true, phBadge: true, structControls: false },
+    structure: { grid: true, identify: false, qtype: true, source: false, toggles: true, identifyToggles: false, phBadge: true, structControls: false },
+    name: { grid: true, identify: false, qtype: false, source: true, toggles: true, identifyToggles: false, phBadge: false, structControls: false },
+    identify: { grid: false, identify: true, qtype: false, source: false, toggles: false, identifyToggles: true, phBadge: true, structControls: false },
   };
   const page = loadPage();
+  page.run(`setNameModeSource('name')`);
   for (const mode of ['name', 'identify', 'structure']) {
     page.run(`setDisplayMode('${mode}')`);
     assert.deepEqual({
       grid: shown(page.q('.main-grid')),
       identify: shown(page.el('identify-panel')),
       qtype: shown(page.el('qtype-bar')),
+      source: shown(page.el('source-bar')),
       toggles: shown(page.el('name-toggles')),
       identifyToggles: shown(page.el('identify-name-toggles')),
       phBadge: shown(page.el('ph-badge')),
@@ -859,17 +860,15 @@ test('each mode shows its own panels and marks its own button', () => {
   }
 });
 
-test('name mode drops the name and pH question types and falls back to properties', () => {
+test('visiting name mode leaves the structure mode question types as they were', () => {
   const page = loadPage();
   page.run(`toggleQuestionType('ph')`);
   page.run(`setDisplayMode('name')`);
-  assert.deepEqual(page.json('[...activeQtypeSet]'), ['properties']);
-  assert.ok(page.q('[data-type="properties"]').classList.contains('active'));
-  assert.equal(page.q('[data-type="name"]').style.display, 'none');
-  assert.equal(page.q('[data-type="ph"]').style.display, 'none');
+  assert.deepEqual(page.json('getActiveFields()'), ['type']);
   page.run(`setDisplayMode('structure')`);
-  assert.equal(page.q('[data-type="name"]').style.display, '');
-  assert.equal(page.q('[data-type="ph"]').style.display, '');
+  assert.deepEqual(page.json('[...activeQtypeSet]'), ['name', 'ph']);
+  assert.ok(page.q('[data-type="name"]').classList.contains('active'));
+  assert.equal(page.el('name-toggles').style.display, '');
 });
 
 test('switching mode starts the current question over', () => {
@@ -890,37 +889,95 @@ test('name mode grades the property of the amino acid shown', () => {
   assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
 });
 
-test('the structure toggle draws the pH 7 form and offers the other pH values', () => {
+test('the question type replaces Determine properties with three single choices', () => {
+  const bar = MARKUP.match(/id="source-bar"[\s\S]*?<\/div>/)[0];
+  assert.match(bar, />Question type:</);
+  assert.deepEqual([...bar.matchAll(/>([^<>]+)<\/button>/g)].map(m => m[1]), ['Randomly select', 'From Name', 'From Structure']);
+
   const page = loadPage();
-  page.run(`setDisplayMode('name'); setNameType('name')`);
-  ask(page, 'D', 7);
-  const smiles = ph => page.run(`current.aa.smiles[${ph}]`);
-
-  page.run('toggleNameStructure()');
-  assert.equal(page.el('name-struct-toggle').textContent, 'Show name');
-  assert.equal(page.el('name-ph-btns').style.display, '');
-  assert.ok(boxHTML(page).includes(smiles(7)));
-
-  page.run('setNameStructPH(1)');
-  assert.ok(boxHTML(page).includes(smiles(1)));
-  assert.deepEqual(page.qa('.name-ph-btn').map(b => b.classList.contains('active')), [true, false, false]);
-
-  page.run('toggleNameStructure()');
-  assert.equal(page.el('name-struct-toggle').textContent, 'Show structure');
-  assert.equal(page.el('name-ph-btns').style.display, 'none');
-  assert.match(boxHTML(page), /Aspartate/);
+  const selected = () => page.qa('[data-source]').filter(b => b.classList.contains('active')).map(b => b.dataset.source);
+  page.run(`setDisplayMode('name')`);
+  assert.equal(page.el('qtype-bar').style.display, 'none', 'Determine properties is gone from this section');
+  assert.equal(page.el('source-bar').style.display, '');
+  assert.deepEqual(selected(), ['random']);
+  for (const source of ['name', 'structure', 'random']) {
+    page.run(`setNameModeSource('${source}')`);
+    assert.deepEqual(selected(), [source]);
+    assert.deepEqual(visibleFields(page), ['type']);
+  }
+  page.run(`setDisplayMode('structure')`);
+  assert.equal(page.el('source-bar').style.display, 'none');
+  assert.equal(page.el('qtype-bar').style.display, '');
 });
 
-test('a new question in name mode returns to the name at pH 7', () => {
+test('the name type options appear only for From Name', () => {
+  const page = loadPage();
+  const row = page.el('name-toggles');
+  page.run(`setDisplayMode('name')`);
+  assert.equal(row.style.display, 'none', 'hidden for the default Randomly select');
+  page.run(`setNameModeSource('name')`);
+  assert.equal(row.style.display, '');
+  page.run(`setNameModeSource('structure')`);
+  assert.equal(row.style.display, 'none');
+  page.run(`setNameModeSource('random')`);
+  assert.equal(row.style.display, 'none');
+});
+
+test('From Name shows only the name and From Structure shows only the structure', () => {
   const page = loadPage();
   page.run(`setDisplayMode('name')`);
-  page.run('toggleNameStructure(); setNameStructPH(13)');
+  ask(page, 'D', 7);
+  page.run(`setNameModeSource('name'); setNameType('name')`);
+  assert.match(boxHTML(page), />Aspartate</);
+  assert.equal(page.el('name-struct-controls').style.display, 'none', 'no pH buttons with a name');
+
+  page.run(`setNameModeSource('structure')`);
+  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[7]')));
+  assert.doesNotMatch(boxHTML(page), /Aspartate/);
+  assert.equal(page.el('name-struct-controls').style.display, '', 'pH buttons with a structure');
+  answer(page, 'type', 'acidic');
+  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
+});
+
+test('there is no Show structure button', () => {
+  assert.doesNotMatch(HTML, /Show structure/);
+  assert.doesNotMatch(HTML, /name-struct-toggle|toggleNameStructure/);
+});
+
+test('the pH buttons redraw a structure question and reset on the next question', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
+  ask(page, 'D', 7);
+  answer(page, 'type', 'polar');
+  page.run('setNameStructPH(1)');
+  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[1]')));
+  assert.deepEqual(page.qa('.name-ph-btn').map(b => b.classList.contains('active')), [true, false, false]);
+  assert.equal(page.el('inp-type').className, 'field-input bad', 'changing pH keeps the answer in progress');
+
   page.run('nextQuestion()');
-  assert.equal(page.run('nameShowingStructure'), false);
   assert.equal(page.run('nameStructPH'), 7);
-  assert.equal(page.el('name-struct-toggle').textContent, 'Show structure');
   assert.deepEqual(page.qa('.name-ph-btn').map(b => b.classList.contains('active')), [false, true, false]);
-  assert.match(boxHTML(page), /name-display/);
+  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[7]')));
+});
+
+test('Randomly select asks from a name or a structure per question and keeps it', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('name'); setNameType('c3')`);
+  for (const [r, source] of [[0.2, 'name'], [0.8, 'structure']]) {
+    setRandom(page, r);
+    page.run('nextQuestion()');
+    assert.equal(page.run('current.randomSource'), source);
+    const before = boxHTML(page);
+    assert.equal(/<svg/.test(before), source === 'structure', `random=${r}`);
+    setRandom(page, r === 0.2 ? 0.8 : 0.2);
+    page.run('renderQuestion()');
+    assert.equal(/<svg/.test(boxHTML(page)), source === 'structure', 'same question, same prompt');
+  }
+  // The name type row is hidden here, so the saved 3-letter choice does not apply
+  page.run(`current = { aa: AA.find(a => a.code1 === 'W'), ph: 7, randomSource: 'name', randomNameType: 'name' }; renderQuestion()`);
+  assert.match(boxHTML(page), />Tryptophan</);
+  page.run(`setNameModeSource('name')`);
+  assert.match(boxHTML(page), />Trp</, 'From Name uses the saved choice');
 });
 
 // ── Identify mode: options ─────────────────────────────────────
@@ -1185,7 +1242,7 @@ test('only the latest structure requested before RDKit loads is drawn', () => {
 
 test('RDKit arriving in name mode does not replace the names with a stale structure', () => {
   const page = loadPage({ rdkit: false });
-  page.run(`setDisplayMode('name'); setNameType('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('name'); setNameType('name')`);
   ask(page, 'A', 7);
   assert.match(boxHTML(page), /Alanine/);
   page.loader.load();
@@ -1193,20 +1250,19 @@ test('RDKit arriving in name mode does not replace the names with a stale struct
   assert.equal(page.run('pendingSmiles'), null);
 });
 
-test('a structure toggled on in name mode before RDKit loads is drawn once it arrives', () => {
+test('a From Structure question asked before RDKit loads is drawn once it arrives', () => {
   const page = loadPage({ rdkit: false });
-  page.run(`setDisplayMode('name'); setNameType('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
   ask(page, 'A', 7);
-  page.run('toggleNameStructure()');
   page.loader.load();
   assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[7]')));
 });
 
-test('a structure toggled back off in name mode before RDKit loads is not drawn', () => {
+test('switching to From Name before RDKit loads keeps the name on screen', () => {
   const page = loadPage({ rdkit: false });
-  page.run(`setDisplayMode('name'); setNameType('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
   ask(page, 'A', 7);
-  page.run('toggleNameStructure(); toggleNameStructure()');
+  page.run(`setNameModeSource('name'); setNameType('name')`);
   page.loader.load();
   assert.match(boxHTML(page), /Alanine/);
 });
@@ -1266,19 +1322,33 @@ test('the failure message stays through later questions instead of going back to
 
 test('a failed load leaves name mode usable', () => {
   const page = loadPage({ rdkit: false });
-  page.run(`setDisplayMode('name'); setNameType('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('name'); setNameType('name')`);
   ask(page, 'A', 7);
   answer(page, 'type', 'polar');
   page.loader.fail();
   assert.match(boxHTML(page), /Alanine/, 'the names are not replaced');
   assert.equal(page.el('inp-type').className, 'field-input bad', 'work in progress is kept');
 
-  page.run('toggleNameStructure()');
+  page.run(`setNameModeSource('structure')`);
   assert.match(boxHTML(page), /failed to load/);
   page.run('setNameStructPH(13)');
   assert.match(boxHTML(page), /failed to load/);
-  page.run('toggleNameStructure()');
+  page.run(`setNameModeSource('name')`);
   assert.match(boxHTML(page), /Alanine/);
+});
+
+test('after a failed load, Randomly select only asks from names', () => {
+  const page = loadPage({ rdkit: false });
+  page.run(`setDisplayMode('name')`);
+  page.run(`current = { aa: AA.find(a => a.code1 === 'A'), ph: 7, randomSource: 'structure', randomNameType: 'name' }; renderQuestion()`);
+  assert.match(boxHTML(page), /Loading/);
+  page.loader.fail();
+  assert.match(boxHTML(page), /Alanine/, 'the waiting structure question becomes a name question');
+  assert.equal(page.el('name-struct-controls').style.display, 'none');
+  for (let i = 0; i < 20; i++) {
+    page.run('nextQuestion()');
+    assert.match(boxHTML(page), /name-display/);
+  }
 });
 
 test('a failed load in identify mode explains itself and scores nothing', () => {
@@ -1315,7 +1385,7 @@ test('the page still works when the RDKit script itself never loaded', async () 
   await new Promise(setImmediate);
   assert.match(boxHTML(page), /failed to load/);
 
-  page.run(`setDisplayMode('name'); setNameType('name')`);
+  page.run(`setDisplayMode('name'); setNameModeSource('name'); setNameType('name')`);
   ask(page, 'A', 7);
   assert.match(boxHTML(page), /Alanine/);
   answer(page, 'type', 'nonpolar');
@@ -1346,7 +1416,7 @@ test('toggle buttons report their state, in the markup and after every change', 
   inSync(page);
   for (const action of [
     `toggleQuestionType('ph')`, `setNameType('c1')`, `setDisplayMode('name')`,
-    `setNameType('c3')`, 'toggleNameStructure()', 'setNameStructPH(13)', 'nextQuestion()',
+    `setNameType('c3')`, `setNameModeSource('name')`, `setNameModeSource('structure')`, 'setNameStructPH(13)', 'nextQuestion()',
     `setDisplayMode('identify')`, `setIdentifyNameStyle('c1')`, `setDisplayMode('structure')`,
     `toggleQuestionType('name')`, `setNameType('c3')`, `setNameType('random')`,
   ]) {

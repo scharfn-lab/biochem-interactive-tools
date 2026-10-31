@@ -470,7 +470,7 @@
   <div class="mode-toggle-row" role="group" aria-label="Display mode">
     <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Structure <span class="mode-sub">(From Name + pH)</span></button>
     <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Determine Properties <span class="mode-sub">(From Structure)</span></button>
-    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Determine Property <span class="mode-sub">(From Name)</span></button>
+    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Determine Property <span class="mode-sub">(From Name or Structure)</span></button>
   </div>
 
   <!-- Identify-mode name style controls (only one can be selected) -->
@@ -490,6 +490,14 @@
     <button class="qtype-btn"        data-type="properties" aria-pressed="false" onclick="toggleQuestionType('properties')">Determine properties</button>
   </div>
 
+  <!-- Name mode question type (only one can be selected): what the property is worked out from -->
+  <div class="qtype-bar" id="source-bar" style="display:none" role="group" aria-label="Question type">
+    <span class="qtype-label">Question type:</span>
+    <button class="name-type-btn active" data-source="random"    aria-pressed="true"  onclick="setNameModeSource('random')">Randomly select</button>
+    <button class="name-type-btn"        data-source="name"      aria-pressed="false" onclick="setNameModeSource('name')">From Name</button>
+    <button class="name-type-btn"        data-source="structure" aria-pressed="false" onclick="setNameModeSource('structure')">From Structure</button>
+  </div>
+
   <!-- Name type (only one can be selected): the name asked for in structure mode, the name shown in name mode -->
   <div class="name-toggles" id="name-toggles" role="group" aria-label="Name type">
     <span class="qtype-label">Name Type:</span>
@@ -505,10 +513,9 @@
     <div class="structure-panel">
       <div class="ph-badge" id="ph-badge">pH ?</div>
 
-      <!-- Name-mode structure toggle (shown only in name mode) -->
+      <!-- Name-mode pH choices (shown only on questions asked from a structure) -->
       <div id="name-struct-controls" style="display:none; text-align:center; margin-bottom:6px">
-        <button id="name-struct-toggle" class="btn btn-check" onclick="toggleNameStructure()">Show structure</button>
-        <div id="name-ph-btns" style="display:none; justify-content:center; gap:6px; margin-top:8px">
+        <div id="name-ph-btns" style="justify-content:center; gap:6px">
           <button class="name-ph-btn" data-ph="1"  aria-pressed="false" onclick="setNameStructPH(1)">pH 1</button>
           <button class="name-ph-btn active" data-ph="7"  aria-pressed="true" onclick="setNameStructPH(7)">pH 7</button>
           <button class="name-ph-btn" data-ph="13" aria-pressed="false" onclick="setNameStructPH(13)">pH 13</button>
@@ -817,7 +824,7 @@ let displayMode    = 'structure';       // 'structure' | 'name' | 'identify'
 let structureNameType  = 'random'; // structure mode: name asked for, 'random' | 'c1' | 'c3' | 'name'
 let nameModeNameType   = 'random'; // name mode: name shown, same choices
 let identifyNameStyle  = 'random'; // identify mode: how the amino acid is named, same choices
-let nameShowingStructure = false;  // true when name mode is showing structure view
+let nameModeSource       = 'random'; // name mode: question asked from, 'random' | 'name' | 'structure'
 let nameStructPH         = 7;      // active pH in name-mode structure view
 let questionBag          = [];     // amino acids left in this round, so all 20 come up
 
@@ -849,8 +856,9 @@ function toggleQuestionType(type) {
 
 // In structure mode the name type only matters while "Determine name" is on
 function updateNameTypeRow() {
-  const visible = displayMode === 'name' ||
-    (displayMode === 'structure' && activeQtypeSet.has('name'));
+  const visible = displayMode === 'name'
+    ? nameModeSource === 'name'
+    : displayMode === 'structure' && activeQtypeSet.has('name');
   document.getElementById('name-toggles').style.display = visible ? '' : 'none';
 }
 
@@ -875,51 +883,26 @@ function setDisplayMode(mode) {
 
   document.querySelector('.main-grid').style.display        = identifyMode ? 'none' : '';
   document.getElementById('identify-panel').style.display   = identifyMode ? ''     : 'none';
-  document.getElementById('qtype-bar').style.display        = identifyMode ? 'none' : '';
+  document.getElementById('qtype-bar').style.display        = mode === 'structure' ? '' : 'none';
+  document.getElementById('source-bar').style.display       = mode === 'name' ? '' : 'none';
   document.getElementById('identify-name-toggles').style.display = identifyMode ? '' : 'none';
-
-  // Hide 'Determine name' qtype button in name mode
-  document.querySelector('[data-type="name"]').style.display =
-    (mode === 'name') ? 'none' : '';
-
-  // If 'name' qtype was active and switching to name mode, remove it
-  if (mode === 'name' && activeQtypeSet.has('name')) {
-    activeQtypeSet.delete('name');
-    if (activeQtypeSet.size === 0) activeQtypeSet.add('properties');
-    document.querySelectorAll('.qtype-btn').forEach(b =>
-      setActive(b, activeQtypeSet.has(b.dataset.type))
-    );
-  }
-
-  // Hide 'Determine pH' qtype button in name mode
-  document.querySelector('[data-type="ph"]').style.display =
-    (mode === 'name') ? 'none' : '';
-
-  // If 'ph' qtype was active and switching to name mode, remove it
-  if (mode === 'name' && activeQtypeSet.has('ph')) {
-    activeQtypeSet.delete('ph');
-    if (activeQtypeSet.size === 0) activeQtypeSet.add('properties');
-    document.querySelectorAll('.qtype-btn').forEach(b =>
-      setActive(b, activeQtypeSet.has(b.dataset.type))
-    );
-  }
 
   updateNameTypeRow();
   syncNameTypeButtons();
 
   const nameMode = mode === 'name';
-  document.getElementById('ph-badge').style.display             = nameMode ? 'none' : '';
-  document.getElementById('name-struct-controls').style.display = nameMode ? ''     : 'none';
-  if (nameMode) {
-    nameShowingStructure = false;
-    nameStructPH = 7;
-    document.getElementById('name-struct-toggle').textContent = 'Show structure';
-    document.getElementById('name-ph-btns').style.display     = 'none';
-    document.querySelectorAll('.name-ph-btn').forEach(b =>
-      setActive(b, parseInt(b.dataset.ph) === 7)
-    );
-  }
+  document.getElementById('ph-badge').style.display = nameMode ? 'none' : '';
+  if (!nameMode) document.getElementById('name-struct-controls').style.display = 'none';
 
+  renderQuestion();
+}
+
+function setNameModeSource(source) {
+  nameModeSource = source;
+  document.querySelectorAll('[data-source]').forEach(b =>
+    setActive(b, b.dataset.source === source)
+  );
+  updateNameTypeRow();
   renderQuestion();
 }
 
@@ -938,20 +921,24 @@ function setIdentifyNameStyle(style) {
   if (current) document.getElementById('identify-aa-name').textContent = resolveIdentifyName(current.aa);
 }
 
-function toggleNameStructure() {
-  if (!current) return;
-  nameShowingStructure = !nameShowingStructure;
-  const btn    = document.getElementById('name-struct-toggle');
-  const phBtns = document.getElementById('name-ph-btns');
-  if (nameShowingStructure) {
-    btn.textContent      = 'Show name';
-    phBtns.style.display = '';
-    drawStructure(current.aa.smiles[nameStructPH]);
-  } else {
-    btn.textContent      = 'Show structure';
-    phBtns.style.display = 'none';
-    drawNameDisplay(current.aa);
-  }
+// A random choice is kept on the question, and needs drawings to offer a structure
+function activeNameModeSource() {
+  if (nameModeSource !== 'random') return nameModeSource;
+  if (rdkitFailed) return 'name';
+  if (!current.randomSource) current.randomSource = Math.random() < 0.5 ? 'name' : 'structure';
+  return current.randomSource;
+}
+
+function structureOnScreen() {
+  return displayMode === 'structure' ||
+    (displayMode === 'name' && activeNameModeSource() === 'structure');
+}
+
+function drawNameModePrompt() {
+  const showStructure = activeNameModeSource() === 'structure';
+  document.getElementById('name-struct-controls').style.display = showStructure ? '' : 'none';
+  if (showStructure) drawStructure(current.aa.smiles[nameStructPH]);
+  else drawNameDisplay(current.aa);
 }
 
 function setNameStructPH(ph) {
@@ -973,7 +960,9 @@ function resolveIdentifyName(aa) {
 
 // A random choice is kept on the question so re-rendering it doesn't change the name
 function activeNameType() {
-  if (selectedNameType() !== 'random') return selectedNameType();
+  // In name mode the row is only on screen for From Name, so its choice only applies there
+  const chosen = displayMode === 'name' && nameModeSource !== 'name' ? 'random' : selectedNameType();
+  if (chosen !== 'random') return chosen;
   if (!current.randomNameType) current.randomNameType = randomNameField();
   return current.randomNameType;
 }
@@ -989,10 +978,8 @@ function getActiveFields() {
       if (f !== activeNameType()) fields.delete(f);
     });
   } else {
-    // Name mode shows the name, so only non-name qtype fields are asked
-    activeQtypeSet.forEach(type => {
-      if (type !== 'name') QTYPE[type].fields.forEach(f => fields.add(f));
-    });
+    // Name mode always asks for the property
+    QTYPE.properties.fields.forEach(f => fields.add(f));
   }
   return [...fields];
 }
@@ -1007,7 +994,7 @@ let rdkitReady   = false;
 let rdkitFailed  = false;
 let pendingSmiles = null;
 
-const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Determine Property (From Name).';
+const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Determine Property with From Name.';
 
 // The global is missing when the CDN script itself could not be fetched
 (window.initRDKitModule
@@ -1022,7 +1009,7 @@ const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connecti
   if (msg) msg.style.display = 'none';
   if (displayMode === 'identify') {
     redrawIdentifyCells();
-  } else if (pendingSmiles !== null && (displayMode === 'structure' || nameShowingStructure)) {
+  } else if (pendingSmiles !== null && structureOnScreen()) {
     drawStructure(pendingSmiles);
   }
   pendingSmiles = null;
@@ -1034,7 +1021,9 @@ const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connecti
       redrawIdentifyCells();
       showIdentifyUnavailable();
     }
-  } else if (displayMode === 'structure' || nameShowingStructure) {
+  } else if (displayMode === 'name') {
+    drawNameModePrompt();
+  } else {
     drawStructure('');
   }
 });
@@ -1301,12 +1290,9 @@ function renderQuestion() {
   document.getElementById('ph-badge').textContent =
     !activeQtypeSet.has('ph') ? `pH ${ph}` : 'pH ?';
 
-  // Reset name-structure toggle on new question
+  // Start name-mode structures back at pH 7
   if (displayMode === 'name') {
-    nameShowingStructure = false;
     nameStructPH = 7;
-    document.getElementById('name-struct-toggle').textContent = 'Show structure';
-    document.getElementById('name-ph-btns').style.display     = 'none';
     document.querySelectorAll('.name-ph-btn').forEach(b =>
       setActive(b, parseInt(b.dataset.ph) === 7)
     );
@@ -1314,7 +1300,7 @@ function renderQuestion() {
 
   // Draw structure or name display
   if (displayMode === 'structure') drawStructure(aa.smiles[ph]);
-  else drawNameDisplay(aa);
+  else drawNameModePrompt();
 
   // Show/hide field groups; reset each field
   ALL_FIELD_IDS.forEach(id => {
