@@ -16,6 +16,7 @@ const validate = raw => page.validate(raw);
 const buildModel = p => page.buildModel(p);
 const differingParameter = p => page.differingParameter(p);
 const randomParameters = rand => page.randomParameters(rand);
+const { timeToReach, productAt, progressCurve, measuredRate, ratesTimeEnd, leastSquaresLine, speciesTimeCourse } = page;
 
 // A repeatable random sequence, so a failure can be reproduced.
 function seededRandom(seed) {
@@ -248,6 +249,141 @@ test('random values are rounded to 2 significant figures', () => {
       assert.equal(Number(r[f].toPrecision(2)), r[f], `${f} = ${r[f]}`);
     }
   });
+});
+
+// ── Measuring Rates: progress curves ─────────────────────────
+const ENZYME = constants(6, 25, 1, 1);   // Vmax = 6, Km = 25
+
+test('the initial slope of a progress curve is v₀', () => {
+  for (const S0 of [5, 25, 125]) {
+    const t = 1e-5;
+    near(productAt(ENZYME, S0, t) / t, v0(ENZYME, S0), 1e-4);
+  }
+});
+
+test('productAt inverts the integrated rate law', () => {
+  for (const [S0, S] of [[25, 20], [25, 5], [5, 0.5], [125, 100], [125, 1]]) {
+    near(productAt(ENZYME, S0, timeToReach(ENZYME, S0, S)), S0 - S, 1e-8);
+  }
+  assert.equal(productAt(ENZYME, 25, 0), 0);
+});
+
+test('hand calculation: t = (Km·ln(S0/S) + S0 − S)/Vmax', () => {
+  near(timeToReach(ENZYME, 25, 5), (25 * Math.log(5) + 20) / 6);
+  near(ratesTimeEnd(ENZYME), (25 * Math.log(5) + 20) / 6);
+});
+
+test('progress curves start at zero, only rise, and never pass S0', () => {
+  for (const S0 of [1, 25, 500]) {
+    const pts = progressCurve(ENZYME, S0, 100);
+    assert.equal(pts.length, 200);
+    assert.equal(pts[0].y, 0);
+    near(pts[199].x, 100);
+    for (let i = 1; i < pts.length; i++) {
+      assert.ok(pts[i].y >= pts[i - 1].y);
+      assert.ok(pts[i].y <= S0);
+    }
+  }
+});
+
+test('the time axis shows low [S] levelling off and high [S] staying nearly straight', () => {
+  const tEnd = ratesTimeEnd(ENZYME);
+  near(productAt(ENZYME, 25, tEnd) / 25, 0.8, 1e-8);
+  assert.ok(productAt(ENZYME, 5, tEnd) / 5 > 0.85);
+  assert.ok(productAt(ENZYME, 125, tEnd) / 125 < 0.45);
+});
+
+test('a measured rate falls as the window widens and approaches v₀ as it narrows', () => {
+  const tEnd = ratesTimeEnd(ENZYME);
+  for (const S0 of [5, 25, 125]) {
+    let last = Infinity;
+    for (const pct of [1, 5, 25, 50, 100]) {
+      const rate = measuredRate(ENZYME, S0, tEnd * pct / 100);
+      assert.ok(rate < last && rate < v0(ENZYME, S0));
+      last = rate;
+    }
+    near(measuredRate(ENZYME, S0, tEnd * 1e-6), v0(ENZYME, S0), 1e-4);
+  }
+});
+
+test('narrow windows recover Vmax and Km from a least-squares L-B line; wide ones do not', () => {
+  const fitAt = pct => {
+    const tw = ratesTimeEnd(ENZYME) * pct / 100;
+    const line = leastSquaresLine([5, 10, 25, 50, 125].map(S => ({ x: 1 / S, y: 1 / measuredRate(ENZYME, S, tw) })));
+    return { Vmax: 1 / line.yInt, Km: line.slope / line.yInt };
+  };
+  const narrow = fitAt(0.01);
+  assert.ok(Math.abs(narrow.Vmax - 6) / 6 < 0.01 && Math.abs(narrow.Km - 25) / 25 < 0.01, JSON.stringify(narrow));
+  const wide = fitAt(100);
+  assert.ok(Math.abs(wide.Km - 25) / 25 > 0.1, JSON.stringify(wide));
+});
+
+test('leastSquaresLine recovers a known line and needs two different x values', () => {
+  const line = leastSquaresLine([1, 2, 3, 7].map(x => ({ x, y: 3 * x - 2 })));
+  near(line.slope, 3);
+  near(line.yInt, -2);
+  assert.equal(leastSquaresLine([{ x: 1, y: 1 }]), null);
+  assert.equal(leastSquaresLine([{ x: 1, y: 1 }, { x: 1, y: 2 }]), null);
+});
+
+test('lineEquation shows a negative intercept with a minus sign', () => {
+  assert.equal(lineEquation({ slope: 2, yInt: -0.5 }), 'y = 2.00x − 0.500');
+});
+
+test('the Measuring Rates tab reads only Conditions A and gives one uninhibited curve', () => {
+  const { errors, params } = validate({ ...VALID, mode: 'rates', I: '-1', Ki: '', Km2: '' });
+  assert.equal(errors.length, 0);
+  assert.equal(params.mode, 'rates');
+  const { curves } = buildModel(params);
+  assert.equal(curves.length, 1);
+  assert.equal(curves[0].k.appKm, 10);
+});
+
+// ── Measuring Rates: species over time ───────────────────────
+test('E and ES always add up to Et, and fractions stay between 0 and 1', () => {
+  const s = speciesTimeCourse(25, 120, 0.05, 25);
+  s.E.forEach((p, i) => {
+    near(p.y + s.ES[i].y, 1);
+    assert.ok(s.ES[i].y >= 0 && s.ES[i].y <= 1 && s.P[i].y >= 0 && s.P[i].y <= 1);
+  });
+});
+
+test('ES plateaus at the steady-state value, Et·S/(Km + S)', () => {
+  for (const S0 of [5, 25, 125]) {
+    const peak = Math.max(...speciesTimeCourse(25, 120, 0.05, S0).ES.map(p => p.y));
+    const expected = S0 / (25 + S0);
+    assert.ok(Math.abs(peak - expected) / expected < 0.02, `${S0}: ${peak} vs ${expected}`);
+  }
+});
+
+test('ES rises before product appears, and the reaction runs nearly to completion', () => {
+  const s = speciesTimeCourse(25, 120, 0.05, 25);
+  const rise = s.ES.findIndex(p => p.y >= 0.45);
+  assert.ok(rise > 0 && s.P[rise].y < 0.01, String(s.P[rise].y));
+  assert.ok(s.P[s.P.length - 1].y > 0.98);
+  assert.ok(s.ES[s.ES.length - 1].y < 0.05);
+});
+
+test('product from the mass-action model tracks the integrated rate law', () => {
+  const k = constants(6, 25, 1, 1);
+  const s = speciesTimeCourse(25, 120, 0.05, 25);
+  for (const p of s.P) {
+    if (p.y < 0.05 || p.y > 0.95) continue;
+    const exact = productAt(k, 25, p.x) / 25;
+    assert.ok(Math.abs(p.y - exact) < 0.03, `t = ${p.x}: ${p.y} vs ${exact}`);
+  }
+});
+
+test('the species model stays finite and valid across random enzymes', () => {
+  const rand = seededRandom(1234);
+  for (let i = 0; i < 200; i++) {
+    const r = randomParameters(rand);
+    const s = speciesTimeCourse(r.Km, r.kcat, r.Etot, r.Km * [0.2, 1, 5][i % 3]);
+    for (const series of [s.E, s.ES, s.P]) {
+      assert.ok(series.every(p => Number.isFinite(p.x) && p.x > 0 && p.y >= -1e-9 && p.y <= 1 + 1e-9), JSON.stringify(r));
+    }
+    assert.ok(s.P[s.P.length - 1].y > 0.9, JSON.stringify(r));
+  }
 });
 
 // ── Validation ──────────────────────────────────────────────────
