@@ -180,7 +180,7 @@
     }
     .field.off label { color: var(--text-disabled); font-weight: 400; }
 
-    input[type=number], select, .entry-cell input, #challenge-box input {
+    input[type=number], select, .entry-cell input, .quiz-item input[type=text], #quiz-runS {
       width: 100%;
       padding: 7px 10px;
       background: #FFFFFF;
@@ -191,7 +191,7 @@
       font-size: 14px;
       transition: border-color 0.2s;
     }
-    input[type=number]:focus, select:focus, .entry-cell input:focus, #challenge-box input:focus { border-color: var(--ut-crimson); }
+    input[type=number]:focus, select:focus, .entry-cell input:focus, .quiz-item input[type=text]:focus { border-color: var(--ut-crimson); }
     input:disabled, select:disabled {
       background: var(--bg-disabled);
       border-color: #BFBFBF;
@@ -288,19 +288,41 @@
     #run-list li { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #BFBFBF; }
     #run-list button { padding: 1px 8px; font-size: 0.85em; flex-shrink: 0; }
     .legend-empty { color: var(--text-secondary); }
+
+    /* Quiz Mode */
+    #workspace.quiz-wide { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side"; }
+    #quiz-progress { flex-shrink: 0; }
+    #quiz-question .readout { margin-bottom: 8px; }
+    .quiz-item { margin-top: 10px; border: 0; padding: 0; min-width: 0; }
+    .quiz-item > label, .quiz-item > legend { display: block; font-size: 0.82em; font-weight: 600; margin-bottom: 4px; padding: 0; }
+    .quiz-number { display: flex; align-items: center; gap: 3px; }
+    .quiz-number input { flex: 1; min-width: 0; }
+    .quiz-option { display: flex; align-items: flex-start; gap: 6px; font-size: 0.85em; line-height: 1.35; padding: 2px 0; cursor: pointer; }
+    .quiz-option input { margin-top: 2px; accent-color: var(--ut-crimson); flex-shrink: 0; }
+    .quiz-options-inline { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+    .quiz-item.correct > legend::after, .quiz-item.correct > label::after { content: ' ✓'; }
+    .quiz-item.wrong > legend::after, .quiz-item.wrong > label::after { content: ' ✗'; color: var(--ut-crimson); }
+    .quiz-item.correct { background: var(--ut-lavender); box-shadow: 0 0 0 4px var(--ut-lavender); border-radius: 2px; }
+    #quiz-run { margin-top: 12px; }
+    .quiz-run-row { display: flex; gap: 8px; }
+    .quiz-run-row input { flex: 1; min-width: 0; }
+    .quiz-run-row button { flex-shrink: 0; padding: 7px 10px; }
+    #quiz-run-message:empty { display: none; }
+    #quiz-run-message { font-size: 0.82em; color: var(--ut-crimson); margin-top: 6px; }
+    #quiz-run-list { list-style: none; margin-top: 8px; font-size: 0.85em; }
+    #quiz-run-list li { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid #BFBFBF; }
+    #quiz-run-list button { padding: 1px 8px; font-size: 0.85em; flex-shrink: 0; }
+    #quiz-feedback { font-size: 0.85em; line-height: 1.5; margin-top: 10px; }
+    #quiz-feedback:empty { display: none; }
+    #quiz-feedback table { margin-top: 6px; }
+    #quiz-feedback td { text-align: right; }
+    #quiz-feedback td:first-child { text-align: left; white-space: normal; }
+    #quiz-end-buttons { margin-top: 10px; }
     .plot-tools { text-align: center; margin-top: 8px; }
     .plot-tools button { padding: 3px 12px; font-size: 0.8em; }
     #entry-feedback { font-size: 0.82em; line-height: 1.5; margin-top: 8px; }
     #entry-feedback:empty { display: none; }
 
-    /* Identify the Inhibitor */
-    .challenge-start { margin-top: 12px; }
-    #challenge-box .readout { margin-bottom: 8px; }
-    #challenge-box input { flex: 1; min-width: 0; }
-    #challenge-fields { margin-bottom: 10px; }
-    .challenge-field-wrap { display: flex; align-items: center; gap: 3px; }
-    #challenge-result { font-size: 0.85em; line-height: 1.5; margin-top: 8px; }
-    #challenge-result:empty { display: none; }
     .model-hidden { width: 100%; font-size: 0.85em; color: var(--text-secondary); text-align: center; padding: 24px 8px; }
 
     .entry-tools { margin-top: 10px; }
@@ -373,6 +395,7 @@
     <div id="action-buttons">
       <button type="button" id="random">Select Random Parameters</button>
       <button type="button" id="reset">Reset to defaults</button>
+      <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode</button>
     </div>
   </div>
 
@@ -489,22 +512,30 @@
           <div class="field" id="KiP-field"><label for="KiP">K<sub>i</sub>' (ES + I), <span data-u="conc">µM</span></label><input type="number" id="KiP" step="any" min="0"></div>
         </div>
         <p class="note" id="ki-note" hidden>K<sub>i</sub>' = K<sub>i</sub> for pure noncompetitive</p>
-        <div class="challenge-start"><button type="button" id="challenge-start">Identify the Inhibitor</button></div>
       </section>
 
-      <section class="panel box" id="challenge-box" aria-labelledby="challenge-title" hidden>
-        <h2 class="panel-section-title" id="challenge-title">Identify the Inhibitor</h2>
-        <p class="readout" id="challenge-prompt"></p>
-        <div class="field-row" id="challenge-fields">
-          <div class="field" id="guessKi-field" hidden><label for="guessKi">K<sub>i</sub> (<span data-u="conc">µM</span>)</label><span class="challenge-field-wrap"><input type="text" id="guessKi" autocomplete="off" spellcheck="false"><span class="mark" id="guessKi-mark"></span></span></div>
-          <div class="field" id="guessKiP-field" hidden><label for="guessKiP">K<sub>i</sub>' (<span data-u="conc">µM</span>)</label><span class="challenge-field-wrap"><input type="text" id="guessKiP" autocomplete="off" spellcheck="false"><span class="mark" id="guessKiP-mark"></span></span></div>
+      <section class="panel box" id="quiz-box" aria-labelledby="quiz-title" hidden>
+        <div class="panel-header">
+          <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
+          <span class="score" id="quiz-progress"></span>
         </div>
-        <div class="entry-tools">
-          <button type="button" id="challenge-check">Check</button>
-          <button type="button" id="challenge-reveal">Reveal</button>
-          <button type="button" id="challenge-end">End Challenge</button>
+        <div id="quiz-question"></div>
+        <div id="quiz-run" hidden>
+          <div class="field"><label for="quiz-runS">Starting [S] (<span id="quiz-run-unit"></span>)</label>
+            <div class="quiz-run-row"><input type="number" id="quiz-runS" step="any" min="0"><button type="button" id="quiz-run-button">Run Experiment</button></div>
+          </div>
+          <p id="quiz-run-message" role="status"></p>
+          <ul id="quiz-run-list"></ul>
         </div>
-        <p id="challenge-result" role="status"></p>
+        <div class="entry-tools" id="quiz-buttons">
+          <button type="button" id="quiz-check">Check</button>
+          <button type="button" id="quiz-next" hidden>Next</button>
+        </div>
+        <div id="quiz-feedback" role="status"></div>
+        <div class="entry-tools" id="quiz-end-buttons" hidden>
+          <button type="button" id="quiz-again">Try Again</button>
+          <button type="button" id="quiz-exit">Exit Quiz</button>
+        </div>
       </section>
 
       <section class="panel box" id="experiment-box" aria-labelledby="experiment-title">
@@ -638,8 +669,18 @@ const state = {
 
 const entry = { revealed: false };
 
-// While active, truth holds the hidden type, Ki and Ki' and the page's own fields stay blank.
-const challenge = { active: false, truth: null, guess: null, restore: null };
+// A running quiz. Its enzymes live only here and in state.params, never in the page's fields, so
+// leaving the quiz just rebuilds the page from those fields.
+const quiz = {
+  active: false,
+  set: [],          // the questions
+  index: 0,
+  attempt: 1,
+  finished: false,  // this question has been answered or used up its tries
+  credits: [],      // points for each question so far
+  hideSlope: false,
+  saved: null,      // what the quiz borrows from the page
+};
 
 // Page layout choices. "Reset to defaults" leaves these alone, as it does the open tab.
 const view = {
@@ -965,21 +1006,6 @@ function niceScale(dataMax, targetTicks) {
   return { max: ticks[count], ticks };
 }
 
-const CHALLENGE_TOLERANCE = 0.05;   // Ki comes from several steps, each with rounding
-
-// truth holds { type, Ki, KiP }; guess holds { type, Ki, KiP } with Ki and Ki' as typed text.
-// A constant is marked only once the type is right, and null means not marked.
-function checkInhibitorGuess(truth, guess) {
-  const type = guess.type === truth.type;
-  const active = ACTIVE_FIELDS[truth.type];
-  const mark = (used, text, value) => {
-    if (!type || !used || String(text).trim() === '') return null;
-    const answer = parseAnswer(text);
-    return Number.isFinite(answer) && Math.abs(answer - value) <= CHALLENGE_TOLERANCE * value * (1 + 1e-9);
-  };
-  return { type, Ki: mark(active.Ki, guess.Ki, truth.Ki), KiP: mark(active.KiP, guess.KiP, truth.KiP) };
-}
-
 // Accepts "0.5", "2.5e-3", "2.5 x 10^-3" and "2.50 × 10⁻³" (the page's own format).
 function parseAnswer(text) {
   const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
@@ -998,6 +1024,381 @@ function isCorrect(answer, truth, tolerance = 0.02) {
 
 // Reading a curve by eye can't match the precision of working from a line's equation.
 const READ_FROM_PLOT_TOLERANCE = 0.1;
+
+
+// ── Quiz questions ──
+// A question is plain data: what to ask, how to grade it, and the scene to draw beside it.
+
+const CALCULATED_TOLERANCE = 0.02;   // worked from an equation shown on a plot
+const KI_TOLERANCE = 0.05;           // Ki comes from several steps, each with rounding
+
+const QUIZ_TYPES = {
+  rates: ['initialRate', 'runExperiments', 'predictRate', 'whyInitial'],
+  kinetics: ['whatChanged', 'fromLine', 'efficiency', 'predictEffect'],
+  inhibition: ['identifyType', 'findKi', 'apparent', 'mechanism'],
+};
+const CONCEPT_TYPES = ['whyInitial'];   // their pool is small, so they don't repeat as the extra question
+
+const NAME = {
+  Vmax: 'V<sub>max</sub>', Km: 'K<sub>m</sub>', kcat: 'k<sub>cat</sub>', Et: '[E]<sub>total</sub>',
+  VmaxApp: 'V<sub>max</sub><sup>app</sup>', KmApp: 'K<sub>m</sub><sup>app</sup>', Ki: 'K<sub>i</sub>', KiP: "K<sub>i</sub>'",
+};
+const INHIBITION_NAMES = { competitive: 'Competitive', uncompetitive: 'Uncompetitive', noncompetitive: 'Noncompetitive', mixed: 'Mixed' };
+const TREND = { up: 'Increases', down: 'Decreases', same: 'No change' };
+
+function trend(before, after) {
+  if (Math.abs(after - before) <= 1e-9 * Math.abs(before)) return TREND.same;
+  return after > before ? TREND.up : TREND.down;
+}
+
+function shuffled(list, rand) {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function numberItem(key, label, unit, truth, tolerance) {
+  return { key, kind: 'number', label, unit, truth, tolerance };
+}
+
+function choiceItem(key, label, options, answer, inline = false) {
+  return { key, kind: 'choice', label, options, answer, inline };
+}
+
+function quizUnits(r) {
+  return { conc: r.concUnit, time: r.timeUnit, rate: `${r.concUnit}/${r.timeUnit}`, perTime: `${r.timeUnit}⁻¹` };
+}
+
+function allowance(tolerance) {
+  return `Answers count within ±${Math.round(tolerance * 100)}%.`;
+}
+
+function ratesScene(r, extra) {
+  return {
+    params: { mode: 'rates', type: 'none', compare: false, Km: r.Km, kcat: r.kcat, Etot: r.Etot },
+    units: { conc: r.concUnit, time: r.timeUnit },
+    plots: [],
+    ...extra,
+  };
+}
+
+function kineticsScene(r, extra) {
+  return {
+    params: { mode: 'kinetics', type: 'none', compare: false, Km: r.Km, kcat: r.kcat, Etot: r.Etot, Km2: r.Km2, kcat2: r.kcat2, Etot2: r.Etot2 },
+    units: { conc: r.concUnit, time: r.timeUnit },
+    plots: ['mm', 'lb'],
+    ...extra,
+  };
+}
+
+function inhibitionScene(r) {
+  return {
+    params: { mode: 'inhibition', type: r.type, compare: false, Km: r.Km, kcat: r.kcat, Etot: r.Etot, I: r.I, Ki: r.Ki, KiP: r.type === 'noncompetitive' ? r.Ki : r.KiP },
+    units: { conc: r.concUnit, time: r.timeUnit },
+    plots: ['mm', 'lb'],
+  };
+}
+
+const CONCEPT_POOL = [
+  {
+    label: 'Why does the Michaelis–Menten plot use initial rates?',
+    answer: 'Early on, [S] is still close to its starting value, so the rate belongs to a known [S].',
+    wrong: ['The enzyme has not bound any substrate until later.', 'Product can only be measured at early times.', 'V<sub>max</sub> is reached only at the very start of a reaction.'],
+    explanation: 'As substrate is used, [S] and the rate both fall. Only the early slope belongs to the starting [S].',
+  },
+  {
+    label: 'A student measures the slope over the whole curve instead of the early part. How does this compare with v₀?',
+    answer: 'It is lower than v₀, because the rate falls as substrate is used up.',
+    wrong: ['It is higher than v₀, because more product has formed.', 'It is the same as v₀, because the enzyme concentration is constant.', 'It equals V<sub>max</sub>, because the reaction has finished.'],
+    explanation: 'The average slope includes the later, slower part of the curve, so it underestimates v₀.',
+  },
+  {
+    label: 'Why does a product vs. time curve bend and level off?',
+    answer: 'Substrate is being used up, so the rate falls over time.',
+    wrong: ['The enzyme is used up as the reaction proceeds.', 'The rate rises as product builds up.', 'K<sub>m</sub> increases during the reaction.'],
+    explanation: 'An enzyme is not consumed. As [S] falls, fewer enzymes are occupied, and the slope decreases.',
+  },
+  {
+    label: 'Which starting [S] gives a curve that stays straight for longest?',
+    answer: 'A [S] far above K<sub>m</sub>, because the enzyme stays nearly saturated as substrate is used.',
+    wrong: ['A [S] far below K<sub>m</sub>, because little substrate is used.', 'A [S] equal to K<sub>m</sub>, because the rate is ½V<sub>max</sub>.', 'All starting [S] values stay straight for the same time.'],
+    explanation: 'Far above K<sub>m</sub>, a small drop in [S] barely changes the rate. Far below K<sub>m</sub>, the rate follows [S] closely.',
+  },
+];
+
+const QUESTION_BUILDERS = {
+  initialRate(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const S0 = Number((r.Km * [0.5, 1, 2, 5][Math.floor(rand() * 4)]).toPrecision(3));
+    const k = constants(r.kcat * r.Etot, r.Km, 1, 1);
+    const truth = v0(k, S0);
+    return {
+      type: 'initialRate', title: 'Initial rate from a curve',
+      prompt: `This reaction starts at [S] = ${fmtCompact(S0)} ${u.conc}. Find the initial rate, v₀, from the early, straight part of the curve. Hover or tap the plot to read points. ${allowance(READ_FROM_PLOT_TOLERANCE)}`,
+      items: [numberItem('v0', 'v₀', u.rate, truth, READ_FROM_PLOT_TOLERANCE)],
+      hint: 'Pick a point early on the curve and divide [P] by t. A later point gives too low a slope.',
+      explanation: `The dashed line is the initial slope: v₀ = ${fmtSig(truth)} ${u.rate}.`,
+      scene: ratesScene(r, { plots: ['product'], rates: { runs: [S0], windowPct: 1 }, hideSlope: true }),
+    };
+  },
+
+  runExperiments(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const Vmax = r.kcat * r.Etot;
+    return {
+      type: 'runExperiments', title: 'V<sub>max</sub>, K<sub>m</sub> and k<sub>cat</sub> from your data',
+      prompt: `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc}. Run experiments over a wide range of [S], until the rate stops rising, then find ${NAME.Vmax}, ${NAME.Km} and ${NAME.kcat}. ${allowance(READ_FROM_PLOT_TOLERANCE)}`,
+      items: [
+        numberItem('Vmax', NAME.Vmax, u.rate, Vmax, READ_FROM_PLOT_TOLERANCE),
+        numberItem('Km', NAME.Km, u.conc, r.Km, READ_FROM_PLOT_TOLERANCE),
+        numberItem('kcat', NAME.kcat, u.perTime, r.kcat, READ_FROM_PLOT_TOLERANCE),
+      ],
+      hint: `${NAME.Vmax} is where the rate levels off, ${NAME.Km} is the [S] at ½${NAME.Vmax}, and ${NAME.kcat} = ${NAME.Vmax}/${NAME.Et}.`,
+      explanation: `${NAME.Vmax} = ${fmtSig(Vmax)} ${u.rate} and ${NAME.Km} = ${fmtSig(r.Km)} ${u.conc}. ${NAME.kcat} = ${fmtSig(Vmax)}/${fmtCompact(r.Etot)} = ${fmtSig(r.kcat)} ${u.perTime}.`,
+      scene: ratesScene(r, { plots: ['product', 'mm'], rates: { runs: [], windowPct: 1 }, run: true, revealTruth: true }),
+    };
+  },
+
+  predictRate(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const k = constants(r.kcat * r.Etot, r.Km, 1, 1);
+    const S = Number((r.Km * [0.25, 0.5, 1, 2, 3, 9][Math.floor(rand() * 6)]).toPrecision(3));
+    const truth = v0(k, S);
+    return {
+      type: 'predictRate', title: 'Predict a rate',
+      prompt: `An enzyme has ${NAME.Vmax} = ${fmtSig(k.Vmax)} ${u.rate} and ${NAME.Km} = ${fmtCompact(r.Km)} ${u.conc}. What is v₀ at [S] = ${fmtCompact(S)} ${u.conc}? ${allowance(CALCULATED_TOLERANCE)}`,
+      items: [numberItem('v0', 'v₀', u.rate, truth, CALCULATED_TOLERANCE)],
+      hint: `Use v₀ = ${NAME.Vmax}[S]/(${NAME.Km} + [S]).`,
+      explanation: `v₀ = ${fmtSig(k.Vmax)} × ${fmtCompact(S)}/(${fmtCompact(r.Km)} + ${fmtCompact(S)}) = ${fmtSig(truth)} ${u.rate}.`,
+      scene: ratesScene(r),
+    };
+  },
+
+  whyInitial(rand) {
+    const r = randomParameters(rand);
+    const c = CONCEPT_POOL[Math.floor(rand() * CONCEPT_POOL.length)];
+    return {
+      type: 'whyInitial', title: 'Why initial rates?',
+      prompt: 'These curves come from the same enzyme at two starting [S] values.',
+      items: [choiceItem('concept', c.label, shuffled([c.answer, ...c.wrong], rand), c.answer)],
+      hint: 'Think about what happens to [S] as the reaction runs.',
+      explanation: c.explanation,
+      scene: ratesScene(r, { plots: ['product'], rates: { runs: [Number((r.Km * 0.5).toPrecision(3)), Number((r.Km * 5).toPrecision(3))], windowPct: 1 }, hideSlope: true }),
+    };
+  },
+
+  whatChanged(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const by = differingParameter(r);
+    const options = { Etot: `Only ${NAME.Et}`, Km: `Only ${NAME.Km}`, kcat: `Only ${NAME.kcat}` };
+    const why = {
+      Etot: `The listed ${NAME.Et} values differ. More enzyme raises ${NAME.Vmax} and leaves ${NAME.Km} unchanged.`,
+      Km: `${NAME.Vmax} is the same for both, so the L-B lines share a y-intercept, and only the slope changes.`,
+      kcat: `${NAME.Et} is the same for both, yet ${NAME.Vmax} differs. Only ${NAME.kcat} can explain that, with ${NAME.Km} unchanged.`,
+    };
+    return {
+      type: 'whatChanged', title: 'What changed?',
+      prompt: `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc} in Conditions A and ${fmtCompact(r.Etot2)} ${u.conc} in Conditions B. Exactly one parameter differs between them.`,
+      items: [choiceItem('changed', 'Which parameter differs?', Object.values(options), options[by])],
+      hint: `Compare the y-intercepts, which show ${NAME.Vmax}, and use the listed ${NAME.Et} values.`,
+      explanation: why[by],
+      scene: kineticsScene(r),
+    };
+  },
+
+  fromLine(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const k = constants(r.kcat2 * r.Etot2, r.Km2, 1, 1);
+    return {
+      type: 'fromLine', title: 'Constants from a line',
+      prompt: `Use the Lineweaver–Burk equation for <b>Conditions B</b> to find ${NAME.Vmax} and ${NAME.Km}. ${allowance(CALCULATED_TOLERANCE)}`,
+      items: [
+        numberItem('Vmax', NAME.Vmax, u.rate, k.Vmax, CALCULATED_TOLERANCE),
+        numberItem('Km', NAME.Km, u.conc, k.Km, CALCULATED_TOLERANCE),
+      ],
+      hint: `For y = mx + b, ${NAME.Vmax} = 1/b and ${NAME.Km} = m/b.`,
+      explanation: `${NAME.Vmax} = 1/${fmtSig(k.yInt)} = ${fmtSig(k.Vmax)} ${u.rate}. ${NAME.Km} = ${fmtSig(k.slope)}/${fmtSig(k.yInt)} = ${fmtSig(k.Km)} ${u.conc}.`,
+      scene: kineticsScene(r),
+    };
+  },
+
+  efficiency(rand) {
+    // [E]total doesn't change kcat/Km, so these two conditions always differ in Km or kcat.
+    let r;
+    do { r = randomParameters(rand); } while (differingParameter(r) === 'Etot');
+    const u = quizUnits(r);
+    const ratioA = r.kcat / r.Km, ratioB = r.kcat2 / r.Km2;
+    const kB = constants(r.kcat2 * r.Etot2, r.Km2, 1, 1);
+    const ratioUnit = `${u.conc}⁻¹ ${u.time}⁻¹`;
+    const higher = ratioB > ratioA ? 'Conditions B' : 'Conditions A';
+    return {
+      type: 'efficiency', title: 'Catalytic efficiency',
+      prompt: `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc} in both conditions. Use the Lineweaver–Burk equations to find these for <b>Conditions B</b>, then compare the two. ${allowance(CALCULATED_TOLERANCE)}`,
+      items: [
+        numberItem('kcat', NAME.kcat, u.perTime, r.kcat2, CALCULATED_TOLERANCE),
+        numberItem('ratio', `${NAME.kcat}/${NAME.Km}`, ratioUnit, ratioB, CALCULATED_TOLERANCE),
+        choiceItem('higher', 'Which is the more efficient enzyme?', ['Conditions A', 'Conditions B', 'They are equal'], higher),
+      ],
+      hint: `${NAME.kcat} = ${NAME.Vmax}/${NAME.Et}, where ${NAME.Vmax} = 1/b and ${NAME.Km} = m/b. A higher ${NAME.kcat}/${NAME.Km} is more efficient.`,
+      explanation: `${NAME.kcat} = (1/${fmtSig(kB.yInt)})/${fmtCompact(r.Etot2)} = ${fmtSig(r.kcat2)} ${u.perTime}, so ${NAME.kcat}/${NAME.Km} = ${fmtSig(ratioB)} ${ratioUnit} for B, against ${fmtSig(ratioA)} for A.`,
+      scene: kineticsScene(r),
+    };
+  },
+
+  predictEffect(rand) {
+    const r = randomParameters(rand);
+    const by = ['Etot', 'Km', 'kcat'][Math.floor(rand() * 3)];
+    const doubled = { Km: r.Km, kcat: r.kcat, Etot: r.Etot, [by]: Number((r[by] * 2).toPrecision(12)) };
+    const before = constants(r.kcat * r.Etot, r.Km, 1, 1);
+    const after = constants(doubled.kcat * doubled.Etot, doubled.Km, 1, 1);
+    const options = Object.values(TREND);
+    const names = { Etot: NAME.Et, Km: NAME.Km, kcat: NAME.kcat };
+    return {
+      type: 'predictEffect', title: 'Predict the effect',
+      prompt: `Predict what happens if ${names[by]} doubles while everything else stays the same. The plots show the enzyme now.`,
+      items: [
+        choiceItem('Vmax', NAME.Vmax, options, trend(before.Vmax, after.Vmax), true),
+        choiceItem('Km', NAME.Km, options, trend(before.Km, after.Km), true),
+        choiceItem('slope', 'L-B slope', options, trend(before.slope, after.slope), true),
+        choiceItem('yInt', 'L-B y-intercept', options, trend(before.yInt, after.yInt), true),
+      ],
+      hint: `${NAME.Vmax} = ${NAME.kcat}${NAME.Et}. The L-B slope is ${NAME.Km}/${NAME.Vmax} and the y-intercept is 1/${NAME.Vmax}.`,
+      explanation: `Conditions B on the plots now shows ${names[by]} doubled.`,
+      scene: kineticsScene({ ...r, Km2: doubled.Km, kcat2: doubled.kcat, Etot2: doubled.Etot }, { hideB: true }),
+    };
+  },
+
+  identifyType(rand) {
+    const r = randomParameters(rand);
+    const why = {
+      competitive: `The L-B lines meet on the y-axis: ${NAME.Vmax} is unchanged and ${NAME.Km}<sup>app</sup> rises.`,
+      uncompetitive: 'The L-B lines are parallel: the slope is unchanged and the y-intercept rises.',
+      noncompetitive: 'The slope and y-intercept rise by the same factor, so the lines meet on the x-axis, off this plot, with K<sub>m</sub> unchanged.',
+      mixed: 'The slope and y-intercept both rise, by different factors.',
+    };
+    return {
+      type: 'identifyType', title: 'Identify the inhibitor',
+      prompt: 'Compare the uninhibited and inhibited curves and their equations.',
+      items: [choiceItem('type', 'What type of inhibition is this?', Object.values(INHIBITION_NAMES), INHIBITION_NAMES[r.type])],
+      hint: 'Compare the two slopes (m), then the two y-intercepts (b). Which changed, and by the same factor?',
+      explanation: why[r.type],
+      scene: inhibitionScene(r),
+    };
+  },
+
+  findKi(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const scene = inhibitionScene(r);
+    const { alpha, alphaP } = factors(r.type, r.I, r.Ki, scene.params.KiP);
+    const used = ACTIVE_FIELDS[r.type];
+    const items = [];
+    const steps = [];
+    if (used.Ki) {
+      items.push(numberItem('Ki', NAME.Ki, u.conc, r.Ki, KI_TOLERANCE));
+      steps.push(`α = ${fmtSig(alpha)} from the ratio of slopes, so ${NAME.Ki} = ${fmtCompact(r.I)}/(α − 1) = ${fmtSig(r.Ki)} ${u.conc}.`);
+    }
+    if (used.KiP) {
+      items.push(numberItem('KiP', NAME.KiP, u.conc, r.KiP, KI_TOLERANCE));
+      steps.push(`α' = ${fmtSig(alphaP)} from the ratio of y-intercepts, so ${NAME.KiP} = ${fmtCompact(r.I)}/(α' − 1) = ${fmtSig(r.KiP)} ${u.conc}.`);
+    }
+    return {
+      type: 'findKi', title: 'Find the inhibition constant',
+      prompt: `This is <b>${INHIBITION_NAMES[r.type].toLowerCase()}</b> inhibition with [I] = ${fmtCompact(r.I)} ${u.conc}. Use the Lineweaver–Burk equations to find the constant${items.length > 1 ? 's' : ''} below. ${allowance(KI_TOLERANCE)}`,
+      items,
+      hint: "The slope rises by α = 1 + [I]/K<sub>i</sub> and the y-intercept rises by α' = 1 + [I]/K<sub>i</sub>'.",
+      explanation: steps.join(' '),
+      scene,
+    };
+  },
+
+  apparent(rand) {
+    const r = randomParameters(rand);
+    const u = quizUnits(r);
+    const scene = inhibitionScene(r);
+    const { alpha, alphaP } = factors(r.type, r.I, r.Ki, scene.params.KiP);
+    const plain = constants(r.kcat * r.Etot, r.Km, 1, 1);
+    const k = constants(plain.Vmax, r.Km, alpha, alphaP);
+    const options = Object.values(TREND);
+    return {
+      type: 'apparent', title: 'Apparent values',
+      prompt: `Use the equation for the inhibited line to find the apparent values, and compare each with the uninhibited enzyme. ${allowance(CALCULATED_TOLERANCE)}`,
+      items: [
+        numberItem('VmaxApp', NAME.VmaxApp, u.rate, k.appVmax, CALCULATED_TOLERANCE),
+        numberItem('KmApp', NAME.KmApp, u.conc, k.appKm, CALCULATED_TOLERANCE),
+        choiceItem('VmaxTrend', `${NAME.Vmax} with inhibitor`, options, trend(plain.Vmax, k.appVmax), true),
+        choiceItem('KmTrend', `${NAME.Km} with inhibitor`, options, trend(plain.Km, k.appKm), true),
+      ],
+      hint: `${NAME.VmaxApp} = 1/b and ${NAME.KmApp} = m/b for the inhibited line. Do the same for the uninhibited line to compare.`,
+      explanation: `${NAME.VmaxApp} = 1/${fmtSig(k.yInt)} = ${fmtSig(k.appVmax)} ${u.rate}, compared with ${fmtSig(plain.Vmax)}. ${NAME.KmApp} = ${fmtSig(k.slope)}/${fmtSig(k.yInt)} = ${fmtSig(k.appKm)} ${u.conc}, compared with ${fmtSig(plain.Km)}.`,
+      scene,
+    };
+  },
+
+  mechanism(rand) {
+    const r = randomParameters(rand);
+    const forms = { E: 'Free E only', ES: 'The ES complex only', both: 'Both E and ES' };
+    const sites = { active: 'The active site', allosteric: 'A separate (allosteric) site' };
+    const truth = {
+      competitive: { binds: forms.E, site: sites.active, why: 'The slope rises alone, so only free E is affected: I competes with S at the active site.' },
+      uncompetitive: { binds: forms.ES, site: sites.allosteric, why: 'The y-intercept rises alone, so only ES is affected: I binds a site available once S is bound.' },
+      noncompetitive: { binds: forms.both, site: sites.allosteric, why: 'Slope and y-intercept both rise, so I binds both E and ES, at a site away from the active site.' },
+      mixed: { binds: forms.both, site: sites.allosteric, why: 'Slope and y-intercept both rise, so I binds both E and ES, at a site away from the active site.' },
+    }[r.type];
+    return {
+      type: 'mechanism', title: 'Match the mechanism',
+      prompt: 'Use the changes in slope and y-intercept to work out how this inhibitor binds.',
+      items: [
+        choiceItem('binds', 'Which form of the enzyme does the inhibitor bind?', Object.values(forms), truth.binds),
+        choiceItem('site', 'Where does it bind?', Object.values(sites), truth.site),
+      ],
+      hint: 'A changed slope means I binds free E. A changed y-intercept means I binds ES.',
+      explanation: truth.why,
+      scene: inhibitionScene(r),
+    };
+  },
+};
+
+// One question of each type plus one extra, in random order.
+function buildQuizSet(mode, rand = Math.random) {
+  const types = QUIZ_TYPES[mode];
+  const extras = types.filter(type => !CONCEPT_TYPES.includes(type));
+  const chosen = shuffled([...types, extras[Math.floor(rand() * extras.length)]], rand);
+  return chosen.map(type => QUESTION_BUILDERS[type](rand));
+}
+
+// values holds each item's typed text or chosen option. results[key] is true, false or null if blank.
+function gradeQuestion(question, values) {
+  const results = {};
+  for (const item of question.items) {
+    const value = values[item.key];
+    if (value === undefined || value === null || String(value).trim() === '') results[item.key] = null;
+    else if (item.kind === 'number') results[item.key] = isCorrect(parseAnswer(value), item.truth, item.tolerance);
+    else results[item.key] = value === item.answer;
+  }
+  const marks = Object.values(results);
+  return { results, complete: !marks.includes(null), correct: marks.every(mark => mark === true) };
+}
+
+// 1 point on the first try, ½ on the second, none after that.
+function quizCredit(attempt, correct) {
+  if (!correct) return 0;
+  return attempt === 1 ? 1 : 0.5;
+}
+
+function correctAnswerText(question) {
+  return question.items.map(item => (item.kind === 'number'
+    ? `${item.label} = ${fmtSig(item.truth)} ${item.unit}`
+    : (item.label.endsWith('?') ? item.answer : `${item.label}: ${item.answer}`))).join('; ');
+}
 
 
 // ═══ 3. PLOTTING ══════════════════════════════════════════════
@@ -1090,12 +1491,12 @@ function ratesSeries(kind) {
     if (!demo) for (const e of others) series.push({ name: named(e), legend: 'Earlier runs', style: RATE_STYLES.other, pts: e.pts });
     if (focus) {
       series.push({ name: named(focus), legend: demo ? 'Selected [S]' : 'Latest run', style: RATE_STYLES.selected, pts: focus.pts });
-      series.push({
+      if (!quiz.hideSlope) series.push({
         name: demo ? 'Initial slope (v₀)' : 'Slope over window', style: RATE_STYLES.slope, noHover: true, noExtent: true,
         pts: [{ x: 0, y: 0 }, { x: tEnd, y: focus.rate * tEnd }],
       });
     }
-    if (!demo) {
+    if (!demo && !quiz.hideSlope) {
       const top = Math.max(1, ...experiments.map(e => e.pts[e.pts.length - 1].y)) * 2;
       series.push({ name: 'End of window', style: RATE_STYLES.window, noHover: true, noExtent: true, pts: [{ x: tWindow, y: 0 }, { x: tWindow, y: top }] });
     }
@@ -1753,11 +2154,11 @@ function schemeSVG(kind) {
 
 function renderModel() {
   const kind = state.mode === 'inhibition' ? state.type : state.mode === 'rates' ? 'rates' : 'none';
-  const scene = challenge.active ? 'hidden' : kind;
+  const scene = quiz.active && state.mode === 'inhibition' ? 'hidden' : kind;
   if (scene === state.scene) return;
   state.scene = scene;
-  if (challenge.active) {
-    const message = '<p class="model-hidden">Hidden during the challenge.</p>';
+  if (scene === 'hidden') {
+    const message = '<p class="model-hidden">Hidden during the quiz.</p>';
     $('enzyme-model').innerHTML = message;
     $('model-caption').textContent = '';
     $('reaction-scheme').innerHTML = message;
@@ -1780,9 +2181,6 @@ function readRaw() {
   const raw = { mode: state.mode, type: state.type, compare: $('compare').checked };
   NUMBER_FIELDS.forEach(f => { raw[f] = $(f).value; });
   if (state.mode === 'rates') Object.assign(raw, state.rates.enzymes[state.rates.view]);
-  if (challenge.active) {
-    Object.assign(raw, { type: challenge.truth.type, Ki: challenge.truth.Ki, KiP: challenge.truth.KiP, compare: false });
-  }
   return raw;
 }
 
@@ -1827,20 +2225,17 @@ function syncFieldStates() {
   placeSharedFields(rates);
   $('entry-note-rates').hidden = !rates;
   $('entry-box').hidden = rates && !collect;
-  const pressedType = challenge.active ? challenge.guess : state.type;
-  document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === pressedType));
-  document.querySelector('[data-type="none"]').hidden = challenge.active;
-  $('challenge-box').hidden = !challenge.active;
+  document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === state.type));
   $('entry-note-inhibition').hidden = !inhibition;
   renderModel();
   $('type-buttons').hidden = !inhibition;
   $('difference-buttons').hidden = !kinetics;
-  $('inhib-box').hidden = !inhibition || challenge.active;
+  $('inhib-box').hidden = !inhibition;
   $('condition-b').hidden = !kinetics;
   $('conditions').classList.toggle('single', !kinetics);
   $('condition-a').setAttribute('role', kinetics ? 'group' : 'none');
 
-  const type = challenge.active ? 'none' : state.type;
+  const type = state.type;
   const active = ACTIVE_FIELDS[type];
   setFieldEnabled('I', active.I);
   setFieldEnabled('Ki', active.Ki);
@@ -1890,9 +2285,7 @@ function renderRatesControls() {
     $('demo-readout').textContent = `[S] = ${fmtSig(focus.S0)} ${conc}, v₀ = ${fmtSig(focus.rate)} ${conc}/${time}`;
   } else {
     $('window-readout').textContent = `Measurement window: first ${windowPct}% of the time axis (0 to ${fmtSig(tWindow)} ${time})`;
-    $('run-list').innerHTML = experiments.map((e, i) =>
-      `<li><span>[S] = ${fmtCompact(e.S0)} ${conc}: slope = ${fmtSig(e.rate)} ${conc}/${time}</span>` +
-      `<button type="button" data-remove-run="${i}" aria-label="Remove the run at [S] = ${fmtCompact(e.S0)} ${conc}">Remove</button></li>`).join('');
+    $('run-list').innerHTML = runListHtml(experiments);
   }
 }
 
@@ -1918,6 +2311,7 @@ function renderAll() {
 
 // Single hub: every control change comes through here.
 function commit() {
+  if (quiz.active) return;
   syncFieldStates();
   syncUnits();
   const { errors, params } = validate(readRaw());
@@ -1952,127 +2346,252 @@ function applyDefaults() {
 }
 
 NUMBER_FIELDS.forEach(f => $(f).addEventListener('input', () => {
-  if (challenge.active) revealChallenge();   // changing the enzyme ends the challenge
   if (f === 'KiP') state.kiPrimeText = $('KiP').value;
   commit();
 }));
-['concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', () => {
-  if (challenge.active) revealChallenge();
-  commit();
-}));
+['concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', commit));
 
 document.querySelectorAll('[data-type]').forEach(button => button.addEventListener('click', () => {
-  if (challenge.active) {
-    challenge.guess = button.dataset.type;
-    clearChallengeMarks();
-    syncFieldStates();
-    syncChallengeFields();
-    return;
-  }
   state.type = button.dataset.type;
   commit();
 }));
 
-// ── Identify the Inhibitor ──
+// ── Quiz Mode ──
 
-const CHALLENGE_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'concUnit', 'timeUnit'];
+const QUIZ_TITLES = { rates: 'Measuring Rates', kinetics: 'Kinetics', inhibition: 'Inhibition' };
+// Everything the quiz hides from the normal tab while it runs.
+const QUIZ_HIDDEN = ['rates-view-buttons', 'type-buttons', 'difference-buttons', 'rates-settings', 'inhib-box', 'experiment-box', 'entry-box', 'errors', 'product-note', 'guides'];
 
-function clearChallengeMarks() {
-  for (const id of ['guessKi', 'guessKiP']) {
-    $(`${id}-mark`).textContent = '';
-    $(`${id}-mark`).removeAttribute('role');
-    $(`${id}-mark`).removeAttribute('aria-label');
+function quizItemHtml(item) {
+  const id = `quiz-${item.key}`;
+  if (item.kind === 'number') {
+    return `<div class="quiz-item" data-key="${item.key}"><label for="${id}">${item.label} (${item.unit})</label>` +
+      `<div class="quiz-number"><input type="text" id="${id}" autocomplete="off" spellcheck="false"></div></div>`;
   }
-  $('challenge-result').textContent = '';
+  const options = item.options.map((option, i) =>
+    `<label class="quiz-option"><input type="radio" name="${id}" value="${i}"><span>${option}</span></label>`).join('');
+  return `<fieldset class="quiz-item" data-key="${item.key}"><legend>${item.label}</legend>` +
+    `<div${item.inline ? ' class="quiz-options-inline"' : ''}>${options}</div></fieldset>`;
 }
 
-function syncChallengeFields() {
-  const active = ACTIVE_FIELDS[challenge.guess || 'none'];
-  $('guessKi-field').hidden = !active.Ki;
-  $('guessKiP-field').hidden = !active.KiP;
-  $('challenge-check').disabled = !challenge.guess;
-}
-
-function startChallenge() {
-  challenge.restore = { type: state.type, kiPrimeText: state.kiPrimeText, compare: $('compare').checked };
-  CHALLENGE_FIELDS.forEach(f => { challenge.restore[f] = $(f).value; });
-
-  const r = randomParameters();
-  ['Km', 'kcat', 'Etot', 'I'].forEach(f => { $(f).value = r[f]; });
-  $('concUnit').value = r.concUnit;
-  $('timeUnit').value = r.timeUnit;
-  // The page must not hold the answer, so the true values live only in challenge.truth.
-  $('Ki').value = '';
-  $('KiP').value = '';
-  state.kiPrimeText = '';
-  challenge.active = true;
-  challenge.truth = { type: r.type, Ki: r.Ki, KiP: r.type === 'noncompetitive' ? r.Ki : r.KiP };
-  challenge.guess = null;
-
-  $('guessKi').value = '';
-  $('guessKiP').value = '';
-  clearChallengeMarks();
-  syncChallengeFields();
-  $('challenge-prompt').textContent = `[I] = ${fmtCompact(r.I)} ${r.concUnit}. Compare the plots, choose the inhibition type above, then find the constants it needs.`;
-  entry.revealed = false;
-  commit();
-  renderEntryTable();
-  $('challenge-check').focus();
-}
-
-function checkChallenge() {
-  const result = checkInhibitorGuess(challenge.truth, { type: challenge.guess, Ki: $('guessKi').value, KiP: $('guessKiP').value });
-  clearChallengeMarks();
-  for (const [id, correct] of [['guessKi', result.Ki], ['guessKiP', result.KiP]]) {
-    if (correct === null) continue;
-    const mark = $(`${id}-mark`);
-    mark.textContent = correct ? '✓' : '✗';
-    mark.setAttribute('role', 'img');
-    mark.setAttribute('aria-label', correct ? 'correct' : 'incorrect');
+function readQuizValues(question) {
+  const values = {};
+  for (const item of question.items) {
+    if (item.kind === 'number') {
+      values[item.key] = $(`quiz-${item.key}`).value;
+    } else {
+      const chosen = document.querySelector(`input[name="quiz-${item.key}"]:checked`);
+      values[item.key] = chosen ? item.options[Number(chosen.value)] : null;
+    }
   }
-  $('challenge-result').textContent = result.type
-    ? `✓ Correct type.${result.Ki === false || result.KiP === false ? ' Check the constant marked ✗; constants count within ±5%.' : ''}`
-    : '✗ Not that type. Compare how the slope and y-intercept change with the inhibitor.';
+  return values;
 }
 
-// Leaves the challenge with the true type, Ki and Ki' in the normal controls.
-function revealChallenge() {
-  const { type, Ki, KiP } = challenge.truth;
-  challenge.active = false;
-  state.type = type;
-  $('Ki').value = Ki;
-  state.kiPrimeText = String(KiP);
-  $('compare').checked = false;
+// Sets up the plots for the current question. Its enzyme stays in state, away from the page's fields.
+function drawQuizScene(question) {
+  const { scene } = question;
+  const waiting = !quiz.finished;
+  state.params = scene.params;
+  state.units = scene.units;
+  state.model = buildModel(state.params);
+  if (scene.hideB && waiting) state.model.curves = state.model.curves.slice(0, 1);
+  quiz.hideSlope = Boolean(scene.hideSlope) && waiting;
+  entry.revealed = Boolean(scene.revealTruth) && !waiting;
+  if (scene.rates) {
+    state.rates.view = 'collect';
+    state.rates.windowPct = scene.rates.windowPct;
+    if (!quiz.keepRuns) state.rates.runs = [...scene.rates.runs];
+  }
+  buildRatesData();
+
+  for (const name of ['product', 'mm', 'lb']) {
+    document.querySelector(`[data-panel="${name}"]`).hidden = !scene.plots.includes(name);
+  }
+  $('plot-column').hidden = !scene.plots.length;
+  $('workspace').classList.toggle('quiz-wide', !scene.plots.length);
+  $('plot-hint').hidden = !scene.plots.length;
+  Object.values(plots).forEach(plot => { plot.hover = null; });
+  renderLegends();
+  updateCanvasLabels();
+  refitPlots();
 }
 
-// Leaves the challenge and restores what was on the page before it.
-function endChallenge() {
-  const saved = challenge.restore;
-  challenge.active = false;
-  state.type = saved.type;
-  state.kiPrimeText = saved.kiPrimeText;
-  $('compare').checked = saved.compare;
-  CHALLENGE_FIELDS.forEach(f => { $(f).value = saved[f]; });
+function renderQuizRuns() {
+  const experiments = state.ratesData ? state.ratesData.experiments : [];
+  $('quiz-run-list').innerHTML = runListHtml(experiments);
 }
 
-$('challenge-start').addEventListener('click', startChallenge);
-$('challenge-check').addEventListener('click', checkChallenge);
-$('challenge-reveal').addEventListener('click', () => {
-  revealChallenge();
-  commit();
-  $('challenge-start').focus();
-});
-$('challenge-end').addEventListener('click', () => {
-  endChallenge();
-  commit();
-  $('challenge-start').focus();
-});
-for (const id of ['guessKi', 'guessKiP']) {
-  $(id).addEventListener('input', clearChallengeMarks);
-  $(id).addEventListener('keydown', e => {
-    if (e.key === 'Enter') checkChallenge();
+function showQuizQuestion() {
+  const question = quiz.set[quiz.index];
+  quiz.attempt = 1;
+  quiz.finished = false;
+  quiz.keepRuns = false;
+  $('quiz-progress').textContent = `Question ${quiz.index + 1} of ${quiz.set.length}`;
+  $('quiz-question').innerHTML = `<p class="readout">${question.prompt}</p>` + question.items.map(quizItemHtml).join('');
+  $('quiz-feedback').innerHTML = '';
+  $('quiz-check').hidden = false;
+  $('quiz-next').hidden = true;
+  $('quiz-buttons').hidden = false;
+  $('quiz-end-buttons').hidden = true;
+  $('quiz-run').hidden = !question.scene.run;
+  $('quiz-run-message').textContent = '';
+  $('quiz-runS').value = '';
+  $('quiz-run-unit').textContent = question.scene.units.conc;
+  drawQuizScene(question);
+  renderQuizRuns();
+  const first = $('quiz-question').querySelector('input');
+  if (first) first.focus();
+}
+
+function markQuizItems(results) {
+  document.querySelectorAll('#quiz-question .quiz-item').forEach(el => {
+    const mark = results[el.dataset.key];
+    el.classList.toggle('correct', mark === true);
+    el.classList.toggle('wrong', mark === false);
   });
 }
+
+function finishQuizQuestion(question, correct) {
+  quiz.credits.push(quizCredit(quiz.attempt, correct));
+  quiz.finished = true;
+  quiz.keepRuns = true;
+  const verdict = correct
+    ? (quiz.attempt === 1 ? '<b>✓ Correct.</b>' : '<b>✓ Correct on the second try</b> (½ point).')
+    : `<b>✗ Not quite.</b> Correct answer: ${correctAnswerText(question)}.`;
+  $('quiz-feedback').innerHTML = `${verdict} ${question.explanation}`;
+  $('quiz-question').querySelectorAll('input').forEach(input => { input.disabled = true; });
+  $('quiz-run').hidden = true;
+  $('quiz-check').hidden = true;
+  $('quiz-next').hidden = false;
+  $('quiz-next').textContent = quiz.index + 1 < quiz.set.length ? 'Next' : 'See Score';
+  drawQuizScene(question);
+  $('quiz-next').focus();
+}
+
+function checkQuizAnswer() {
+  if (quiz.finished) return;
+  const question = quiz.set[quiz.index];
+  const { results, complete, correct } = gradeQuestion(question, readQuizValues(question));
+  if (!complete) {
+    $('quiz-feedback').textContent = 'Answer every part first.';   // doesn't use a try
+    return;
+  }
+  markQuizItems(results);
+  if (correct || quiz.attempt === 2) {
+    finishQuizQuestion(question, correct);
+    return;
+  }
+  quiz.attempt = 2;
+  $('quiz-feedback').innerHTML = `<b>✗ Try once more.</b> ${question.hint}`;
+}
+
+function showQuizScore() {
+  const total = quiz.credits.reduce((sum, credit) => sum + credit, 0);
+  const rows = quiz.set.map((q, i) => `<tr><td>${q.title}</td><td>${quiz.credits[i]}</td></tr>`).join('');
+  $('quiz-progress').textContent = 'Finished';
+  $('quiz-question').innerHTML = '';
+  $('quiz-run').hidden = true;
+  $('quiz-buttons').hidden = true;
+  $('quiz-feedback').innerHTML = `<b>Score: ${total} of ${quiz.set.length}</b><table><tbody>${rows}</tbody></table>`;
+  $('quiz-end-buttons').hidden = false;
+  ['product', 'mm', 'lb'].forEach(name => { document.querySelector(`[data-panel="${name}"]`).hidden = true; });
+  $('plot-column').hidden = true;
+  $('workspace').classList.add('quiz-wide');
+  $('quiz-again').focus();
+}
+
+function startQuizSet() {
+  quiz.set = buildQuizSet(state.mode);
+  quiz.index = 0;
+  quiz.credits = [];
+  showQuizQuestion();
+}
+
+function startQuiz() {
+  quiz.saved = { rates: state.rates, params: state.params, revealed: entry.revealed };
+  state.rates = { ...state.rates, runs: [] };
+  quiz.active = true;
+  setPressed($('quiz-toggle'), true);
+  $('quiz-title').textContent = `Quiz: ${QUIZ_TITLES[state.mode]}`;
+  $('quiz-box').hidden = false;
+  document.querySelector('[data-panel="enzyme"]').hidden = true;
+  QUIZ_HIDDEN.forEach(id => { $(id).hidden = true; });
+  $('random').disabled = true;
+  $('reset').disabled = true;
+  renderModel();
+  startQuizSet();
+}
+
+// Puts the tab back as it was, rebuilt from its own fields.
+function exitQuiz() {
+  quiz.active = false;
+  quiz.hideSlope = false;
+  setPressed($('quiz-toggle'), false);
+  state.rates = quiz.saved.rates;
+  state.params = quiz.saved.params;
+  entry.revealed = quiz.saved.revealed;
+  state.signature = '';
+  $('quiz-box').hidden = true;
+  $('plot-column').hidden = false;
+  $('workspace').classList.remove('quiz-wide');
+  ['mm', 'errors', 'guides'].forEach(id => {
+    const el = id === 'mm' ? document.querySelector('[data-panel="mm"]') : $(id);
+    el.hidden = false;
+  });
+  $('random').disabled = false;
+  $('reset').disabled = false;
+  commit();
+  syncView();
+}
+
+$('quiz-toggle').addEventListener('click', () => {
+  if (quiz.active) exitQuiz();
+  else startQuiz();
+});
+$('quiz-check').addEventListener('click', checkQuizAnswer);
+$('quiz-next').addEventListener('click', () => {
+  quiz.index += 1;
+  if (quiz.index < quiz.set.length) showQuizQuestion();
+  else showQuizScore();
+});
+$('quiz-again').addEventListener('click', () => {
+  $('plot-column').hidden = false;
+  startQuizSet();
+});
+$('quiz-exit').addEventListener('click', exitQuiz);
+$('quiz-question').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.type === 'text') checkQuizAnswer();
+});
+$('quiz-question').addEventListener('input', e => {
+  const item = e.target.closest('.quiz-item');
+  if (item) item.classList.remove('correct', 'wrong');
+});
+
+function runQuizExperiment() {
+  const S0 = parseField($('quiz-runS').value);
+  const problem = runProblem(S0, state.rates.runs);
+  $('quiz-run-message').textContent = problem;
+  if (problem) return;
+  state.rates.runs.push(S0);
+  $('quiz-runS').value = '';
+  $('quiz-runS').focus();
+  quiz.keepRuns = true;
+  drawQuizScene(quiz.set[quiz.index]);
+  renderQuizRuns();
+}
+
+$('quiz-run-button').addEventListener('click', runQuizExperiment);
+$('quiz-runS').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runQuizExperiment();
+});
+$('quiz-run-list').addEventListener('click', e => {
+  const button = e.target.closest('[data-remove-run]');
+  if (!button) return;
+  state.rates.runs.splice(Number(button.dataset.removeRun), 1);
+  quiz.keepRuns = true;
+  drawQuizScene(quiz.set[quiz.index]);
+  renderQuizRuns();
+});
 
 // Conditions B becomes a copy of A with one parameter changed.
 document.querySelectorAll('[data-difference]').forEach(button => button.addEventListener('click', () => {
@@ -2085,7 +2604,7 @@ document.querySelectorAll('[data-difference]').forEach(button => button.addEvent
 
 for (const mode of ['rates', 'kinetics', 'inhibition']) {
   $(`tab-${mode}`).addEventListener('click', () => {
-    if (challenge.active && mode !== 'inhibition') endChallenge();
+    if (quiz.active) exitQuiz();
     state.mode = mode;
     commit();
     syncView();   // the plots shown differ by tab, so they need fitting and drawing
@@ -2110,13 +2629,24 @@ $('demo-s-buttons').addEventListener('click', e => {
   $('demo-s-buttons').querySelector(`[data-demo-s="${state.rates.selected}"]`).focus();
 });
 
+function runProblem(S0, runs) {
+  if (!Number.isFinite(S0) || S0 <= 0) return 'Enter a positive starting [S].';
+  if (runs.includes(S0)) return 'You already ran this [S]. Try a different one.';
+  if (runs.length >= MAX_RUNS) return `Remove a run first; this page holds ${MAX_RUNS}.`;
+  return '';
+}
+
+function runListHtml(experiments) {
+  const { conc, time } = state.units;
+  return experiments.map((e, i) =>
+    `<li><span>[S] = ${fmtCompact(e.S0)} ${conc}: slope = ${fmtSig(e.rate)} ${conc}/${time}</span>` +
+    `<button type="button" data-remove-run="${i}" aria-label="Remove the run at [S] = ${fmtCompact(e.S0)} ${conc}">Remove</button></li>`).join('');
+}
+
 function runExperiment() {
   const S0 = parseField($('runS').value);
   const { runs } = state.rates;
-  let problem = '';
-  if (!Number.isFinite(S0) || S0 <= 0) problem = 'Enter a positive starting [S].';
-  else if (runs.includes(S0)) problem = 'You already ran this [S]. Try a different one.';
-  else if (runs.length >= MAX_RUNS) problem = `Remove a run first; this page holds ${MAX_RUNS}.`;
+  const problem = runProblem(S0, runs);
   $('run-message').textContent = problem;
   if (problem) {
     $('runS').setAttribute('aria-invalid', 'true');
@@ -2146,7 +2676,6 @@ $('run-list').addEventListener('click', e => {
 });
 
 $('reset').addEventListener('click', () => {
-  challenge.active = false;
   applyDefaults();
   entry.revealed = false;
   state.rates.runs = [];
@@ -2197,7 +2726,6 @@ document.querySelectorAll('[data-zoom]').forEach(button => button.addEventListen
 }));
 
 $('random').addEventListener('click', () => {
-  challenge.active = false;
   const values = randomParameters();
   if (state.mode === 'rates') {
     // New hidden enzymes only; the Km and kcat fields on the other tabs must not hold them.

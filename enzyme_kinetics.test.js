@@ -345,51 +345,259 @@ test('random enzymes can share the same units', () => {
   }
 });
 
-// ── Identify the Inhibitor ───────────────────────────────────
-const checkInhibitorGuess = (truth, guess) => page.checkInhibitorGuess(truth, guess);
+// ── Quiz Mode ─────────────────────────────────────────────────
+const { gradeQuestion, quizCredit, correctAnswerText, fmtSig: fmt } = page;
+const buildQuizSet = (mode, rand) => page.buildQuizSet(mode, rand);
+const QUIZ_MODES = {
+  rates: ['initialRate', 'runExperiments', 'predictRate', 'whyInitial'],
+  kinetics: ['whatChanged', 'fromLine', 'efficiency', 'predictEffect'],
+  inhibition: ['identifyType', 'findKi', 'apparent', 'mechanism'],
+};
+const SETS = 400;
 
-test('the challenge marks the type, then only the constants that type uses', () => {
-  const mixed = { type: 'mixed', Ki: 6, KiP: 18 };
-  assert.deepEqual({ ...checkInhibitorGuess(mixed, { type: 'mixed', Ki: '6', KiP: '18' }) }, { type: true, Ki: true, KiP: true });
-  assert.deepEqual({ ...checkInhibitorGuess(mixed, { type: 'mixed', Ki: '7', KiP: '' }) }, { type: true, Ki: false, KiP: null });
-  const competitive = { type: 'competitive', Ki: 6, KiP: 18 };
-  assert.deepEqual({ ...checkInhibitorGuess(competitive, { type: 'competitive', Ki: '6', KiP: '999' }) }, { type: true, Ki: true, KiP: null });
-  const uncompetitive = { type: 'uncompetitive', Ki: 6, KiP: 18 };
-  assert.deepEqual({ ...checkInhibitorGuess(uncompetitive, { type: 'uncompetitive', Ki: '999', KiP: '18' }) }, { type: true, Ki: null, KiP: true });
-});
-
-test('a wrong type marks no constants, even if they are right', () => {
-  const truth = { type: 'competitive', Ki: 6, KiP: 18 };
-  assert.deepEqual({ ...checkInhibitorGuess(truth, { type: 'mixed', Ki: '6', KiP: '18' }) }, { type: false, Ki: null, KiP: null });
-  assert.equal(checkInhibitorGuess(truth, { type: null, Ki: '', KiP: '' }).type, false);
-});
-
-test('challenge constants count within ±5%, including an exact 5%, and read any notation', () => {
-  const truth = { type: 'competitive', Ki: 2, KiP: 2 };
-  const ki = text => checkInhibitorGuess(truth, { type: 'competitive', Ki: text, KiP: '' }).Ki;
-  assert.equal(ki('2.1'), true);
-  assert.equal(ki('1.9'), true);
-  assert.equal(ki('2.11'), false);
-  assert.equal(ki('abc'), false);
-  assert.equal(ki('2 x 10^0'), true);
-});
-
-test('Ki worked out from the page\'s rounded equation counts as correct, for every random draw', () => {
-  const rand = seededRandom(99);
-  for (let i = 0; i < 2000; i++) {
-    const r = randomParameters(rand);
-    const params = validate(asRaw(r, { mode: 'inhibition', compare: false })).params;
-    const [plain, inhibited] = buildModel(params).curves;
-    // What a student has: three significant figures from each line equation.
-    const read = x => Number(x.toPrecision(3));
-    const slopeRatio = read(inhibited.k.slope) / read(plain.k.slope);
-    const yRatio = read(inhibited.k.yInt) / read(plain.k.yInt);
-    const guess = { type: r.type, Ki: String(r.I / (slopeRatio - 1)), KiP: String(r.I / (yRatio - 1)) };
-    const truth = { type: r.type, Ki: r.Ki, KiP: r.type === 'noncompetitive' ? r.Ki : r.KiP };
-    const result = checkInhibitorGuess(truth, guess);
-    assert.notEqual(result.Ki, false, JSON.stringify([r, guess]));
-    assert.notEqual(result.KiP, false, JSON.stringify([r, guess]));
+function eachQuestion(check) {
+  const rand = seededRandom(2024);
+  for (const mode of Object.keys(QUIZ_MODES)) {
+    for (let i = 0; i < SETS; i++) {
+      for (const q of buildQuizSet(mode, rand)) check(q, mode);
+    }
   }
+}
+
+const rightValues = q => Object.fromEntries([...q.items].map(item => [item.key, item.kind === 'number' ? String(item.truth) : item.answer]));
+
+test('each set has 5 questions and covers all four types', () => {
+  const rand = seededRandom(7);
+  for (const mode of Object.keys(QUIZ_MODES)) {
+    const types = QUIZ_MODES[mode];
+    for (let i = 0; i < SETS; i++) {
+      const set = [...buildQuizSet(mode, rand)];
+      assert.equal(set.length, 5);
+      for (const type of types) assert.ok(set.some(q => q.type === type), `${mode}: ${type}`);
+    }
+  }
+});
+
+test('the extra question is never a repeated concept question', () => {
+  const rand = seededRandom(8);
+  for (let i = 0; i < SETS; i++) {
+    assert.equal([...buildQuizSet('rates', rand)].filter(q => q.type === 'whyInitial').length, 1);
+  }
+});
+
+test('order varies between sets', () => {
+  const rand = seededRandom(9);
+  const orders = new Set();
+  for (let i = 0; i < 50; i++) orders.add([...buildQuizSet('inhibition', rand)].map(q => q.type).join());
+  assert.ok(orders.size > 5);
+});
+
+test('every question grades its own answer as correct and is well formed', () => {
+  eachQuestion(q => {
+    assert.ok(q.prompt && q.hint && q.explanation && q.title, q.type);
+    assert.ok(q.items.length > 0, q.type);
+    const { correct, complete } = gradeQuestion(q, rightValues(q));
+    assert.ok(correct && complete, q.type);
+    for (const item of q.items) {
+      if (item.kind === 'number') {
+        assert.ok(Number.isFinite(item.truth) && item.truth > 0 && item.tolerance > 0 && item.unit, `${q.type} ${item.key}`);
+      } else {
+        assert.ok(item.options.includes(item.answer), `${q.type} ${item.key}`);
+        assert.equal(new Set(item.options).size, item.options.length);
+      }
+    }
+    assert.ok(!/NaN|undefined|Infinity/.test(q.prompt + q.explanation + q.hint), q.type);
+  });
+});
+
+test('numbers well outside the allowance are wrong, and the allowance is stated', () => {
+  eachQuestion(q => {
+    for (const item of q.items) {
+      if (item.kind !== 'number') continue;
+      const off = rightValues(q);
+      off[item.key] = String(item.truth * (1 + item.tolerance * 1.5));
+      assert.equal(gradeQuestion(q, off).results[item.key], false, q.type);
+      assert.ok(q.prompt.includes(`±${Math.round(item.tolerance * 100)}%`), q.type);
+    }
+  });
+});
+
+test('tolerance follows how the value is found', () => {
+  const expected = { initialRate: 0.1, runExperiments: 0.1, predictRate: 0.02, fromLine: 0.02, efficiency: 0.02, findKi: 0.05, apparent: 0.02 };
+  eachQuestion(q => {
+    for (const item of q.items) if (item.kind === 'number') assert.equal(item.tolerance, expected[q.type], q.type);
+  });
+});
+
+test('blank parts make a question incomplete, and a wrong choice is marked wrong', () => {
+  const q = [...buildQuizSet('kinetics', seededRandom(3))].find(x => x.type === 'efficiency');
+  const values = rightValues(q);
+  values.higher = null;
+  const blank = gradeQuestion(q, values);
+  assert.equal(blank.complete, false);
+  assert.equal(blank.correct, false);
+  assert.equal(blank.results.higher, null);
+  values.higher = 'They are equal';
+  const wrong = gradeQuestion(q, values);
+  assert.equal(wrong.complete, true);
+  assert.equal(wrong.results.higher, false);
+});
+
+test('credit: 1 on the first try, ½ on the second, none if wrong', () => {
+  assert.equal(quizCredit(1, true), 1);
+  assert.equal(quizCredit(2, true), 0.5);
+  assert.equal(quizCredit(1, false), 0);
+  assert.equal(quizCredit(2, false), 0);
+});
+
+// What a student has: three significant figures from each line equation on the plot.
+const read = x => Number(fmt(x).replace('−', '-').replace(' × 10', 'e').replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/g, c => '0123456789-'['⁰¹²³⁴⁵⁶⁷⁸⁹⁻'.indexOf(c)]));
+const lines = q => [...buildModel(q.scene.params).curves].map(c => ({ m: read(c.k.slope), b: read(c.k.yInt) }));
+
+test('Vmax and Km worked from the rounded L-B equation pass', () => {
+  eachQuestion(q => {
+    if (q.type !== 'fromLine') return;
+    const { m, b } = lines(q)[1];
+    assert.ok(gradeQuestion(q, { Vmax: String(1 / b), Km: String(m / b) }).correct, JSON.stringify(q.scene.params));
+  });
+});
+
+test('kcat and kcat/Km worked from the rounded equation pass', () => {
+  eachQuestion(q => {
+    if (q.type !== 'efficiency') return;
+    const { m, b } = lines(q)[1];
+    const kcat = (1 / b) / q.scene.params.Etot2;
+    const values = rightValues(q);
+    values.kcat = String(kcat);
+    values.ratio = String(kcat / (m / b));
+    assert.ok(gradeQuestion(q, values).correct, JSON.stringify(q.scene.params));
+  });
+});
+
+test('apparent values worked from the rounded equation pass', () => {
+  eachQuestion(q => {
+    if (q.type !== 'apparent') return;
+    const { m, b } = lines(q)[1];
+    const values = rightValues(q);
+    values.VmaxApp = String(1 / b);
+    values.KmApp = String(m / b);
+    assert.ok(gradeQuestion(q, values).correct, JSON.stringify(q.scene.params));
+  });
+});
+
+test('Ki and Ki\' worked from the rounded equations pass', () => {
+  eachQuestion(q => {
+    if (q.type !== 'findKi') return;
+    const [plain, inhibited] = lines(q);
+    const values = {};
+    if (q.items.some(i => i.key === 'Ki')) values.Ki = String(q.scene.params.I / (inhibited.m / plain.m - 1));
+    if (q.items.some(i => i.key === 'KiP')) values.KiP = String(q.scene.params.I / (inhibited.b / plain.b - 1));
+    assert.ok(gradeQuestion(q, values).correct, JSON.stringify([q.scene.params, values]));
+  });
+});
+
+test('hand calculation: predicting v₀ at 2 × Km gives ⅔Vmax', () => {
+  const k = constants(6, 25, 1, 1);
+  near(v0(k, 50), 4);
+});
+
+test('Ki questions ask for the constants that type uses', () => {
+  const wanted = { competitive: ['Ki'], uncompetitive: ['KiP'], noncompetitive: ['Ki'], mixed: ['Ki', 'KiP'] };
+  eachQuestion(q => {
+    if (q.type !== 'findKi') return;
+    assert.deepEqual([...q.items].map(i => i.key), wanted[q.scene.params.type]);
+  });
+});
+
+test('mechanism answers match each inhibition type', () => {
+  const wanted = {
+    competitive: ['Free E only', 'The active site'],
+    uncompetitive: ['The ES complex only', 'A separate (allosteric) site'],
+    noncompetitive: ['Both E and ES', 'A separate (allosteric) site'],
+    mixed: ['Both E and ES', 'A separate (allosteric) site'],
+  };
+  eachQuestion(q => {
+    if (q.type !== 'mechanism') return;
+    assert.deepEqual([...q.items].map(i => i.answer), wanted[q.scene.params.type]);
+  });
+});
+
+test('apparent trends: competitive keeps Vmax, noncompetitive keeps Km, uncompetitive lowers both', () => {
+  const wanted = {
+    competitive: { VmaxTrend: 'No change', KmTrend: 'Increases' },
+    uncompetitive: { VmaxTrend: 'Decreases', KmTrend: 'Decreases' },
+    noncompetitive: { VmaxTrend: 'Decreases', KmTrend: 'No change' },
+  };
+  eachQuestion(q => {
+    if (q.type !== 'apparent' || !wanted[q.scene.params.type]) return;
+    const answers = Object.fromEntries([...q.items].filter(i => i.kind === 'choice').map(i => [i.key, i.answer]));
+    assert.deepEqual(answers, wanted[q.scene.params.type]);
+  });
+});
+
+test('predicted effects of doubling each parameter', () => {
+  const up = 'Increases', down = 'Decreases', same = 'No change';
+  const wanted = {
+    Etot: [up, same, down, down], kcat: [up, same, down, down], Km: [same, up, up, same],
+  };
+  const rand = seededRandom(11);
+  const seen = new Set();
+  eachQuestion(q => {
+    if (q.type !== 'predictEffect') return;
+    const by = differingParameter(q.scene.params);
+    seen.add(by);
+    assert.deepEqual([...q.items].map(i => i.answer), wanted[by], by);
+    assert.ok(q.scene.hideB);
+    assert.ok(rand() >= 0);
+  });
+  assert.equal(seen.size, 3);
+});
+
+test('"what changed" can always be answered from what is shown', () => {
+  eachQuestion(q => {
+    if (q.type !== 'whatChanged') return;
+    const by = differingParameter(q.scene.params);
+    const answer = q.items[0].answer;
+    assert.ok(answer.includes(by === 'Etot' ? 'total' : by === 'Km' ? 'K<sub>m</sub>' : 'k<sub>cat</sub>'), answer);
+    // [E]total and kcat look identical on the plots, so the prompt must list [E]total for both.
+    const { Etot, Etot2 } = q.scene.params;
+    assert.ok(q.prompt.includes(fmtCompact(Etot)) && q.prompt.includes(fmtCompact(Etot2)), q.prompt);
+  });
+});
+
+test('efficiency questions always have a real difference to compare', () => {
+  eachQuestion(q => {
+    if (q.type !== 'efficiency') return;
+    const p = q.scene.params;
+    assert.notEqual(differingParameter(p), 'Etot');
+    assert.notEqual(p.kcat / p.Km, p.kcat2 / p.Km2);
+  });
+});
+
+test('questions hide what they test: the inhibition prompt never names Ki, and identify never names the type', () => {
+  eachQuestion(q => {
+    if (q.type === 'identifyType' || q.type === 'mechanism') {
+      assert.ok(!/competitive|mixed/i.test(q.prompt), q.prompt);
+    }
+    if (q.type === 'findKi') {
+      const p = q.scene.params;
+      assert.ok(!q.prompt.includes(`K<sub>i</sub> = ${fmtCompact(p.Ki)}`), q.prompt);
+    }
+    if (q.type === 'initialRate' || q.type === 'runExperiments') {
+      assert.ok(!q.prompt.includes('k<sub>cat</sub> ='), q.prompt);
+      assert.ok(!q.prompt.includes('K<sub>m</sub> ='), q.prompt);
+    }
+  });
+});
+
+test('correctAnswerText lists every part', () => {
+  const q = [...buildQuizSet('kinetics', seededRandom(4))].find(x => x.type === 'fromLine');
+  const text = correctAnswerText(q);
+  assert.ok(text.includes('V<sub>max</sub> = ') && text.includes('K<sub>m</sub> = '), text);
+  const effect = [...buildQuizSet('kinetics', seededRandom(4))].find(x => x.type === 'predictEffect');
+  assert.ok(correctAnswerText(effect).startsWith('V<sub>max</sub>: '), correctAnswerText(effect));
+  const type = [...buildQuizSet('inhibition', seededRandom(4))].find(x => x.type === 'identifyType');
+  assert.equal(correctAnswerText(type), type.items[0].answer);
 });
 
 // ── Validation ──────────────────────────────────────────────────
