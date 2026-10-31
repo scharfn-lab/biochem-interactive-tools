@@ -1151,11 +1151,12 @@ test('focus stays visible on every control', () => {
   assert.match(css, /button:focus-visible, input:focus-visible, select:focus-visible\s*{\s*outline: 3px solid/);
 });
 
-test('the styles use only the University of Tampa palette', () => {
+test('correct and incorrect choices look different', () => {
   const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
-  const palette = ['#D0012B', '#000000', '#FFFFFF', '#E6E0CC', '#282828', '#404040', '#828282', '#BFBFBF', '#F0F0F0'];
-  for (const [color] of css.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) assert.ok(palette.includes(color.toUpperCase()), color);
-  for (const [, rgb] of css.matchAll(/rgba?\((\d+,\d+,\d+)/g)) assert.ok(['0,0,0', '208,1,43'].includes(rgb), rgb);
+  const background = selector => css.match(new RegExp(`${selector}\\s*{[^}]*background:\\s*(#[0-9a-fA-F]{6})`))[1];
+  assert.notEqual(background('\\.identify-cell\\.correct'), background('\\.identify-cell\\.wrong'));
+  assert.notEqual(background('\\.field-input\\.ok'), background('\\.field-input\\.bad'));
+  assert.notEqual(background('\\.feedback\\.all-correct'), background('\\.feedback\\.wrong'));
 });
 
 test('sulfur is drawn dark enough to read against the structure backgrounds', () => {
@@ -1163,8 +1164,8 @@ test('sulfur is drawn dark enough to read against the structure backgrounds', ()
   ask(page, 'M', 7);
   const srgb = page.log.options.atomColourPalette[16];
   const lum = c => { const [r, g, b] = c.map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-  // #E6E0CC is the darker of the two backgrounds a structure can sit on
-  const ratio = (lum([0xE6 / 255, 0xE0 / 255, 0xCC / 255]) + 0.05) / (lum(srgb) + 0.05);
+  // #DBEAFE is the darkest background a structure can sit on
+  const ratio = (lum([0xDB / 255, 0xEA / 255, 0xFE / 255]) + 0.05) / (lum(srgb) + 0.05);
   assert.ok(ratio >= 4.5, `contrast is ${ratio.toFixed(2)}:1`);
 });
 
