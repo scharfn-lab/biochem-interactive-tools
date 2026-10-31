@@ -158,6 +158,19 @@
       background: #F8F6FC;
       box-shadow: 0 6px 24px rgba(0,0,0,0.3);
     }
+    #residue-row { display: flex; align-items: center; gap: 6px; font-size: 0.85em; }
+    .residue-btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid #685C53;
+      background: #FFFFFF;
+      color: #685C53;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .residue-btn:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
+    .residue-btn.active { background: #FFCDD2; border-color: #C8102E; color: #000000; font-weight: 600; }
     .plot-hint { font-size: 0.8em; color: #685C53; line-height: 1.6; }
     .plot-hint b { color: #C8102E; }
 
@@ -467,6 +480,13 @@
   </div>
     </div><!-- end #dipeptide-section -->
   <div id="plot-wrapper">
+    <div id="residue-row" role="group" aria-label="Residue type">
+      <span>Residue type:</span>
+      <button class="residue-btn active" id="residue-general" aria-pressed="true" onclick="setResidueType('general')">General</button>
+      <button class="residue-btn" id="residue-gly" aria-pressed="false" onclick="setResidueType('gly')">Glycine</button>
+      <button class="residue-btn" id="residue-pro" aria-pressed="false" onclick="setResidueType('pro')">Proline</button>
+    </div>
+    <p class="plot-hint" id="residue-note">General residues: every amino acid except glycine and proline.</p>
     <p class="plot-hint"><b>Click or drag</b> on the plot, or focus it and use the <b>arrow keys</b> (Shift for 10°).</p>
     <canvas id="plot" width="520" height="520" tabindex="0" role="application"></canvas>
     <div class="legend">
@@ -492,6 +512,39 @@ const REGIONS = [
   { phi0:  60,  psi0:  45,  sP: 18, sQ: 18, w: 0.50, name: 'left-hand helix' },
   { phi0:  80,  psi0: -60,  sP: 14, sQ: 14, w: 0.25, name: 'gamma-turn'      },
 ];
+// Glycine has no side chain, so its regions are symmetric about the origin. Entries past ±180
+// stand in for wrap-around, because these Gaussians don't wrap at the plot's edges.
+const GLY_REGIONS = [
+  { phi0: -60,  psi0: -45,  sP: 24, sQ: 22, w: 0.90, name: 'alpha-helix'     },
+  { phi0:  60,  psi0:  45,  sP: 24, sQ: 22, w: 0.90, name: 'left-hand helix' },
+  { phi0: -85,  psi0:   0,  sP: 18, sQ: 20, w: 0.70, name: 'alpha-helix'     },
+  { phi0:  85,  psi0:   0,  sP: 18, sQ: 20, w: 0.70, name: 'left-hand helix' },
+  { phi0: -75,  psi0: 165,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
+  { phi0:  75,  psi0:-165,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
+  { phi0: -75,  psi0:-195,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
+  { phi0:  75,  psi0: 195,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
+  { phi0:-180,  psi0: 180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
+  { phi0: 180,  psi0:-180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
+  { phi0: 180,  psi0: 180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
+  { phi0:-180,  psi0:-180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
+];
+// Proline's ring holds ϕ near −65°
+const PRO_REGIONS = [
+  { phi0: -65,  psi0: -35,  sP: 11, sQ: 20, w: 0.90, name: 'alpha-helix'     },
+  { phi0: -65,  psi0: 145,  sP: 11, sQ: 24, w: 1.00, name: 'PPII / beta'     },
+];
+const REGION_SETS = { general: REGIONS, gly: GLY_REGIONS, pro: PRO_REGIONS };
+const PLOT_LABELS = {
+  general: [{phi:-60,psi:-45,t:'α'},{phi:-120,psi:130,t:'β'},{phi:60,psi:45,t:'αL'}],
+  gly:     [{phi:-60,psi:-45,t:'α'},{phi:60,psi:45,t:'αL'}],
+  pro:     [{phi:-65,psi:-35,t:'α'},{phi:-65,psi:145,t:'PPII'}],
+};
+const RESIDUE_NOTES = {
+  general: 'General residues: every amino acid except glycine and proline.',
+  gly:     'Glycine: its side chain is only H, so far more of the plot opens up.',
+  pro:     'Proline: its ring locks ϕ near −65°. The viewer still shows a generic residue, with no ring.',
+};
+let residueType = 'general';   // the whole chain is treated as this residue type
 const FAVORED_THRESH = 0.38, ALLOWED_THRESH = 0.055;
 
 let phi = -60, psi = -45;
@@ -508,7 +561,7 @@ function toAngles(cx, cy) {
 
 function computeScore(p, q) {
   let total=0, bestW=0, bestName='';
-  for (const r of REGIONS) {
+  for (const r of REGION_SETS[residueType]) {
     const v = r.w * Math.exp(-((p-r.phi0)**2/(2*r.sP**2) + (q-r.psi0)**2/(2*r.sQ**2)));
     total += v;
     if (v > bestW) { bestW=v; bestName=r.name; }
@@ -595,7 +648,7 @@ function drawAxes() {
 
   ctx.font='italic bold 11px "Segoe UI",Arial';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  for (const lbl of [{phi:-60,psi:-45,t:'α'},{phi:-120,psi:130,t:'β'},{phi:60,psi:45,t:'αL'}]) {
+  for (const lbl of PLOT_LABELS[residueType]) {
     const {x,y}=toCanvas(lbl.phi,lbl.psi);
     ctx.fillStyle='rgba(255,255,255,0.90)'; ctx.fillText(lbl.t,x,y);
   }
@@ -917,7 +970,7 @@ function buildChain() {
     // C_i: phi dihedral C_{i-1}–N_i–Ca_i–C_i = phi_i
     const C_i  = placeAtom(C_prev, N_i, Ca_i, 1.525, 111.2, phi_i);
     // Substituents on Ca_i
-    const Cb_i = placeAtom(C_prev, N_i, Ca_i, 1.521, 110.5, phi_i - 120);
+    const Cb_i = placeAtom(C_prev, N_i, Ca_i, residueType === 'gly' ? 1.090 : 1.521, 110.5, phi_i - 120);
     const Ha_i = placeAtom(C_prev, N_i, Ca_i, 1.090, 110.5, phi_i + 120);
 
     out[`Ca${n}`] = Ca_i;
@@ -1421,6 +1474,13 @@ function renderDipeptide() {
     }
   }
 
+  // Glycine's "side chain" is a second Hα
+  if (residueType === 'gly') {
+    for (const k of Object.keys(atomStyle)) {
+      if (k.startsWith('Cb')) atomStyle[k] = { fill:'#BDBDBD', stroke:'#757575', r:4, label:'Hα' };
+    }
+  }
+
   // Zoom-proportional atom sizing
   const BASE_SCALE = 44;
   const sizeFactor = dipScale / BASE_SCALE;
@@ -1483,7 +1543,7 @@ function renderDipeptide() {
   }
 
   // ── Steric clashes ─────────────────────────────────────────────
-  const clashes = findClashes(atoms, Object.keys(atomStyle));
+  const clashes = findClashes(atoms, Object.keys(atomStyle).filter(k => residueType !== 'gly' || !k.startsWith('Cb')));
   for (const { a, b } of clashes.slice(0, MAX_CLASHES_DRAWN)) {
     drawClash(proj[a], proj[b], scaledAtomStyle[a].r, scaledAtomStyle[b].r);
   }
@@ -1795,6 +1855,7 @@ function resetToOneAA() {
   viewMatrix = DEFAULT_VIEW;
   dipScale = 44;
   dipOffX = 0; dipOffY = 0;
+  setResidueType('general');
   setAngles(-120, 130);
 }
 
@@ -1856,6 +1917,18 @@ function goToStructure(name) {
   setAngles(...STRUCTURES[name]);
   frameStructure();
   renderDipeptide();
+}
+
+function setResidueType(type) {
+  residueType = type;
+  bgCache = null;
+  for (const t of Object.keys(REGION_SETS)) {
+    const btn = document.getElementById(`residue-${t}`);
+    btn.classList.toggle('active', t === type);
+    btn.setAttribute('aria-pressed', String(t === type));
+  }
+  document.getElementById('residue-note').textContent = RESIDUE_NOTES[type];
+  renderPlot(); updateUI(); renderDipeptide();
 }
 
 function setBetaTurnTypeI() {

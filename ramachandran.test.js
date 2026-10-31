@@ -1202,3 +1202,113 @@ test('β-turn presets flag only their strained side-chain contacts', () => {
   page.run('setBetaTurnTypeI(); setBetaTurnTypeII()');
   assert.equal(pairs(), 'C4-Cb5,Cb5-O4', 'the i+2 Cβ at positive ϕ: why Type II favors glycine there');
 });
+
+// ── Glycine and proline ────────────────────────────────────────
+test('the general plot is the default and matches REGIONS', () => {
+  const page = loadPage();
+  assert.equal(page.run('residueType'), 'general');
+  assert.equal(page.run('REGION_SETS.general === REGIONS'), true);
+  assert.match(HTML, /id="residue-general"[^>]*aria-pressed="true"/);
+  const note = page.run('RESIDUE_NOTES.general');
+  assert.ok(HTML.includes(`id="residue-note">${note}<`), 'the markup starts with the general note');
+});
+
+test('the residue buttons show which plot is active and rebuild it', () => {
+  const page = loadPage();
+  const cached = () => page.run('bgCache');
+  const before = cached();
+  page.run("setResidueType('gly')");
+  assert.notEqual(cached(), before, 'plot background rebuilt');
+  assert.equal(page.el('residue-gly').classList.contains('active'), true);
+  assert.equal(page.el('residue-general').classList.contains('active'), false);
+  assert.equal(page.el('residue-gly').attrs['aria-pressed'], 'true');
+  assert.equal(page.el('residue-general').attrs['aria-pressed'], 'false');
+  assert.ok(page.el('residue-note').textContent.startsWith('Glycine'));
+  page.run("setResidueType('pro')");
+  assert.ok(page.el('residue-note').textContent.startsWith('Proline'));
+});
+
+test('the glycine plot is symmetric about the origin and wider than the general one', () => {
+  const page = loadPage();
+  const allowedShare = () => page.run(`(() => {
+    let n = 0, total = 0;
+    for (let p = -175; p < 180; p += 10) for (let q = -175; q < 180; q += 10) {
+      total++;
+      if (getRegion(p, q).level !== 'disallowed') n++;
+    }
+    return n / total;
+  })()`);
+  const general = allowedShare();
+  page.run("setResidueType('gly')");
+  assert.ok(allowedShare() > general * 1.2, 'more of the plot opens up');
+  for (const [p, q] of [[-60, -45], [85, 0], [-75, 165], [170, 170], [30, -120]]) {
+    assertClose(page.run(`computeScore(${p}, ${q}).total`), page.run(`computeScore(${-p}, ${-q}).total`), 1e-12, `(${p}, ${q})`);
+  }
+  assert.equal(page.run('getRegion(60, 45).level'), 'favored');
+  assert.equal(page.run('getRegion(0, 0).level'), 'disallowed');
+});
+
+test('the proline plot locks ϕ near −65°', () => {
+  const page = loadPage();
+  page.run("setResidueType('pro')");
+  assert.equal(page.run('getRegion(-65, 145).level'), 'favored');
+  assert.equal(page.run('getRegion(-65, -35).level'), 'favored');
+  for (let q = -180; q <= 180; q += 15) {
+    assert.equal(page.run(`getRegion(60, ${q}).level`), 'disallowed', `ϕ=60, ψ=${q}`);
+    assert.equal(page.run(`getRegion(-140, ${q}).level`), 'disallowed', `ϕ=-140, ψ=${q}`);
+  }
+});
+
+test('general scores do not change after visiting another plot', () => {
+  const page = loadPage();
+  const score = () => page.run('computeScore(-100, 100).total');
+  const before = score();
+  page.run("setResidueType('gly'); setResidueType('pro'); setResidueType('general')");
+  assert.equal(score(), before);
+});
+
+test('in glycine the side chains become H and their clashes go away', () => {
+  const page = loadPage();
+  page.run("goToStructure('leftHelix')");
+  assert.ok(page.el('clash-display').textContent.includes('8 steric clashes'));
+  page.run("setResidueType('gly')");
+  assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
+  const atoms = page.run('buildChain()');
+  assertClose(dist(atoms.Ca5, atoms.Cb5), 1.09, 1e-9, 'Cα–H length');
+  page.run("setResidueType('general')");
+  const back = page.run('buildChain()');
+  assertClose(dist(back.Ca5, back.Cb5), 1.521, 1e-9, 'Cα–Cβ length');
+  assert.ok(page.el('clash-display').textContent.includes('8 steric clashes'));
+});
+
+test('the viewer draws H, not R, in glycine', () => {
+  const page = loadPage();
+  redraw(page);
+  assert.ok(labels(page).some(l => l.startsWith('R')), 'R in general');
+  page.run("setResidueType('gly')");
+  redraw(page);
+  assert.ok(!labels(page).some(l => l.startsWith('R')), 'no R in glycine');
+});
+
+test('a Type II turn with glycine has no clashes', () => {
+  const page = loadPage();
+  page.run("setBetaTurnTypeII(); setResidueType('gly')");
+  assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
+});
+
+test('Reset to 1 AA returns to the general plot', () => {
+  const page = loadPage();
+  page.run("setResidueType('pro'); resetToOneAA()");
+  assert.equal(page.run('residueType'), 'general');
+  assert.equal(page.el('residue-general').classList.contains('active'), true);
+  assert.equal(page.el('residue-pro').classList.contains('active'), false);
+  assert.ok(page.el('residue-note').textContent.startsWith('General'));
+});
+
+test('the ribbon follows the active plot', () => {
+  const page = loadPage();
+  page.run("setResidueType('pro'); setAngles(-120, 130)");
+  assert.equal(page.run('ribbonShown'), 'none', 'β angles are disallowed for proline');
+  page.run("setResidueType('gly'); setAngles(170, 170)");
+  assert.equal(page.run('ribbonShown'), 'sheet', 'extended glycine');
+});
