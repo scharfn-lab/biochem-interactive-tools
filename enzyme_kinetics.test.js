@@ -15,6 +15,17 @@ const { factors, constants, v0, fmtSig, fmtCompact, tickLabels, niceScale, parse
 const validate = raw => page.validate(raw);
 const buildModel = p => page.buildModel(p);
 const differingParameter = p => page.differingParameter(p);
+const randomParameters = rand => page.randomParameters(rand);
+
+// A repeatable random sequence, so a failure can be reproduced.
+function seededRandom(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+}
+const NM_PER_UNIT = { nM: 1, 'µM': 1e3, mM: 1e6 };
 
 function near(actual, expected, tolerance = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= tolerance * Math.max(1, Math.abs(expected)), `${actual} is not near ${expected}`);
@@ -151,6 +162,92 @@ test('error messages say which conditions a Kinetics field belongs to', () => {
   assert.equal(message({ Km: '-1' }), 'Km in Conditions A must be a positive number.');
   assert.equal(message({ Etot2: '-1' }), 'Et in Conditions B must be a positive number.');
   assert.equal(validate({ ...VALID, Km: '-1' }).errors[0].message, 'Km must be a positive number.');
+});
+
+// ── Select Random Parameters ──────────────────────────────────
+const RANDOM_DRAWS = 5000;
+function eachRandomDraw(check) {
+  const rand = seededRandom(317);
+  for (let i = 0; i < RANDOM_DRAWS; i++) check(randomParameters(rand));
+}
+const asRaw = (r, extra) => {
+  const raw = { ...r, compare: true, ...extra };
+  for (const f of ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Km2', 'kcat2', 'Etot2']) raw[f] = String(r[f]);
+  return raw;
+};
+
+test('random values pass validation on both tabs', () => {
+  eachRandomDraw(r => {
+    assert.equal(validate(asRaw(r, { mode: 'kinetics' })).errors.length, 0, JSON.stringify(r));
+    assert.equal(validate(asRaw(r, { mode: 'inhibition' })).errors.length, 0, JSON.stringify(r));
+  });
+});
+
+test('random concentrations stay between nM and high mM, and Et stays well below Km', () => {
+  eachRandomDraw(r => {
+    const nM = NM_PER_UNIT[r.concUnit];
+    assert.ok(nM, r.concUnit);
+    for (const f of ['Km', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Km2', 'Etot2']) {
+      const value = r[f] * nM;
+      assert.ok(value >= 0.99 && value <= 1e9, `${f} = ${r[f]} ${r.concUnit}`);
+    }
+    assert.ok(r.Etot <= r.Km * 0.11, JSON.stringify(r));
+  });
+});
+
+test('random kcat stays in a realistic range for its time unit', () => {
+  const perSecond = { s: 1, min: 1 / 60, h: 1 / 3600 };
+  eachRandomDraw(r => {
+    const rate = r.kcat * perSecond[r.timeUnit];
+    assert.ok(rate >= 0.02 && rate <= 2100, `${r.kcat} per ${r.timeUnit}`);
+  });
+});
+
+test('every random set visibly inhibits, under the chosen type and any other a student clicks', () => {
+  eachRandomDraw(r => {
+    assert.notEqual(r.type, 'none');
+    for (const type of ['competitive', 'uncompetitive', 'noncompetitive', 'mixed']) {
+      const params = validate(asRaw(r, { mode: 'inhibition', type })).params;
+      const [plain, inhibited, second] = buildModel(params).curves;
+      // The L-B line moves: its slope or intercept changes by at least 50%.
+      const moved = Math.max(inhibited.k.slope / plain.k.slope, inhibited.k.yInt / plain.k.yInt);
+      assert.ok(moved >= 1.5, `${type}: ${moved} ${JSON.stringify(r)}`);
+      // The M-M curve moves too, at a substrate level on the plotted range.
+      const at = plain.k.Km;
+      assert.ok(v0(inhibited.k, at) <= v0(plain.k, at) * 0.8, `${type} ${JSON.stringify(r)}`);
+      assert.ok(second.I > inhibited.I);
+    }
+  });
+});
+
+test('random mixed inhibition never looks noncompetitive', () => {
+  eachRandomDraw(r => {
+    const ratio = Math.max(r.Ki / r.KiP, r.KiP / r.Ki);
+    assert.ok(ratio >= 1.3, JSON.stringify(r));
+  });
+});
+
+test('random Conditions B differs from A in exactly one parameter', () => {
+  eachRandomDraw(r => {
+    assert.ok(['Km', 'kcat', 'Etot'].includes(differingParameter(r)), JSON.stringify(r));
+  });
+});
+
+test('random draws reach every unit and inhibition type', () => {
+  const seen = new Set();
+  eachRandomDraw(r => { seen.add(r.concUnit); seen.add(r.timeUnit); seen.add(r.type); });
+  for (const v of ['nM', 'µM', 'mM', 's', 'min', 'h', 'competitive', 'uncompetitive', 'noncompetitive', 'mixed']) {
+    assert.ok(seen.has(v), v);
+  }
+  assert.ok(!seen.has('M'));
+});
+
+test('random values are rounded to 2 significant figures', () => {
+  eachRandomDraw(r => {
+    for (const f of ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2']) {
+      assert.equal(Number(r[f].toPrecision(2)), r[f], `${f} = ${r[f]}`);
+    }
+  });
 });
 
 // ── Validation ──────────────────────────────────────────────────
