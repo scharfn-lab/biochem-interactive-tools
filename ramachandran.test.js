@@ -31,7 +31,8 @@ function makeTarget(id) {
   const classes = new Set();
   const listeners = {};
   return {
-    id, value: '', textContent: '', className: '', style: {},
+    id, value: '', textContent: '', className: '', style: {}, attrs: {},
+    setAttribute(k, v) { this.attrs[k] = v; },
     rect: { left: 0, top: 0, width: 520, height: 520 },
     context: makeContext2D(),
     classList: {
@@ -854,3 +855,85 @@ for (const t of TURNS) {
     assert.deepEqual([page.run('dipScale'), page.run('dipOffX'), page.run('dipOffY')], before);
   });
 }
+
+// ── Layout ─────────────────────────────────────────────────────
+test('the legend sits inside the plot box, below the plot', () => {
+  const box = HTML.slice(HTML.indexOf('<div id="plot-wrapper">'), HTML.indexOf('<!-- end #plot-wrapper -->'));
+  assert.ok(box.includes('id="plot"'));
+  assert.equal([...box.matchAll(/class="legend-item"/g)].length, 4);
+  assert.ok(box.indexOf('id="plot"') < box.indexOf('class="legend"'));
+  assert.equal([...HTML.matchAll(/class="legend-item"/g)].length, 4, 'no second copy elsewhere');
+});
+
+test('the columns run ribbon over viewer and sliders over readout over plot', () => {
+  const at = marker => {
+    const i = HTML.indexOf(marker);
+    assert.ok(i >= 0, marker);
+    return i;
+  };
+  assert.ok(at('<div id="ribbon-section">') < at('<div id="panel">'), 'ribbon is left of the panel');
+  assert.ok(at('id="phi-slider"') < at('id="region-display"'), 'sliders above the region readout');
+  assert.ok(at('id="region-display"') < at('<div id="dipeptide-section">'), 'readout is in the top row');
+  assert.ok(at('<div id="dipeptide-section">') < at('<div id="plot-wrapper">'), 'viewer is left of the plot');
+});
+
+// ── Ribbon image ───────────────────────────────────────────────
+const RIBBONS = [
+  [-60, -45, 'helix', 'α-helix (right-handed)'],
+  [60, 45, 'leftHelix', 'Left-handed helix'],
+  [-120, 130, 'sheet', 'β-sheet / extended strand'],
+  [-75, 148, 'sheet', 'β-sheet / extended strand'],
+  [80, -60, 'none', 'No regular secondary structure at these angles'],
+  [0, 0, 'none', 'No regular secondary structure at these angles'],
+];
+for (const [p, q, kind, caption] of RIBBONS) {
+  test(`ribbon at ϕ=${p}, ψ=${q} shows ${kind}`, () => {
+    const page = loadPage();
+    page.run(`setAngles(${p}, ${q})`);
+    assert.equal(page.run('ribbonShown'), kind);
+    assert.equal(page.el('ribbon-caption').textContent, caption);
+    assert.ok(page.el('ribbon').attrs['aria-label'].includes(caption), 'screen readers get the name');
+  });
+}
+
+test('the ribbon draws something for a structure and nothing without one', () => {
+  const page = loadPage();
+  const fills = () => page.el('ribbon').context.calls.filter(c => c.fn === 'fill').length;
+  assert.ok(fills() > 0, 'default β-sheet');
+  page.run('setAngles(0, 0)');
+  assert.equal(page.el('ribbon').context.calls.at(-1).fn, 'clearRect', 'cleared, then nothing drawn');
+});
+
+test('the ribbon stays static until the structure changes', () => {
+  const page = loadPage();
+  const calls = () => page.el('ribbon').context.calls.length;
+  const start = calls();
+  page.run('setAngles(-110, 125); setAngles(-125, 135)');
+  assert.equal(calls(), start, 'still a β-sheet');
+  page.run('setAngles(-60, -45)');
+  assert.ok(calls() > start, 'helix redraws');
+});
+
+// Sign of the curve's torsion: positive for a right-handed helix in a right-handed frame
+const helixTwist = (page, hand) => {
+  const at = t => page.run(`helixRibbonPoint(${t}, 0, ${hand})`);
+  const [a, b, c, d] = [0.30, 0.31, 0.32, 0.33].map(at);
+  return dot(cross(sub(b, a), sub(c, b)), sub(d, c));
+};
+test('the helix ribbon is right-handed and its mirror image left-handed', () => {
+  const page = loadPage();
+  assert.ok(helixTwist(page, 1) > 0, 'right-handed');
+  assert.ok(helixTwist(page, -1) < 0, 'left-handed');
+});
+
+test('both helix hands stay on the ribbon canvas', () => {
+  const page = loadPage();
+  for (const hand of [1, -1]) {
+    for (let t = 0; t <= 1; t += 0.01) {
+      for (const s of [-1, 1]) {
+        const p = page.run(`helixRibbonPoint(${t}, ${s}, ${hand})`);
+        assert.ok(Math.abs(p.x) <= 228 && Math.abs(p.y) <= 88, `t=${t} s=${s}: ${p.x}, ${p.y}`);
+      }
+    }
+  }
+});

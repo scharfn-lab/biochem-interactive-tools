@@ -46,40 +46,27 @@
     }
 
     #main-layout {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      align-items: center;
-    }
-
-    #bottom-row {
-      display: flex;
-      gap: 24px;
-      align-items: flex-start;
+      display: grid;
+      grid-template-columns: 500px 520px;
+      gap: 18px 24px;
+      align-items: stretch;
     }
 
     canvas { display: block; }
 
-    #plot {
-      cursor: crosshair;
-      border-radius: 6px;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.5);
-    }
+    #plot { cursor: crosshair; }
 
-    #panel {
+    #panel, #ribbon-section {
       background: #FFF8FF;
-      padding: 22px;
+      padding: 16px 22px;
       border-radius: 12px;
       box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-      border-right: 1px solid #685C53;
-      width: 1044px;
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 24px;
     }
-    #panel > div { flex: 1; }
-    #angle-section { flex: 2; }
+    #panel { display: flex; flex-direction: column; gap: 12px; }
+
+    #ribbon-section { display: flex; flex-direction: column; }
+    #ribbon { border-radius: 8px; background: #F4F4F8; }
+    #ribbon-caption { font-size: 0.88em; font-weight: 600; text-align: center; margin-top: 6px; }
 
     .panel-section-title {
       font-size: 0.75em;
@@ -145,13 +132,29 @@
     .reg-allowed    { background: #F5E6FF; color: #000000; border-color: #685C53; }
     .reg-disallowed { background: #FFEBEE; color: #000000; border-color: #C8102E; }
 
-    .legend { display: flex; flex-direction: column; gap: 7px; }
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px 16px;
+      width: 100%;
+      padding: 0 55px;
+    }
     .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.88em; color: #000000; }
     .legend-swatch { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
 
     .slider-hint { font-size: 0.8em; color: #685C53; line-height: 1.6; margin-top: 10px; }
     .slider-hint b { color: #C8102E; }
-    #plot-wrapper { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    #plot-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      align-self: start;
+      padding-block: 10px 14px;
+      border-radius: 12px;
+      background: #F8F6FC;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+    }
     .plot-hint { font-size: 0.8em; color: #685C53; line-height: 1.6; }
     .plot-hint b { color: #C8102E; }
 
@@ -343,6 +346,12 @@
 <p class="subtitle">Backbone dihedral angles (ϕ, ψ) of amino acid residues</p>
 
 <div id="main-layout">
+  <div id="ribbon-section">
+    <div class="panel-section-title">Typical Structure at These Angles</div>
+    <canvas id="ribbon" width="456" height="176"></canvas>
+    <div id="ribbon-caption"></div>
+  </div>
+
   <div id="panel">
       <div id="angle-section">
         <div class="panel-section-title">Dihedral Angles</div>
@@ -368,20 +377,9 @@
       </div>
 
       <div id="region-display" class="reg-favored">Favored — alpha-helix</div>
+  </div>
 
-      <div>
-        <div class="panel-section-title">Legend</div>
-        <div class="legend">
-          <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Core favored (&ge;98%)</div>
-          <div class="legend-item"><div class="legend-swatch" style="background:#AB47BC;"></div>Additionally allowed</div>
-          <div class="legend-item"><div class="legend-swatch" style="background:#F3E5F5; border:1px solid #685C53;"></div>Disallowed region</div>
-          <div class="legend-item"><div class="legend-swatch" style="background:#C8102E; border:2px solid #685C53;"></div>Current angles</div>
-        </div>
-      </div>
-    </div>
-
-  <div id="bottom-row">
-    <!-- Dipeptide 3D viewer -->
+  <!-- Dipeptide 3D viewer -->
     <div id="dipeptide-section">
   <div id="dipeptide-header">
     <span id="dipeptide-title">Dipeptide Backbone</span>
@@ -437,11 +435,16 @@
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R (side chain)</div>
   </div>
     </div><!-- end #dipeptide-section -->
-    <div id="plot-wrapper">
-      <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
-      <canvas id="plot" width="520" height="520"></canvas>
+  <div id="plot-wrapper">
+    <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
+    <canvas id="plot" width="520" height="520"></canvas>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Core favored (&ge;98%)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#AB47BC;"></div>Additionally allowed</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#F3E5F5; border:1px solid #685C53;"></div>Disallowed region</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#C8102E; border:2px solid #685C53;"></div>Current angles</div>
     </div>
-  </div><!-- end #bottom-row -->
+  </div><!-- end #plot-wrapper -->
 </div><!-- end #main-layout -->
 
 <script>
@@ -601,6 +604,7 @@ function updateUI() {
     betaTurnMode === 'typeI'  ? 'Remove β turn (Type I)'  : 'Show β turn (Type I)';
   document.getElementById('bturn-type2').textContent =
     betaTurnMode === 'typeII' ? 'Remove β turn (Type II)' : 'Show β turn (Type II)';
+  renderRibbon();
 }
 
 function setAngles(p, q) {
@@ -653,6 +657,133 @@ document.getElementById('phi-input').addEventListener('change', e=>{ const v=par
 document.getElementById('psi-input').addEventListener('change', e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)) setAngles(phi,v); });
 document.getElementById('phi-input').addEventListener('input',  e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)&&v>=-180&&v<=180) setAngles(v,psi); });
 document.getElementById('psi-input').addEventListener('input',  e=>{ const v=parseFloat(e.target.value); if(!isNaN(v)&&v>=-180&&v<=180) setAngles(phi,v); });
+
+
+// ═══════════════════════════════════════════════════════════════
+//  RIBBON IMAGE
+// ═══════════════════════════════════════════════════════════════
+const ribbonCanvas = document.getElementById('ribbon');
+const rc = ribbonCanvas.getContext('2d');
+const RW = 456, RH = 176;
+const RIBBON_CAPTIONS = {
+  helix:     'α-helix (right-handed)',
+  leftHelix: 'Left-handed helix',
+  sheet:     'β-sheet / extended strand',
+  none:      'No regular secondary structure at these angles',
+};
+let ribbonShown = null;
+
+function ribbonStructure(p, q) {
+  const { level, name } = getRegion(p, q);
+  if (level === 'disallowed') return 'none';
+  if (name === 'alpha-helix') return 'helix';
+  if (name === 'left-hand helix') return 'leftHelix';
+  if (name === 'beta-sheet' || name === 'PPII / beta' || name === 'extended') return 'sheet';
+  return 'none';
+}
+
+// Redraws only when the structure changes, so the image stays still while the angles move
+function renderRibbon() {
+  const kind = ribbonStructure(phi, psi);
+  if (kind === ribbonShown) return;
+  ribbonShown = kind;
+  rc.clearRect(0, 0, RW, RH);
+  if (kind === 'helix') drawHelixRibbon(1, '#C8102E');
+  else if (kind === 'leftHelix') drawHelixRibbon(-1, '#C8102E');
+  else if (kind === 'sheet') drawSheetRibbon('#6A0DAD');
+  document.getElementById('ribbon-caption').textContent = RIBBON_CAPTIONS[kind];
+  ribbonCanvas.setAttribute('aria-label', `Ribbon diagram: ${RIBBON_CAPTIONS[kind]}`);
+}
+
+function ribbonQuad(l0, r0, r1, l1) {
+  const n = norm3(cross3(sub3(r0, l0), sub3(l1, l0)));
+  return { pts: [l0, r0, r1, l1], facing: n.z, z: (l0.z + r0.z + r1.z + l1.z) / 4 };
+}
+
+// Paints quads back to front, with x right, y up and z toward the viewer. Brightness follows
+// how squarely a quad faces the viewer, and its back face is darker.
+function paintRibbonQuads(quads, color) {
+  const onCanvas = p => [RW/2 + p.x, RH/2 - p.y];
+  rc.lineWidth = 1;
+  rc.lineJoin = 'round';
+  for (const { pts, facing } of quads.sort((a, b) => a.z - b.z)) {
+    const shade = facing >= 0 ? lighten(color, 0.35 * (1 - facing)) : darken(color, 0.3 + 0.3 * (1 + facing));
+    const [a, b, c, d] = pts.map(onCanvas);
+    rc.fillStyle = shade;
+    rc.strokeStyle = shade;
+    rc.beginPath();
+    rc.moveTo(a[0], a[1]); rc.lineTo(b[0], b[1]); rc.lineTo(c[0], c[1]); rc.lineTo(d[0], d[1]);
+    rc.closePath(); rc.fill(); rc.stroke();
+    rc.strokeStyle = darken(color, 0.55);
+    rc.beginPath();
+    rc.moveTo(a[0], a[1]); rc.lineTo(d[0], d[1]);
+    rc.moveTo(b[0], b[1]); rc.lineTo(c[0], c[1]);
+    rc.stroke();
+  }
+}
+
+// A point on a tape wound around the screen's x axis, turned a little so its length and depth
+// both show. t runs 0–1 along the tape, s runs -1–1 across it. hand is 1 for right-handed,
+// -1 for the mirror image. The tape leans off the cylinder so its outline stays round.
+function helixRibbonPoint(t, s, hand) {
+  const TURNS = 3.6, R = 54, PITCH = 88, HALF_WIDTH = 18, LEAN = 30 * Math.PI / 180;
+  const th = t * TURNS * 2 * Math.PI;
+  const radial = v3(0, Math.cos(th), hand * Math.sin(th));
+  const tangent = norm3(v3(PITCH, -R * 2 * Math.PI * radial.z * hand, hand * R * 2 * Math.PI * radial.y));
+  const across = add3(sc3(Math.cos(LEAN), cross3(tangent, radial)), sc3(hand * Math.sin(LEAN), radial));
+  const center = v3((t - 0.5) * TURNS * PITCH, R * radial.y, R * radial.z);
+  return mApply(mRotY(-18 * Math.PI / 180), add3(center, sc3(s * HALF_WIDTH, across)));
+}
+
+function drawHelixRibbon(hand, color) {
+  const STEPS = 240, quads = [];
+  const at = (t, s) => helixRibbonPoint(t, s, hand);
+  for (let i = 0; i < STEPS; i++) {
+    const t0 = i / STEPS, t1 = (i + 1) / STEPS;
+    quads.push(ribbonQuad(at(t0, -1), at(t0, 1), at(t1, 1), at(t1, -1)));
+  }
+  paintRibbonQuads(quads, color);
+}
+
+// Three pleated antiparallel strands with arrowheads, joined by hairpin loops
+function drawSheetRibbon(color) {
+  const HALF_LEN = 185, HALF_WIDTH = 15, HEAD = 40, GAP = 54, PLEAT = 6, STEPS = 120;
+  const view = mRotX(-28 * Math.PI / 180);
+  const strandYs = [GAP, 0, -GAP];
+  const place = (x, y, z) => mApply(view, v3(x, y, z));
+  const pleatZ = x => PLEAT * Math.cos(x * Math.PI / 22);
+
+  rc.lineWidth = 5;
+  rc.lineCap = 'round';
+  rc.strokeStyle = '#685C53';
+  strandYs.slice(0, -1).forEach((y, i) => {
+    const side = i % 2 === 0 ? 1 : -1;
+    rc.beginPath();
+    for (let k = 0; k <= 24; k++) {
+      const a = -Math.PI / 2 + k / 24 * Math.PI;
+      const p = place(side * (HALF_LEN + 14 * Math.cos(a)), y - GAP / 2 - GAP / 2 * Math.sin(a), pleatZ(side * HALF_LEN));
+      if (k === 0) rc.moveTo(RW/2 + p.x, RH/2 - p.y); else rc.lineTo(RW/2 + p.x, RH/2 - p.y);
+    }
+    rc.stroke();
+  });
+
+  const quads = [];
+  strandYs.forEach((y, i) => {
+    const dir = i % 2 === 0 ? 1 : -1;
+    const widthAt = along => along < 2 * HALF_LEN - HEAD
+      ? HALF_WIDTH
+      : HALF_WIDTH * 2 * (2 * HALF_LEN - along) / HEAD;
+    const point = (along, s) => {
+      const x = dir * (along - HALF_LEN);
+      return place(x, y + s * widthAt(along), pleatZ(x));
+    };
+    for (let k = 0; k < STEPS; k++) {
+      const a0 = k / STEPS * 2 * HALF_LEN, a1 = (k + 1) / STEPS * 2 * HALF_LEN;
+      quads.push(ribbonQuad(point(a0, dir), point(a0, -dir), point(a1, -dir), point(a1, dir)));
+    }
+  });
+  paintRibbonQuads(quads, color);
+}
 
 
 // ═══════════════════════════════════════════════════════════════
