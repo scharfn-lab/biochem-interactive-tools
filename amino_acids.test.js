@@ -19,7 +19,8 @@ function makeElement(tag, attrs = {}) {
   const listeners = {};
   const dataset = {};
   const style = {};
-  for (const [k, v] of Object.entries(attrs)) if (k.startsWith('data-')) dataset[k.slice(5)] = v;
+  const camelCase = name => name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  for (const [k, v] of Object.entries(attrs)) if (k.startsWith('data-')) dataset[camelCase(k.slice(5))] = v;
   for (const rule of (attrs.style ?? '').split(';')) {
     const [k, v] = rule.split(':').map(s => s.trim());
     if (k) style[k] = v;
@@ -57,7 +58,8 @@ function makeElement(tag, attrs = {}) {
 function matches(el, selector) {
   return selector.match(/\.[\w-]+|\[[^\]]+\]/g).every(part => {
     if (part[0] === '.') return el.classList.contains(part.slice(1));
-    const [, name, value] = part.match(/^\[data-([\w-]+)(?:="([^"]*)")?\]$/);
+    const [, attr, value] = part.match(/^\[data-([\w-]+)(?:="([^"]*)")?\]$/);
+    const name = attr.replace(/-(\w)/g, (_, c) => c.toUpperCase());
     return value === undefined ? name in el.dataset : el.dataset[name] === value;
   });
 }
@@ -800,6 +802,366 @@ test('locked answers cannot reopen a list, and new questions close open ones', (
   assert.equal(page.el('inp-type').getAttribute('aria-expanded'), 'false');
 });
 
+// ── Interactions between two amino acids ───────────────────────
+const interactionsOf = (page, a, b, ph) => page.json(`correctInteractions(aaByCode('${a}'), aaByCode('${b}'), ${ph})`).sort();
+const askPair = (page, a, b, ph) => page.run(`interactQuestion = { a: '${a}', b: '${b}', ph: ${ph} }; renderQuestion()`);
+const startInteract = (page, a = 'D', b = 'K', ph = 7) => {
+  page.run(`setDisplayMode('interact')`);
+  askPair(page, a, b, ph);
+};
+const option = (page, key) => page.q(`[data-interaction="${key}"]`);
+
+// Worked out by hand from the side-chain chemistry, deliberately not from the page's own table
+const PAIR_ANSWERS = [
+  ['D', 'K', 7, ['hbond', 'salt']],
+  ['D', 'K', 1, ['hbond']],                    // COOH can accept from NH3+, but only Lys is charged
+  ['D', 'K', 13, ['hbond']],                   // Lys NH2 donates to COO-, but only Asp is charged
+  ['E', 'R', 7, ['hbond', 'salt']],
+  ['D', 'E', 7, ['repulsion']],
+  ['D', 'D', 1, ['hbond']],                    // two neutral COOH groups
+  ['K', 'R', 7, ['repulsion']],
+  ['K', 'K', 13, ['hbond']],                   // two neutral NH2 groups
+  ['K', 'H', 1, ['repulsion']],
+  ['K', 'H', 7, ['hbond']],                    // His is neutral at pH 7 on this page
+  ['D', 'H', 7, ['hbond']],
+  ['C', 'C', 7, ['disulfide', 'hbond']],
+  ['C', 'C', 1, ['disulfide', 'hbond']],
+  ['C', 'C', 13, ['repulsion']],
+  ['C', 'S', 7, ['hbond']],
+  ['Y', 'D', 13, ['repulsion']],
+  ['F', 'W', 7, ['hydrophobic', 'pi']],
+  ['F', 'Y', 7, ['pi']],                       // Tyr is polar here, so it is not hydrophobic
+  ['F', 'A', 7, ['hydrophobic']],
+  ['Y', 'Y', 7, ['hbond', 'pi']],
+  ['Y', 'Y', 13, ['repulsion']],               // like-charged rings do not stack
+  ['H', 'H', 1, ['repulsion']],
+  ['H', 'H', 7, ['hbond', 'pi']],
+  ['H', 'F', 1, ['pi']],
+  ['W', 'W', 7, ['hydrophobic', 'pi']],        // indole NH can only donate
+  ['W', 'S', 7, ['hbond']],
+  ['M', 'S', 7, ['none']],                     // Met sulfur is not counted as an acceptor
+  ['M', 'L', 7, ['hydrophobic']],
+  ['S', 'T', 7, ['hbond']],
+  ['N', 'Q', 7, ['hbond']],
+  ['A', 'S', 7, ['none']],
+  ['D', 'A', 7, ['none']],
+];
+
+test('the side-chain rules give the expected interactions for each pair and pH', () => {
+  const page = loadPage();
+  for (const [a, b, ph, expected] of PAIR_ANSWERS) {
+    assert.deepEqual(interactionsOf(page, a, b, ph), [...expected].sort(), `${a}-${b} at pH ${ph}`);
+  }
+});
+
+test('glycine has no side chain, so it forms nothing with any amino acid at any pH', () => {
+  const page = loadPage();
+  for (const [code] of EXPECTED) {
+    for (const ph of [1, 7, 13]) assert.deepEqual(interactionsOf(page, 'G', code, ph), ['none'], `${code} at pH ${ph}`);
+  }
+});
+
+test('salt bridges only occur at pH 7, between Asp or Glu and Lys or Arg', () => {
+  const page = loadPage();
+  const found = [];
+  for (const [a] of EXPECTED) {
+    for (const [b] of EXPECTED) {
+      for (const ph of [1, 7, 13]) {
+        if (interactionsOf(page, a, b, ph).includes('salt')) found.push(`${[a, b].sort().join('')}${ph}`);
+      }
+    }
+  }
+  assert.deepEqual([...new Set(found)].sort(), ['DK7', 'DR7', 'EK7', 'ER7']);
+});
+
+test('a pair gives the same answer in either order', () => {
+  const page = loadPage();
+  for (const [a] of EXPECTED) {
+    for (const [b] of EXPECTED) {
+      for (const ph of [1, 7, 13]) assert.deepEqual(interactionsOf(page, a, b, ph), interactionsOf(page, b, a, ph), `${a}-${b} at pH ${ph}`);
+    }
+  }
+});
+
+test('side-chain charges agree with the net charge of each structure', () => {
+  const page = loadPage();
+  const backbone = { 1: 1, 7: 0, 13: -1 };
+  for (const [code, , name, , q1, q7, q13] of EXPECTED) {
+    const net = { 1: q1, 7: q7, 13: q13 };
+    for (const ph of [1, 7, 13]) {
+      assert.equal(page.run(`SIDE_CHAINS['${code}'][${ph}].charge`), net[ph] - backbone[ph], `${name} at pH ${ph}`);
+    }
+  }
+});
+
+test('only the six agreed interactions are offered, with cation-pi left out', () => {
+  const page = loadPage();
+  assert.deepEqual(page.qa('[data-interaction]').map(b => b.dataset.interaction),
+    ['salt', 'hbond', 'hydrophobic', 'pi', 'disulfide', 'repulsion', 'none']);
+  assert.deepEqual(page.json('INTERACTIONS.map(i => i[0])'), ['salt', 'hbond', 'hydrophobic', 'pi', 'disulfide', 'repulsion']);
+  assert.doesNotMatch(HTML, /cation/i);
+});
+
+test('the section shows its own panel and hides the others', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('interact')`);
+  assert.equal(page.el('interact-panel').style.display, '');
+  assert.equal(page.q('.main-grid').style.display, 'none');
+  assert.equal(page.el('identify-panel').style.display, 'none');
+  assert.equal(page.el('qtype-bar').style.display, 'none');
+  assert.equal(page.el('source-bar').style.display, 'none');
+  assert.equal(page.el('name-toggles').style.display, 'none');
+  assert.ok(page.el('mode-btn-interact').classList.contains('active'));
+  page.run(`setDisplayMode('structure')`);
+  assert.equal(page.el('interact-panel').style.display, 'none');
+  assert.equal(page.q('.main-grid').style.display, '');
+});
+
+test('the quiz asks about both side chains at a pH and draws both structures', () => {
+  const page = loadPage();
+  startInteract(page, 'D', 'K', 7);
+  const prompt = page.el('interact-prompt').innerHTML;
+  assert.match(prompt, /side chains of <strong>Asp<\/strong> and <strong>Lys<\/strong> at <strong>pH 7<\/strong>/);
+  assert.equal(page.el('pair-name-a').textContent, 'Aspartate (Asp)');
+  assert.equal(page.el('pair-name-b').textContent, 'Lysine (Lys)');
+  assert.ok(page.el('pair-struct-a').innerHTML.includes(page.run(`aaByCode('D').smiles[7]`)));
+  assert.ok(page.el('pair-struct-b').innerHTML.includes(page.run(`aaByCode('K').smiles[7]`)));
+  assert.equal(page.el('pair-struct-a').getAttribute('aria-label'), 'Structure of Aspartate at pH 7');
+  assert.equal(page.el('interact-btn-check').disabled, true, 'nothing selected yet');
+});
+
+test('selecting works as a set, and None of these cannot be combined', () => {
+  const page = loadPage();
+  startInteract(page);
+  const selected = () => page.qa('[data-interaction]').filter(b => b.classList.contains('active')).map(b => b.dataset.interaction);
+  page.run(`toggleInteraction('salt'); toggleInteraction('hbond')`);
+  assert.deepEqual(selected(), ['salt', 'hbond']);
+  assert.equal(page.el('interact-btn-check').disabled, false);
+  page.run(`toggleInteraction('salt')`);
+  assert.deepEqual(selected(), ['hbond']);
+  page.run(`toggleInteraction('none')`);
+  assert.deepEqual(selected(), ['none']);
+  page.run(`toggleInteraction('pi')`);
+  assert.deepEqual(selected(), ['pi']);
+  page.run(`toggleInteraction('pi')`);
+  assert.equal(page.el('interact-btn-check').disabled, true, 'nothing selected again');
+  assert.equal(option(page, 'hbond').getAttribute('aria-pressed'), 'false');
+});
+
+test('an exact answer scores a point and adds to the Interactions row', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  startInteract(page, 'D', 'K', 7);
+  page.run(`toggleInteraction('salt'); toggleInteraction('hbond'); checkInteractions()`);
+  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
+  assert.deepEqual(counts(page, 'Interactions'), [1, 0]);
+  assert.equal(page.el('feedback').className, 'feedback show all-correct');
+  assert.match(page.el('feedback').innerHTML, /Correct!/);
+  assert.ok(option(page, 'salt').classList.contains('opt-correct'));
+  assert.equal(option(page, 'salt').dataset.mark, '✓');
+  assert.equal(option(page, 'pi').dataset.mark, undefined);
+  assert.ok(page.qa('.interact-opt').every(b => b.disabled));
+  assert.equal(makeElement.focused, page.el('interact-btn-next'));
+});
+
+test('a partly right answer scores zero, but marks show what was right and wrong', () => {
+  for (const picks of [['salt'], ['salt', 'hbond', 'pi'], ['pi'], ['none']]) {
+    const page = loadPage();
+    page.run('toggleScoreBreakdown()');
+    startInteract(page, 'D', 'K', 7);
+    for (const key of picks) page.run(`toggleInteraction('${key}')`);
+    page.run('checkInteractions()');
+    assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%'], picks.join());
+    assert.deepEqual(counts(page, 'Interactions'), [0, 1], picks.join());
+    assert.equal(page.el('feedback').className, 'feedback show wrong');
+    for (const key of ['salt', 'hbond']) {
+      const expected = picks.includes(key) ? 'opt-correct' : 'opt-missed';
+      assert.ok(option(page, key).classList.contains(expected), `${key} with ${picks}`);
+    }
+    if (picks.includes('pi')) assert.ok(option(page, 'pi').classList.contains('opt-wrong'));
+    if (picks.includes('none')) assert.ok(option(page, 'none').classList.contains('opt-wrong'));
+  }
+});
+
+test('None of these is the answer when nothing forms', () => {
+  const page = loadPage();
+  startInteract(page, 'A', 'S', 7);
+  page.run(`toggleInteraction('none'); checkInteractions()`);
+  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
+  assert.ok(option(page, 'none').classList.contains('opt-correct'));
+});
+
+test('explanations stay hidden until the question ends, then cover every interaction', () => {
+  const page = loadPage();
+  startInteract(page, 'D', 'K', 1);
+  page.run(`toggleInteraction('salt')`);
+  assert.equal(page.el('feedback').innerHTML, '');
+  page.run('checkInteractions()');
+  const text = page.el('feedback').innerHTML;
+  assert.match(text, /Asp<\/b> at pH 1: carboxyl COOH, uncharged, can donate and accept hydrogen bonds/);
+  assert.match(text, /Lys<\/b> at pH 1: ammonium NH₃⁺, positive, can only donate hydrogen bonds/);
+  assert.match(text, /✗ Salt bridge:<\/b> Needs opposite charges, but Asp is uncharged and Lys is positive/);
+  assert.match(text, /✓ Hydrogen bond:<\/b> Lys ammonium NH₃⁺ can donate and Asp carboxyl COOH can accept/);
+  for (const label of ['Hydrophobic', 'Pi stacking', 'Disulfide bond', 'Charge repulsion']) assert.ok(text.includes(label), label);
+});
+
+test('the disulfide explanation states its conditions and why pH 13 differs', () => {
+  const page = loadPage();
+  startInteract(page, 'C', 'C', 7);
+  page.run('showAnswers()');
+  assert.match(page.el('feedback').innerHTML, /✓ Disulfide bond:<\/b>[^<]*oxidizing conditions/);
+  askPair(page, 'C', 'C', 13);
+  page.run('showAnswers()');
+  assert.match(page.el('feedback').innerHTML, /✗ Disulfide bond:<\/b>[^<]*thiolates[^<]*strong base/);
+});
+
+test('Show Answer reveals the answer and scores zero', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  startInteract(page, 'D', 'K', 7);
+  page.run('showAnswers()');
+  assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
+  assert.deepEqual(counts(page, 'Interactions'), [0, 1]);
+  assert.ok(option(page, 'salt').classList.contains('opt-missed'));
+  assert.equal(page.el('interact-btn-show').disabled, true);
+  assert.equal(page.el('interact-btn-check').disabled, true);
+});
+
+test('returning to a finished pair reopens it without scoring it again', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  startInteract(page, 'D', 'K', 7);
+  page.run('showAnswers()');
+  page.run(`setDisplayMode('structure'); setDisplayMode('interact')`);
+  assert.equal(page.run('answered'), false);
+  assert.ok(!option(page, 'salt').disabled);
+  assert.equal(option(page, 'salt').className, 'name-type-btn interact-opt', 'marks are cleared');
+  page.run(`toggleInteraction('salt'); toggleInteraction('hbond'); checkInteractions()`);
+  assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
+  assert.deepEqual(counts(page, 'Interactions'), [0, 1]);
+  assert.match(page.el('feedback').innerHTML, /already scored/);
+});
+
+test('finishing a single amino acid question does not stop a pair from scoring', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  page.run('showAnswers()');
+  startInteract(page, 'D', 'K', 7);
+  page.run(`toggleInteraction('salt'); toggleInteraction('hbond'); checkInteractions()`);
+  assert.deepEqual(scoreboard(page), ['2', '1', '0', '50%']);
+  page.run(`setDisplayMode('structure')`);
+  assert.equal(page.run('current.aa.code1'), 'A', 'the single amino acid question is untouched');
+});
+
+test('every outcome comes up, chosen evenly rather than by pair', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('interact')`);
+  const outcomes = ['salt', 'hbond', 'hydrophobic', 'pi', 'disulfide', 'repulsion', 'none'];
+  outcomes.forEach((outcome, i) => {
+    // The first random call picks the outcome; later ones pick a pair and an order
+    page.run(`(() => { let first = true; Math.random = () => { if (first) { first = false; return ${(i + 0.5) / 7}; } return 0.3; }; })()`);
+    page.run('interactQuestion = null; nextQuestion()');
+    const { a, b, ph } = page.json('interactQuestion');
+    assert.ok(interactionsOf(page, a, b, ph).includes(outcome), `${outcome}: ${a}-${b} at pH ${ph}`);
+  });
+});
+
+test('Next Pair changes only the pair, and random pairs never repeat immediately', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('interact')`);
+  const single = page.run('current');
+  const key = () => { const q = page.json('interactQuestion'); return `${[q.a, q.b].sort().join('')}${q.ph}`; };
+  let previous = key();
+  for (let i = 0; i < 60; i++) {
+    page.run('showAnswers(); nextQuestion()');
+    assert.notEqual(key(), previous, `question ${i}`);
+    assert.equal(page.run('answered'), false);
+    previous = key();
+  }
+  assert.equal(page.run('current'), single);
+  assert.equal(page.el('s-total').textContent, 60);
+});
+
+test('Explore shows a pair and its reasons without scoring', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('interact'); setInteractActivity('explore')`);
+  assert.equal(page.el('interact-quiz').style.display, 'none');
+  assert.equal(page.el('explore-controls').style.display, '');
+  assert.equal(page.el('inp-pairA').value, 'Aspartate');
+  assert.equal(page.el('inp-pairB').value, 'Lysine');
+  const results = () => page.el('explore-results').innerHTML;
+  assert.match(results(), /✓ Salt bridge/);
+  assert.ok(page.el('pair-struct-a').innerHTML.includes(page.run(`aaByCode('D').smiles[7]`)));
+
+  page.run('setExplorePH(1)');
+  assert.match(results(), /✗ Salt bridge/);
+  assert.ok(page.q('[data-explore-ph="1"]').classList.contains('active'));
+  assert.ok(page.el('pair-struct-a').innerHTML.includes(page.run(`aaByCode('D').smiles[1]`)));
+  assert.deepEqual(page.qa('.name-ph-btn').filter(b => b.classList.contains('active')).map(b => b.dataset.ph), ['7'],
+    'separate from the other pH buttons');
+  assert.equal(page.el('s-total').textContent, '', 'nothing is scored');
+});
+
+test('Explore pickers use the type-ahead lists and keep the choice valid', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('interact'); setInteractActivity('explore')`);
+  const box = page.el('inp-pairA');
+  box.value = 'cy';
+  box.fire('input');
+  assert.deepEqual(page.el('list-pairA').children.map(c => c.textContent), ['Cysteine']);
+  page.el('list-pairA').children[0].fire('click');
+  assert.equal(page.run('explorePair.a'), 'C');
+  assert.equal(box.value, 'Cysteine');
+  assert.match(page.el('interact-prompt').innerHTML, /<strong>Cys<\/strong>/);
+
+  box.value = 'Glu';
+  box.fire('blur');
+  assert.equal(page.run('explorePair.a'), 'E', 'a typed code works');
+  assert.equal(box.value, 'Glutamate');
+
+  box.value = 'Aspartic acid';
+  box.fire('keydown', { key: 'Enter' });
+  assert.equal(page.run('explorePair.a'), 'D', 'so does an accepted alternate name');
+
+  box.value = 'nonsense';
+  box.fire('blur');
+  assert.equal(page.run('explorePair.a'), 'D');
+  assert.equal(box.value, 'Aspartate', 'an unknown entry goes back');
+});
+
+test('leaving Explore for the quiz keeps the quiz question', () => {
+  const page = loadPage();
+  startInteract(page, 'F', 'W', 7);
+  page.run(`setInteractActivity('explore'); setInteractActivity('quiz')`);
+  assert.equal(page.run('interactQuestion.a'), 'F');
+  assert.match(page.el('interact-prompt').innerHTML, /Phe/);
+  assert.equal(page.el('explore-results').style.display, 'none');
+});
+
+test('structures fill in when RDKit arrives without changing the pair', () => {
+  const page = loadPage({ rdkit: false });
+  startInteract(page, 'D', 'K', 7);
+  page.run(`toggleInteraction('salt')`);
+  assert.match(page.el('pair-struct-a').innerHTML, /Loading/);
+  page.loader.load();
+  assert.ok(page.el('pair-struct-a').innerHTML.includes('<svg'));
+  assert.equal(page.run('interactQuestion.a'), 'D');
+  assert.ok(option(page, 'salt').classList.contains('active'), 'the selection is kept');
+});
+
+test('a failed RDKit load explains itself and the reasoning still works', () => {
+  const page = loadPage({ rdkit: false });
+  startInteract(page, 'D', 'K', 7);
+  page.loader.fail();
+  assert.match(page.el('pair-struct-a').innerHTML, /Unavailable/);
+  assert.equal(page.el('pair-struct-a').getAttribute('role'), null);
+  assert.equal(page.el('interact-unavailable').hidden, false);
+  assert.match(page.el('interact-unavailable').textContent, /failed to load/);
+  assert.match(HTML, /#interact-unavailable\[hidden\] \{ display: none; \}/, '.struct-msg would otherwise override hidden');
+  page.run(`toggleInteraction('salt'); toggleInteraction('hbond'); checkInteractions()`);
+  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
+});
+
 // ── Score breakdown ────────────────────────────────────────────
 const breakdownRows = page => [...page.el('score-breakdown').innerHTML.matchAll(/<tr><th scope="row">([^<]+)<\/th><td>(\d+)<\/td><td>(\d+)<\/td><\/tr>/g)]
   .map(m => [m[1], +m[2], +m[3]]);
@@ -818,7 +1180,7 @@ test('the breakdown button sits beside Reset score and toggles a table', () => {
   assert.match(panel.innerHTML, /Correct Responses/);
   assert.match(panel.innerHTML, /Incorrect Responses/);
   assert.deepEqual(breakdownRows(page).map(r => r[0]),
-    ['Structure', 'Name (1-letter)', 'Name (3-letter)', 'Name (full)', 'Property', 'pH', 'Total']);
+    ['Structure', 'Name (1-letter)', 'Name (3-letter)', 'Name (full)', 'Property', 'pH', 'Interactions', 'Total']);
   assert.ok(breakdownRows(page).every(r => r[1] === 0 && r[2] === 0), 'starts empty');
 
   page.run('toggleScoreBreakdown()');
@@ -1018,6 +1380,7 @@ test('the mode buttons have their new names', () => {
     ['identify', 'Determine Structure', '(From Name + pH)'],
     ['structure', 'Determine Properties', '(From Structure)'],
     ['name', 'Determine Property', '(From Name or Structure)'],
+    ['interact', 'Determine Interactions', '(Between Two Amino Acids)'],
   ], 'Determine Structure comes first, with each parenthetical on its own line');
   assert.doesNotMatch(HTML, /Show Amino Acid/);
   const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
