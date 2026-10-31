@@ -56,7 +56,7 @@
       flex-direction: column;
       gap: 18px;
       width: 100%;
-      max-width: 1100px;
+      max-width: 900px;
     }
 
     canvas { display: block; }
@@ -74,6 +74,7 @@
       align-items: center;
     }
     #top-buttons { justify-content: center; }
+    #topic-buttons { display: flex; gap: 8px; }
 
     button {
       padding: 7px 18px;
@@ -94,23 +95,31 @@
     .panel {
       background: var(--bg-panel);
       border-radius: 12px;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.15);
     }
 
-    #panel { padding: 22px; }
+    #workspace {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
 
-    #controls {
+    /* Stays in view beside the lower plot; the padding leaves room for shadows and focus rings */
+    #sidebar {
       display: flex;
-      flex-wrap: wrap;
-      gap: 20px 28px;
+      flex-direction: column;
+      gap: 14px;
+      position: sticky;
+      top: 8px;
+      max-height: calc(100vh - 16px);
+      overflow-y: auto;
+      padding: 6px 14px 20px;
+      margin: -6px -14px 0;
     }
 
-    #enzyme-section { flex: 3 1 300px; }
-    #units-section  { flex: 2 1 190px; }
-    #inhib-section  { flex: 4 1 480px; }
-    #second-section { flex: 1 1 170px; }
-    #range-section  { flex: 3 1 300px; }
-    #controls > section { min-width: 0; }
+    .box { padding: 16px; }
+    .box-subsection { margin-top: 16px; }
 
     .panel-section-title {
       font-size: 0.75em;
@@ -187,7 +196,6 @@
     }
 
     #errors {
-      margin-top: 14px;
       padding: 8px 12px;
       font-size: 0.88em;
       line-height: 1.5;
@@ -198,11 +206,11 @@
     #errors b { color: var(--ut-crimson); }
 
     /* ── Plots and results ── */
-    #plot-row {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 24px;
-      align-items: start;
+    #plot-column {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
     }
 
     .plot-card { padding: 14px; min-width: 0; }
@@ -256,6 +264,7 @@
     }
     thead th, thead td { border-bottom: 2px solid var(--ut-taupe); }
     thead th {
+      text-align: center;
       font-weight: 600;
       white-space: normal;
       vertical-align: bottom;
@@ -273,10 +282,10 @@
     .quiz-cell.wrong .mark { color: var(--ut-crimson); }
 
     @media (max-width: 900px) {
-      #plot-row { grid-template-columns: minmax(0, 1fr); }
+      #workspace { grid-template-columns: minmax(0, 1fr); }
+      #sidebar { position: static; max-height: none; overflow: visible; padding: 0; margin: 0; }
     }
     @media (max-width: 480px) {
-      #panel { padding: 16px; }
       .plot-card { padding: 10px; }
       th, td { padding: 4px; }
       table { font-size: 0.82em; }
@@ -288,53 +297,75 @@
 <body>
 
 <h1>Enzyme Kinetics</h1>
-<p class="subtitle">CHE 317 · Michaelis–Menten and Lineweaver–Burk plots with reversible inhibition</p>
+<p class="subtitle">CHE 317 · Michaelis–Menten and Lineweaver–Burk plots</p>
 
 <main id="main-layout">
 
   <div id="top-buttons">
+    <div id="topic-buttons" role="group" aria-label="Topic">
+      <button type="button" id="tab-kinetics">Kinetics</button>
+      <button type="button" id="tab-inhibition">Inhibition</button>
+    </div>
     <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode: Off</button>
     <button type="button" id="reveal-all" hidden>Reveal all</button>
     <button type="button" id="reset">Reset to defaults</button>
   </div>
 
-  <!-- Control panel -->
-  <div id="panel" class="panel">
-    <div id="controls">
+  <div id="workspace">
 
-      <section id="enzyme-section" aria-labelledby="enzyme-title">
+    <!-- Controls -->
+    <div id="sidebar">
+
+      <section class="panel box" aria-labelledby="enzyme-title">
         <h2 class="panel-section-title" id="enzyme-title">Enzyme parameters</h2>
         <div class="field-row">
           <div class="field"><label for="Km">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km" step="any" min="0"></div>
           <div class="field"><label for="kcat">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat" step="any" min="0"></div>
           <div class="field"><label for="Etot">[E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
         </div>
-      </section>
-
-      <section id="units-section" aria-labelledby="units-title">
-        <h2 class="panel-section-title" id="units-title">Units</h2>
-        <div class="field-row">
-          <div class="field">
-            <label for="concUnit">Concentration</label>
-            <select id="concUnit">
-              <option value="M">M</option>
-              <option value="mM">mM</option>
-              <option value="µM">µM</option>
-              <option value="nM">nM</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="timeUnit">Time</label>
-            <select id="timeUnit">
-              <option value="s">s</option>
-              <option value="min">min</option>
-              <option value="h">h</option>
-            </select>
+        <div class="box-subsection">
+          <h3 class="panel-section-title">Units</h3>
+          <div class="field-row">
+            <div class="field">
+              <label for="concUnit">Concentration</label>
+              <select id="concUnit">
+                <option value="M">M</option>
+                <option value="mM">mM</option>
+                <option value="µM">µM</option>
+                <option value="nM">nM</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="timeUnit">Time</label>
+              <select id="timeUnit">
+                <option value="s">s</option>
+                <option value="min">min</option>
+                <option value="h">h</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="inhib-section" aria-labelledby="inhib-title">
+      <section class="panel box" id="compare-box" aria-labelledby="compare-title">
+        <h2 class="panel-section-title" id="compare-title">Compare two enzymes</h2>
+        <div class="field-row">
+          <div class="field">
+            <label for="compareBy">Compare</label>
+            <select id="compareBy">
+              <option value="none">None</option>
+              <option value="Etot">[E]total</option>
+              <option value="kcat">kcat</option>
+              <option value="Km">Km</option>
+            </select>
+          </div>
+          <div class="field" id="Etot2-field" hidden><label for="Etot2">Second [E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot2" step="any" min="0"></div>
+          <div class="field" id="kcat2-field" hidden><label for="kcat2">Second k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat2" step="any" min="0"></div>
+          <div class="field" id="Km2-field" hidden><label for="Km2">Second K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km2" step="any" min="0"></div>
+        </div>
+      </section>
+
+      <section class="panel box" id="inhib-box" aria-labelledby="inhib-title" hidden>
         <h2 class="panel-section-title" id="inhib-title">Inhibition</h2>
         <div class="field-row" id="inhib-fields">
           <div class="field type-field">
@@ -352,15 +383,14 @@
           <div class="field" id="KiP-field"><label for="KiP">K<sub>i</sub>' (ES + I), <span data-u="conc">µM</span></label><input type="number" id="KiP" step="any" min="0"></div>
         </div>
         <p class="note" id="ki-note" hidden>K<sub>i</sub>' = K<sub>i</sub> for pure noncompetitive</p>
+        <div class="box-subsection">
+          <h3 class="panel-section-title">Second [I] (optional)</h3>
+          <label class="check-label" id="compare-label"><input type="checkbox" id="compare"> Compare a second [I]</label>
+          <div class="field" id="I2-field" hidden><label for="I2">Second [I] (<span data-u="conc">µM</span>)</label><input type="number" id="I2" step="any" min="0"></div>
+        </div>
       </section>
 
-      <section id="second-section" aria-labelledby="second-title">
-        <h2 class="panel-section-title" id="second-title">Second [I] (optional)</h2>
-        <label class="check-label" id="compare-label"><input type="checkbox" id="compare"> Compare a second [I]</label>
-        <div class="field" id="I2-field" hidden><label for="I2">Second [I] (<span data-u="conc">µM</span>)</label><input type="number" id="I2" step="any" min="0"></div>
-      </section>
-
-      <section id="range-section" aria-labelledby="range-title">
+      <section class="panel box" aria-labelledby="range-title">
         <h2 class="panel-section-title" id="range-title">[S] range</h2>
         <label class="check-label"><input type="checkbox" id="auto"> Auto</label>
         <div class="field-row">
@@ -370,12 +400,11 @@
         </div>
       </section>
 
+      <div id="errors" role="alert" hidden></div>
     </div>
-    <div id="errors" role="alert" hidden></div>
-  </div>
 
-  <!-- Plot row -->
-  <div id="plot-row">
+  <!-- Plots and results -->
+  <div id="plot-column">
 
     <section class="panel plot-card" aria-labelledby="mm-title">
       <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
@@ -408,6 +437,7 @@
     </section>
 
   </div>
+  </div>
 </main>
 
 <script>
@@ -420,10 +450,12 @@ const DEFAULTS = {
   concUnit: 'µM', timeUnit: 's',
   type: 'competitive', I: 10, Ki: 5, KiP: 5,
   compare: false, I2: 20,
+  compareBy: 'none', Etot2: 0.02, kcat2: 200, Km2: 20,
   auto: true,
 };
 
 const state = {
+  mode: 'kinetics',   // which tab is open: 'kinetics' or 'inhibition'
   params: null,       // last valid numeric parameters
   units: null,        // { conc, time }; always current, even while a field is invalid
   model: null,        // curves and samples built from params
@@ -444,6 +476,9 @@ const ACTIVE_FIELDS = {
   noncompetitive: { I: true,  Ki: true,  KiP: false },   // Ki' mirrors Ki
   mixed:          { I: true,  Ki: true,  KiP: true  },
 };
+
+// The Kinetics tab's "Compare" choices and the field holding each second value.
+const COMPARE_FIELDS = { Etot: 'Etot2', kcat: 'kcat2', Km: 'Km2' };
 
 const AUTO_POINTS = 200;
 const MAX_POINTS = 5000;
@@ -473,7 +508,20 @@ function v0(k, S) {
   return k.Vmax * S / (k.alpha * k.Km + k.alphaP * S);
 }
 
+// Two uninhibited enzymes that differ in one parameter.
+function kineticsCurves(p) {
+  const curve = (id, q, varied) => ({ id, I: null, varied, k: constants(q.kcat * q.Etot, q.Km, 1, 1) });
+  const by = p.compareBy;
+  if (by === 'none') return [curve('uninhibited', p, null)];
+  const second = { ...p, [by]: p[COMPARE_FIELDS[by]] };
+  return [
+    curve('uninhibited', p, { field: by, value: p[by] }),
+    curve('first', second, { field: by, value: second[by] }),
+  ];
+}
+
 function buildCurves(p) {
+  if (p.mode === 'kinetics') return kineticsCurves(p);
   const Vmax = p.kcat * p.Etot;
   const curve = (id, I) => {
     const { alpha, alphaP } = factors(p.type, I, p.Ki, p.KiP);
@@ -488,8 +536,9 @@ function buildCurves(p) {
 }
 
 function autoRange(p, curves) {
-  const largestKm = Math.max(p.Km, ...curves.map(c => c.k.appKm));
-  return { Smax: 10 * largestKm, Smin: 0.1 * p.Km, points: AUTO_POINTS };
+  const largestKm = Math.max(...curves.map(c => Math.max(c.k.Km, c.k.appKm)));
+  const smallestKm = Math.min(...curves.map(c => c.k.Km));
+  return { Smax: 10 * largestKm, Smin: 0.1 * smallestKm, points: AUTO_POINTS };
 }
 
 // M-M samples evenly in [S] from 0, so the curve starts at the origin.
@@ -526,6 +575,7 @@ function buildModel(p) {
 
 const FIELD_NAMES = {
   Km: 'Km', kcat: 'kcat', Etot: '[E]total', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
+  Etot2: 'Second [E]total', kcat2: 'Second kcat', Km2: 'Second Km',
   Smax: '[S]max', Smin: '[S]min', points: 'Number of points',
 };
 
@@ -534,10 +584,18 @@ function parseField(text) {
   return t === '' ? NaN : Number(t);
 }
 
-// raw holds field text plus { type, compare, auto }. Disabled fields are not checked.
+// raw holds field text plus { mode, type, compare, compareBy, auto }. Fields not in use are not checked.
 function validate(raw) {
   const errors = [];
-  const params = { type: raw.type, compare: raw.compare && raw.type !== 'none', auto: raw.auto };
+  const kinetics = raw.mode === 'kinetics';
+  const type = kinetics ? 'none' : raw.type;
+  const params = {
+    mode: kinetics ? 'kinetics' : 'inhibition',
+    type,
+    compare: raw.compare && type !== 'none',
+    compareBy: kinetics ? raw.compareBy : 'none',
+    auto: raw.auto,
+  };
   const read = (field, allowZero) => {
     const value = parseField(raw[field]);
     params[field] = value;
@@ -548,12 +606,13 @@ function validate(raw) {
 
   read('Km'); read('kcat'); read('Etot');
 
-  const active = ACTIVE_FIELDS[raw.type];
+  const active = ACTIVE_FIELDS[type];
   if (active.I) read('I', true);
   if (active.Ki) read('Ki');
   if (active.KiP) read('KiP');
-  if (raw.type === 'noncompetitive') params.KiP = params.Ki;
+  if (type === 'noncompetitive') params.KiP = params.Ki;
   if (params.compare) read('I2', true);
+  if (params.compareBy !== 'none') read(COMPARE_FIELDS[params.compareBy]);
 
   if (!raw.auto) {
     read('Smax'); read('Smin');
@@ -670,7 +729,7 @@ const plots = {
     kind: 'mm', canvas: document.getElementById('mm-canvas'), hover: null, geom: null,
     xName: '[S]', yName: 'v₀',
     xUnit: u => u.conc, yUnit: u => `${u.conc}/${u.time}`,
-    extent: m => ({ x: m.range.Smax, y: m.curves[0].k.Vmax * 1.08 }),
+    extent: m => ({ x: m.range.Smax, y: Math.max(...m.curves.map(c => c.k.Vmax)) * 1.08 }),
   },
   lb: {
     kind: 'lb', canvas: document.getElementById('lb-canvas'), hover: null, geom: null,
@@ -683,8 +742,16 @@ const plots = {
   },
 };
 
+const VARIED_LABELS = { Etot: '[E]total', kcat: 'kcat', Km: 'Km' };
+
 function curveName(curve) {
-  return curve.I === null ? 'Uninhibited' : `[I] = ${fmtCompact(curve.I)} ${state.units.conc}`;
+  const { conc, time } = state.units;
+  if (curve.varied) {
+    const unit = curve.varied.field === 'kcat' ? `${time}⁻¹` : conc;
+    return `${VARIED_LABELS[curve.varied.field]} = ${fmtCompact(curve.varied.value)} ${unit}`;
+  }
+  if (curve.I !== null) return `[I] = ${fmtCompact(curve.I)} ${conc}`;
+  return state.params.mode === 'kinetics' ? 'Enzyme' : 'Uninhibited';
 }
 
 function resizeCanvas(plot) {
@@ -943,6 +1010,13 @@ function schedulePlotDraw(plot) {
 
 function tableRows(tableId) {
   const { conc, time } = state.units;
+  if (tableId === 'mm' && state.params.mode === 'kinetics') {
+    // With no inhibitor, the apparent constants and α factors add nothing.
+    return [
+      { key: 'Vmax', html: 'V<sub>max</sub>', plain: 'Vmax', unit: `${conc}/${time}` },
+      { key: 'Km',   html: 'K<sub>m</sub>',   plain: 'Km',   unit: conc },
+    ];
+  }
   if (tableId === 'mm') {
     return [
       { key: 'Vmax',    html: 'V<sub>max</sub>',    plain: 'Vmax',    unit: `${conc}/${time}` },
@@ -960,10 +1034,10 @@ function tableRows(tableId) {
   ];
 }
 
+const INHIBITION_COLUMNS = { uninhibited: 'Uninhibited', first: '+ Inhibitor', second: '+ Second [I]' };
+
 function columnName(curve) {
-  if (curve.id === 'uninhibited') return 'Uninhibited';
-  const sub = curve.id === 'first' ? '₁' : '₂';
-  return `[I]${sub} = ${fmtCompact(curve.I)} ${state.units.conc}`;
+  return state.params.mode === 'kinetics' ? curveName(curve) : INHIBITION_COLUMNS[curve.id];
 }
 
 function renderTable(tableId) {
@@ -1054,10 +1128,13 @@ function setQuizMode(on) {
 // ═══ 5. UI WIRING ═════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
-const NUMBER_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Smax', 'Smin', 'points'];
+const NUMBER_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Etot2', 'kcat2', 'Km2', 'Smax', 'Smin', 'points'];
 
 function readRaw() {
-  const raw = { type: $('type').value, compare: $('compare').checked, auto: $('auto').checked };
+  const raw = {
+    mode: state.mode, type: $('type').value, compare: $('compare').checked,
+    compareBy: $('compareBy').value, auto: $('auto').checked,
+  };
   NUMBER_FIELDS.forEach(f => { raw[f] = $(f).value; });
   return raw;
 }
@@ -1068,6 +1145,17 @@ function setFieldEnabled(field, enabled) {
 }
 
 function syncFieldStates() {
+  const kinetics = state.mode === 'kinetics';
+  for (const [id, on] of [['tab-kinetics', kinetics], ['tab-inhibition', !kinetics]]) {
+    $(id).classList.toggle('active', on);
+    $(id).setAttribute('aria-pressed', String(on));
+  }
+  $('compare-box').hidden = !kinetics;
+  $('inhib-box').hidden = kinetics;
+  for (const [by, field] of Object.entries(COMPARE_FIELDS)) {
+    $(`${field}-field`).hidden = $('compareBy').value !== by;
+  }
+
   const type = $('type').value;
   const active = ACTIVE_FIELDS[type];
   setFieldEnabled('I', active.I);
@@ -1130,7 +1218,8 @@ function commit() {
 }
 
 function applyDefaults() {
-  ['Km', 'kcat', 'Etot', 'I', 'Ki', 'I2'].forEach(f => { $(f).value = DEFAULTS[f]; });
+  ['Km', 'kcat', 'Etot', 'I', 'Ki', 'I2', 'Etot2', 'kcat2', 'Km2'].forEach(f => { $(f).value = DEFAULTS[f]; });
+  $('compareBy').value = DEFAULTS.compareBy;
   $('concUnit').value = DEFAULTS.concUnit;
   $('timeUnit').value = DEFAULTS.timeUnit;
   $('type').value = DEFAULTS.type;
@@ -1144,7 +1233,7 @@ NUMBER_FIELDS.forEach(f => $(f).addEventListener('input', () => {
   if (f === 'KiP') state.kiPrimeText = $('KiP').value;
   commit();
 }));
-['type', 'concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', commit));
+['type', 'concUnit', 'timeUnit', 'compare', 'compareBy'].forEach(id => $(id).addEventListener('change', commit));
 
 // Unchecking Auto starts the manual fields from the current automatic range.
 $('auto').addEventListener('change', () => {
@@ -1155,6 +1244,13 @@ $('auto').addEventListener('change', () => {
   $('points').value = auto ? '' : r.points;
   commit();
 });
+
+for (const mode of ['kinetics', 'inhibition']) {
+  $(`tab-${mode}`).addEventListener('click', () => {
+    state.mode = mode;
+    commit();
+  });
+}
 
 $('reset').addEventListener('click', () => {
   applyDefaults();
@@ -1206,7 +1302,7 @@ new ResizeObserver(() => {
     resizeCanvas(plot);
     drawPlot(plot);
   }
-}).observe($('plot-row'));
+}).observe($('plot-column'));
 
 
 // ═══ 6. STARTUP ═══════════════════════════════════════════════

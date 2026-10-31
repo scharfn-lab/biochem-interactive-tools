@@ -100,6 +100,41 @@ test('curves shown: None has only the uninhibited curve, even with the second [I
   assert.deepEqual(ids({ compare: true }), ['uninhibited', 'first', 'second']);
 });
 
+// ── Kinetics tab comparisons ──────────────────────────────────
+const kineticsModel = raw => buildModel(validate({ ...VALID, mode: 'kinetics', compareBy: 'none', Etot2: '0.02', kcat2: '200', Km2: '20', ...raw }).params);
+
+test('Kinetics with no comparison has one curve and ignores inhibition', () => {
+  const m = kineticsModel({ type: 'competitive', I: '10' });
+  assert.equal(m.curves.length, 1);
+  assert.equal(m.curves[0].k.alpha, 1);
+  assert.equal(m.curves[0].k.alphaP, 1);
+  assert.equal(m.curves[0].k.appKm, 10);
+});
+
+test('comparing [E]total or kcat changes Vmax only; comparing Km changes Km only', () => {
+  const pair = by => [...kineticsModel({ compareBy: by }).curves].map(c => [c.k.Vmax, c.k.Km]);
+  assert.deepEqual(pair('Etot'), [[1, 10], [2, 10]]);
+  assert.deepEqual(pair('kcat'), [[1, 10], [2, 10]]);
+  assert.deepEqual(pair('Km'), [[1, 10], [1, 20]]);
+});
+
+test('auto [S] range covers both Km values being compared', () => {
+  const larger = kineticsModel({ compareBy: 'Km', Km2: '40' }).range;
+  assert.equal(larger.Smax, 400);
+  assert.equal(larger.Smin, 1);
+  const smaller = kineticsModel({ compareBy: 'Km', Km2: '2' }).range;
+  assert.equal(smaller.Smax, 100);
+  near(smaller.Smin, 0.2);
+});
+
+test('only the second value being compared is validated, and only on the Kinetics tab', () => {
+  const errs = raw => [...validate({ ...VALID, mode: 'kinetics', compareBy: 'kcat', Etot2: '', kcat2: '200', Km2: '', ...raw }).errors].map(e => e.field);
+  assert.deepEqual(errs({}), []);
+  assert.deepEqual(errs({ kcat2: '0' }), ['kcat2']);
+  assert.deepEqual(errs({ I: '-1', Ki: '' }), []);   // inhibition fields are not in use
+  assert.deepEqual(fieldsWithErrors({ mode: 'inhibition', compareBy: 'kcat', kcat2: '' }), []);
+});
+
 // ── Validation ──────────────────────────────────────────────────
 test('values must be positive, except [I], which may be 0', () => {
   assert.deepEqual(fieldsWithErrors({}), []);
