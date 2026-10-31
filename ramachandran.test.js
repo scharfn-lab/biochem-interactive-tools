@@ -1024,3 +1024,84 @@ test('the legend makes no statistical claim', () => {
   assert.doesNotMatch(HTML, /98%/);
   assert.match(HTML, /approximate/);
 });
+
+// ── Structure presets ──────────────────────────────────────────
+const STRUCTURE_PRESETS = [
+  ['alpha', -57, -47, 'helix', 'O1-HN5,O2-HN6,O3-HN7,O4-HN8,O5-HN9'],
+  ['helix310', -49, -26, 'helix', 'O1-HN4,O2-HN5,O3-HN6,O4-HN7,O5-HN8,O6-HN9'],
+  ['leftHelix', 57, 47, 'leftHelix', 'O1-HN5,O2-HN6,O3-HN7,O4-HN8,O5-HN9'],
+  ['antiparallel', -139, 135, 'sheet', ''],
+  ['parallel', -119, 113, 'sheet', ''],
+  ['ppII', -75, 145, 'sheet', ''],
+];
+for (const [name, p, q, ribbon, hbonds] of STRUCTURE_PRESETS) {
+  test(`the ${name} preset sets the angles, ribbon and H-bonds of the whole chain`, () => {
+    const page = loadPage();
+    page.run(`goToStructure('${name}')`);
+    assert.deepEqual([page.run('phi'), page.run('psi')], [p, q]);
+    for (let n = 1; n <= 9; n++) {
+      assert.deepEqual(JSON.parse(page.run(`JSON.stringify(residueAngles.aa${n})`)), { phi: p, psi: q }, `aa${n}`);
+    }
+    assert.ok(page.run('showNterm && showCterm && showExtra2 && showExtra4'), 'all 9 residues shown');
+    assert.equal(page.run('ribbonShown'), ribbon);
+    assert.equal(drawnHBonds(page), hbonds);
+  });
+
+  test(`the ${name} preset centers the chain on the canvas from any prior view`, () => {
+    for (const prior of ['0', 'applyRotStep(4, 7); applyZoom(60); applyPan(-120, 90)', 'setBetaTurnTypeI()']) {
+      const page = loadPage();
+      page.run(prior);
+      page.run(`goToStructure('${name}')`);
+      assert.equal(page.run('betaTurnMode'), null, 'clears any β-turn');
+      const points = Object.values(page.run(`(() => {
+        const atoms = buildChain(), out = {};
+        for (const k of Object.keys(atoms)) out[k] = project(rotateView(sub3(atoms[k], atoms.Ca5)), dipScale, DW*0.48 + dipOffX, DH*0.52 + dipOffY);
+        return out;
+      })()`));
+      const xs = points.map(a => a.x), ys = points.map(a => a.y);
+      assertClose((Math.min(...xs) + Math.max(...xs)) / 2, 250, 1e-6, 'x center');
+      assertClose((Math.min(...ys) + Math.max(...ys)) / 2, 145, 1e-6, 'y center');
+      assert.ok(Math.min(...xs) >= 0 && Math.max(...xs) <= 500, 'x on canvas');
+      assert.ok(Math.min(...ys) >= 0 && Math.max(...ys) <= 290, 'y on canvas');
+    }
+  });
+}
+
+test('a preset button exists for every structure and the turn button resets its label', () => {
+  const page = loadPage();
+  for (const name of Object.keys(page.run('STRUCTURES'))) {
+    assert.ok(HTML.includes(`onclick="goToStructure('${name}')"`), name);
+  }
+  page.run("setBetaTurnTypeI(); goToStructure('alpha')");
+  assert.equal(page.el('bturn-type1').textContent, 'Show β turn (Type I)');
+});
+
+test('the sliders still work after a preset, and Reset still returns to the start', () => {
+  const page = loadPage();
+  page.run("goToStructure('alpha'); setAngles(-100, 100)");
+  assert.deepEqual(JSON.parse(page.run('JSON.stringify(residueAngles.aa1)')), { phi: -100, psi: 100 });
+  page.run('resetToOneAA()');
+  assert.equal(page.run('showNterm || showCterm || showExtra2 || showExtra4'), false);
+  assert.deepEqual([page.run('dipScale'), page.run('dipOffX'), page.run('dipOffY')], [44, 0, 0]);
+});
+
+test('zoomed-out views list the ϕ/ψ angles in a corner instead of crowding the arcs', () => {
+  const page = loadPage();
+  const angleLabels = () => page.dipeptide.calls.filter(c => c.fn === 'fillText' && /^[ϕψ]=/.test(c.args[0]));
+  const arcs = () => page.dipeptide.calls.filter(c => c.fn === 'setLineDash' && c.args[0].length === 2 && c.args[0][0] === 3);
+
+  redraw(page);
+  assert.deepEqual(angleLabels(page).map(c => c.args[0]), ['ϕ=-120°', 'ψ=130°']);
+  assert.ok(angleLabels().every(c => c.args[1] !== page.run('ANGLE_CORNER_X')), 'beside the arcs at the default zoom');
+  assert.equal(arcs().length, 2, 'both arcs drawn');
+
+  page.run("goToStructure('antiparallel')");
+  redraw(page);
+  assert.deepEqual(angleLabels().map(c => c.args[0]), ['ϕ=-139°', 'ψ=135°']);
+  assert.ok(angleLabels().every(c => c.args[1] === page.run('ANGLE_CORNER_X')), 'in the corner when zoomed out');
+  assert.equal(arcs().length, 0, 'no arcs');
+
+  page.run('toggleAngles()');
+  redraw(page);
+  assert.equal(angleLabels().length, 0, 'Hide ϕ/ψ Angles hides the corner labels too');
+});

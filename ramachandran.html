@@ -192,12 +192,12 @@
     }
 
     #nterm-toggle, #cterm-toggle {
-      padding: 7px 18px;
+      padding: 6px 10px;
       border-radius: 6px;
       border: 1px solid #685C53;
       background: #FFFFFF;
       color: #685C53;
-      font-size: 0.88em;
+      font-size: 0.82em;
       cursor: pointer;
       transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
@@ -205,12 +205,12 @@
     #nterm-toggle.active, #cterm-toggle.active { background: #FFCDD2; border-color: #C8102E; color: #000000; }
 
     #plane-toggle {
-      padding: 7px 18px;
+      padding: 6px 10px;
       border-radius: 6px;
       border: 1px solid #685C53;
       background: #FFFFFF;
       color: #685C53;
-      font-size: 0.88em;
+      font-size: 0.82em;
       cursor: pointer;
       transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
@@ -306,6 +306,22 @@
     }
     #bturn-type1:hover, #bturn-type2:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
     #bturn-type1:active, #bturn-type2:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+
+    #structure-presets { width: 100%; margin-top: 10px; text-align: center; }
+    #structure-presets .panel-section-title { margin-bottom: 6px; }
+    #preset-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    .preset-btn {
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid #685C53;
+      background: #FFFFFF;
+      color: #685C53;
+      font-size: 0.82em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .preset-btn:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
+    .preset-btn:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
 
     .rot-btn {
       width: 30px;
@@ -433,6 +449,17 @@
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ef5350;"></div>O (oxygen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#BDBDBD;"></div>H (hydrogen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R (side chain)</div>
+  </div>
+  <div id="structure-presets">
+    <div class="panel-section-title">Go to Structure</div>
+    <div id="preset-row">
+      <button class="preset-btn" onclick="goToStructure('alpha')">α-helix</button>
+      <button class="preset-btn" onclick="goToStructure('helix310')">3₁₀ helix</button>
+      <button class="preset-btn" onclick="goToStructure('leftHelix')">Left-handed helix</button>
+      <button class="preset-btn" onclick="goToStructure('antiparallel')">Antiparallel β</button>
+      <button class="preset-btn" onclick="goToStructure('parallel')">Parallel β</button>
+      <button class="preset-btn" onclick="goToStructure('ppII')">PPII</button>
+    </div>
   </div>
     </div><!-- end #dipeptide-section -->
   <div id="plot-wrapper">
@@ -1258,6 +1285,8 @@ function drawAngleArc(pivot2, fromVec2, toVec2, radius, color, labelText) {
   dc.fillText(labelText, lx, ly);
 }
 
+const ARC_MIN_SCALE = 34, ANGLE_CORNER_X = 12;
+
 // ── Main dipeptide renderer ────────────────────────────────────
 function renderDipeptide() {
   dc.clearRect(0, 0, DW, DH);
@@ -1385,7 +1414,16 @@ function renderDipeptide() {
     dc.fillText(style.label, p.x, p.y);
   }
 
-  if (showAngles) {
+  if (showAngles && dipScale < ARC_MIN_SCALE) {
+    dc.font = 'bold 12px "Segoe UI",Arial';
+    dc.textAlign = 'left'; dc.textBaseline = 'middle';
+    dc.fillStyle = '#B45309';
+    dc.fillText(`ϕ=${Math.round(residueAngles.aa5.phi)}°`, ANGLE_CORNER_X, DH - 30);
+    dc.fillStyle = '#0E7490';
+    dc.fillText(`ψ=${Math.round(residueAngles.aa5.psi)}°`, ANGLE_CORNER_X, DH - 14);
+    drawBondGlow(proj['N5'],  proj['Ca5'], '#B45309');
+    drawBondGlow(proj['Ca5'], proj['C5'],  '#0E7490');
+  } else if (showAngles) {
     // ── Phi angle arc ────────────────────────────────────────────
     // Dihedral C4–N5–Ca5–C5: arc at Ca5
     {
@@ -1672,17 +1710,21 @@ function resetToOneAA() {
   setAngles(-120, 130);
 }
 
-// Frames a β-turn preset: sheet facing the viewer, strands horizontal with the turn on the
-// right, zoomed so every atom fits and panned so the peptide is centered on the canvas.
-function frameBetaTurn() {
-  const atoms = buildChain();
-  const midpoint = (a, b) => sc3(0.5, add3(a, b));
-  const right = norm3(sub3(midpoint(atoms.Ca4, atoms.Ca5), midpoint(atoms.Ca1, atoms.Ca8)));
-  const across = sub3(atoms.Ca1, atoms.Ca8);
-  const up = norm3(sub3(across, sc3(dot3(across,right), right)));
+function showFullChain() {
+  if (!showNterm)  toggleNterm();
+  if (!showCterm)  toggleCterm();
+  if (!showExtra2) toggleExtra2();
+  if (!showExtra4) toggleExtra4();
+}
+
+function viewFromAxes(right, upHint) {
+  const up = norm3(sub3(upHint, sc3(dot3(upHint,right), right)));
   const toward = cross3(right, up);
   viewMatrix = [[right.x,right.y,right.z],[up.x,up.y,up.z],[toward.x,toward.y,toward.z]];
+}
 
+// Zooms so every atom fits in the current view and pans so the peptide is centered on the canvas
+function fitToCanvas(atoms) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const pos of Object.values(atoms)) {
     const p = rotateView(sub3(pos, atoms.Ca5));
@@ -1696,12 +1738,41 @@ function frameBetaTurn() {
   dipOffY = DH*0.5 - DH*0.52 + dipScale * (minY + maxY) / 2;
 }
 
+// β-turn view: sheet facing the viewer, strands horizontal with the turn on the right
+function frameBetaTurn() {
+  const atoms = buildChain();
+  const midpoint = (a, b) => sc3(0.5, add3(a, b));
+  viewFromAxes(norm3(sub3(midpoint(atoms.Ca4, atoms.Ca5), midpoint(atoms.Ca1, atoms.Ca8))), sub3(atoms.Ca1, atoms.Ca8));
+  fitToCanvas(atoms);
+}
+
+// Structure view: chain running left to right with the middle side chain pointing up
+function frameStructure() {
+  const atoms = buildChain();
+  viewFromAxes(norm3(sub3(atoms.Ca9, atoms.Ca1)), sub3(atoms.Cb5, atoms.Ca5));
+  fitToCanvas(atoms);
+}
+
+const STRUCTURES = {
+  alpha:        [-57, -47],
+  helix310:     [-49, -26],
+  leftHelix:    [57, 47],
+  antiparallel: [-139, 135],
+  parallel:     [-119, 113],
+  ppII:         [-75, 145],
+};
+
+function goToStructure(name) {
+  betaTurnMode = null;
+  showFullChain();
+  setAngles(...STRUCTURES[name]);
+  frameStructure();
+  renderDipeptide();
+}
+
 function setBetaTurnTypeI() {
   if (betaTurnMode === 'typeI') { betaTurnMode = null; setAngles(phi, psi); return; }
-  if (!showNterm)  toggleNterm();
-  if (!showCterm)  toggleCterm();
-  if (!showExtra2) toggleExtra2();
-  if (!showExtra4) toggleExtra4();
+  showFullChain();
   betaTurnMode = 'typeI';
   phi = -114; psi = 102;          // average of aa1, aa2, aa7 and aa8, shown on the plot
   // Each strand residue has its own angles so both sheet pairs close.
@@ -1721,10 +1792,7 @@ function setBetaTurnTypeI() {
 
 function setBetaTurnTypeII() {
   if (betaTurnMode === 'typeII') { betaTurnMode = null; setAngles(phi, psi); return; }
-  if (!showNterm)  toggleNterm();
-  if (!showCterm)  toggleCterm();
-  if (!showExtra2) toggleExtra2();
-  if (!showExtra4) toggleExtra4();
+  showFullChain();
   betaTurnMode = 'typeII';
   phi = -95; psi = 100;           // flanks tuned so the AA1 ↔ AA8 pair closes
   for (const key of Object.keys(residueAngles)) {
