@@ -394,6 +394,7 @@
   </div>
   <div id="extra-row" style="display:none; text-align:center; margin-top:4px;">
     <button id="extra2-toggle" onclick="toggleExtra2()">Add 2 Additional AAs</button>
+    <button id="show-one" onclick="showOneAminoAcid()">Show 1 Amino Acid</button>
     <button id="extra4-toggle" onclick="toggleExtra4()">Add 4 Additional AAs</button>
   </div>
   <div id="dipeptide-wrapper">
@@ -685,13 +686,9 @@ function mOrtho(M){
   const r2 = cross3(r0, r1);
   return [[r0.x,r0.y,r0.z],[r1.x,r1.y,r1.z],[r2.x,r2.y,r2.z]];
 }
-// Default orientation: Cα→R (Cb) points up on screen, ϕ bond (N–Cα) on left, ψ bond (Cα–C) on right.
 // Row 0 = screen-right direction in world space, Row 1 = screen-up direction in world space.
-let viewMatrix = [
-  [ 0.1928, -0.9815,  0 ],
-  [ 0.9815,  0.1928,  0 ],
-  [ 0,       0,       1 ],
-];
+// Set to DEFAULT_VIEW once the chain can be built.
+let viewMatrix;
 let dpDrag = false, dpDragX = 0, dpDragY = 0;
 
 // ── 3-D vector helpers ─────────────────────────────────────────
@@ -819,6 +816,21 @@ function caAnchorRotation(atoms) {
   const [a,b,c] = CA_REF_FRAME;
   return mMul([[a[0],b[0],c[0]],[a[1],b[1],c[1]],[a[2],b[2],c[2]]], caFrame(atoms));
 }
+
+// Default orientation for AA5: N on the left, carbonyl C on the right, R toward the viewer,
+// Hα away. Tilted about the screen x-axis so R doesn't hide the Hα directly behind it.
+function defaultView(atoms) {
+  const right = norm3(sub3(atoms.C5, atoms.N5));
+  const rToH = sub3(atoms.Cb5, atoms.Ha5);
+  const toward = norm3(sub3(rToH, sc3(dot3(rToH,right), right)));
+  const up = cross3(toward, right);
+  return mMul(mRotX(DEFAULT_VIEW_TILT), [
+    [right.x,right.y,right.z],[up.x,up.y,up.z],[toward.x,toward.y,toward.z],
+  ]);
+}
+const DEFAULT_VIEW_TILT = 15 * Math.PI / 180;
+const DEFAULT_VIEW = defaultView(buildChain());
+viewMatrix = DEFAULT_VIEW;
 
 
 // ── Extra residue atom styles ───────────────────────────────────
@@ -1484,6 +1496,17 @@ function toggleExtra4() {
   showExtra4 = !showExtra4;
   updateExtraBtn();
   renderDipeptide();
+}
+
+// Back to the page's initial state: one residue, default conformation, view, zoom and pan
+function showOneAminoAcid() {
+  if (showNterm) toggleNterm();
+  if (showCterm) toggleCterm();
+  betaTurnMode = null;
+  viewMatrix = DEFAULT_VIEW;
+  dipScale = 44;
+  dipOffX = 0; dipOffY = 0;
+  setAngles(-120, 130);
 }
 
 function setBetaTurnTypeI() {

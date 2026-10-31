@@ -699,6 +699,72 @@ test('anchoring applies only while a single residue is shown', () => {
   }
 });
 
+test('on load, N is left, the carbonyl is right, R is in front and H is behind Cα', () => {
+  const a = projected(loadPage());
+  assert.ok(a.N5.x < a.Ca5.x, 'N left of Cα');
+  assert.ok(a.C5.x > a.Ca5.x, 'carbonyl C right of Cα');
+  assertClose(a.N5.y, a.C5.y, 1e-6, 'N and C level on screen');
+  assert.ok(a.Cb5.z > a.Ca5.z, 'R in front of Cα');
+  assert.ok(a.Ha5.z < a.Ca5.z, 'Hα behind Cα');
+  // R is drawn at radius 14, Hα at radius 4; the Hα must not be hidden behind R
+  const gap = Math.hypot(a.Ha5.x - a.Cb5.x, a.Ha5.y - a.Cb5.y);
+  assert.ok(gap > 14 + 4, `Hα is ${gap.toFixed(1)} px from R`);
+});
+
+test('the default view is a proper rotation', () => {
+  const m = loadPage().run('DEFAULT_VIEW');
+  for (let i = 0; i < 3; i++) {
+    assertClose(mag(m[i]), 1, 1e-9, `row ${i} length`);
+    assertClose(dot(m[i], m[(i + 1) % 3]), 0, 1e-9, `rows ${i},${(i + 1) % 3}`);
+  }
+  assertClose(dot(cross(m[0], m[1]), m[2]), 1, 1e-9, 'determinant');
+});
+
+test('the Show 1 button sits between the Add 2 and Add 4 buttons', () => {
+  const row = HTML.match(/<div id="extra-row"[\s\S]*?<\/div>/)[0];
+  assert.deepEqual([...row.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]), ['extra2-toggle', 'show-one', 'extra4-toggle']);
+  assert.match(row, />Show 1 Amino Acid</);
+});
+
+test('Show 1 Amino Acid restores the page from any state', () => {
+  const setups = [
+    'toggleNterm()',
+    'toggleExtra4(); setAngles(-60, -45)',
+    'setBetaTurnTypeI()',
+    'setBetaTurnTypeII(); setAngles(10, 20)',
+    'toggleCterm(); applyRotStep(1, 1); applyZoom(40); applyPan(16, -24); setAngles(60, 45)',
+  ];
+  for (const setup of setups) {
+    const page = loadPage();
+    const initial = projected(page);
+    page.run(setup);
+    page.run('showOneAminoAcid()');
+
+    for (const f of ['showNterm', 'showCterm', 'showExtra2', 'showExtra4']) assert.equal(page.run(f), false, `${setup}: ${f}`);
+    assert.equal(page.run('betaTurnMode'), null, setup);
+    assert.equal(page.run('dipScale'), 44, setup);
+    assert.equal(page.run('dipOffX'), 0, setup);
+    assert.equal(page.run('dipOffY'), 0, setup);
+    assert.deepEqual([page.run('phi'), page.run('psi')], [-120, 130], setup);
+    for (let n = 1; n <= 9; n++) {
+      assert.deepEqual([page.run(`residueAngles.aa${n}.phi`), page.run(`residueAngles.aa${n}.psi`)], [-120, 130], `${setup}: aa${n}`);
+    }
+
+    // Stub buttons start with empty text, so a never-toggled button has no label to compare
+    for (const id of ['nterm-toggle', 'cterm-toggle', 'extra2-toggle', 'extra4-toggle', 'bturn-type1', 'bturn-type2']) {
+      assert.ok(!page.el(id).textContent.startsWith('Remove'), `${setup}: #${id} says "${page.el(id).textContent}"`);
+      assert.ok(!page.el(id).classList.contains('active'), `${setup}: #${id} is active`);
+    }
+    assert.equal(page.el('extra-row').style.display, 'none', setup);
+    assert.equal(page.el('phi-display').textContent, '-120°', setup);
+
+    const now = projected(page);
+    for (const key of Object.keys(initial)) {
+      for (const axis of ['x', 'y', 'z']) assertClose(now[key][axis], initial[key][axis], 1e-9, `${setup}: ${key}.${axis}`);
+    }
+  }
+});
+
 test('Type II sheet bonds are drawn only while the flanks keep them in range', () => {
   const page = loadPage();
   page.run('setBetaTurnTypeII()');
