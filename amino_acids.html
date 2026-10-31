@@ -711,12 +711,12 @@
 
     <div id="interact-quiz">
       <div class="interact-options" role="group" aria-label="Interactions">
-        <button class="name-type-btn interact-opt" data-interaction="salt"        aria-pressed="false" onclick="chooseInteraction('salt')">Salt bridge</button>
         <button class="name-type-btn interact-opt" data-interaction="hbond"       aria-pressed="false" onclick="chooseInteraction('hbond')">Hydrogen bond</button>
         <button class="name-type-btn interact-opt" data-interaction="hydrophobic" aria-pressed="false" onclick="chooseInteraction('hydrophobic')">Hydrophobic</button>
         <button class="name-type-btn interact-opt" data-interaction="pi"          aria-pressed="false" onclick="chooseInteraction('pi')">Pi stacking</button>
-        <button class="name-type-btn interact-opt" data-interaction="disulfide"   aria-pressed="false" onclick="chooseInteraction('disulfide')">Disulfide bond</button>
+        <button class="name-type-btn interact-opt" data-interaction="salt"        aria-pressed="false" onclick="chooseInteraction('salt')">Salt bridge</button>
         <button class="name-type-btn interact-opt" data-interaction="repulsion"   aria-pressed="false" onclick="chooseInteraction('repulsion')">Charge repulsion</button>
+        <button class="name-type-btn interact-opt" data-interaction="disulfide"   aria-pressed="false" onclick="chooseInteraction('disulfide')">Disulfide bond</button>
       </div>
       <div class="btn-row" style="margin:12px 0 14px">
         <button class="btn btn-check" id="interact-btn-show" onclick="showAnswers()">Show Answer</button>
@@ -1752,12 +1752,12 @@ function toggleScoreBreakdown() {
 // ─── Interactions between two amino acids ─────────────────────────────────────
 const INTERACT_PH = 7;
 const INTERACTIONS = [
-  ['salt',        'Salt bridge'],
   ['hbond',       'Hydrogen bond'],
   ['hydrophobic', 'Hydrophobic'],
   ['pi',          'Pi stacking'],
-  ['disulfide',   'Disulfide bond'],
-  ['repulsion',   'Charge repulsion']
+  ['salt',        'Salt bridge'],
+  ['repulsion',   'Charge repulsion'],
+  ['disulfide',   'Disulfide bond']
 ];
 
 const aaByCode = code => AA.find(a => a.code1 === code);

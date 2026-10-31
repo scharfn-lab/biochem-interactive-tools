@@ -908,7 +908,8 @@ test('side-chain charges agree with the net charge of each structure', () => {
 test('the choices are six buttons above the structures', () => {
   const buttons = [...MARKUP.matchAll(/data-interaction="(\w+)"[^>]*onclick="chooseInteraction\('(\w+)'\)">([^<]+)</g)];
   assert.deepEqual(buttons.map(m => m[3]),
-    ['Salt bridge', 'Hydrogen bond', 'Hydrophobic', 'Pi stacking', 'Disulfide bond', 'Charge repulsion']);
+    ['Hydrogen bond', 'Hydrophobic', 'Pi stacking', 'Salt bridge', 'Charge repulsion', 'Disulfide bond']);
+  assert.deepEqual(loadPage().json('INTERACTIONS.map(i => i[1])'), buttons.map(m => m[3]), 'explanations use the same order');
   for (const m of buttons) assert.equal(m[1], m[2]);
   assert.doesNotMatch(HTML, /cation/i);
   assert.doesNotMatch(HTML, /None of these/);
@@ -1011,7 +1012,7 @@ test('a wrong first answer gives a second chance with the structures, and keeps 
   assert.equal(used.disabled, true, 'the used choice cannot be picked again');
   assert.equal(page.qa('.interact-opt').filter(b => !b.disabled).length, 5);
   assert.equal(option(page, 'Salt bridge').dataset.mark, undefined, 'the answer is not marked yet');
-  assert.equal(makeElement.focused, option(page, 'Salt bridge'), 'keyboard focus moves to an open choice');
+  assert.equal(makeElement.focused, option(page, 'Hydrogen bond'), 'keyboard focus moves to the first open choice');
   assert.equal(page.run('answered'), false);
   assert.equal(page.run('score.total'), 0);
   assert.deepEqual(counts(page, 'Interactions'), [0, 0]);
