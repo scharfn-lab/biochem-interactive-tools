@@ -1785,18 +1785,22 @@ function interactionsBetween(a, b, ph) {
   const bDonates = sb.donor && sa.acceptor;
   const hbondForms = aDonates || bDonates;
   const piForms = bothAromatic && chargeProduct <= 0;
-  const disulfideForms = bothCys && ph !== 13;
+  const saltForms = chargeProduct < 0;
 
   return {
     salt: {
-      forms: chargeProduct < 0,
-      reason: chargeProduct < 0
+      forms: saltForms,
+      reason: saltForms
         ? `${labelA} and ${labelB} carry opposite charges.`
         : `Needs opposite charges, but ${charges}.`
     },
+    // A salt bridge overrides the hydrogen bond within it, so that bond isn't asked for separately
     hbond: {
-      forms: hbondForms,
-      reason: hbondForms
+      forms: hbondForms && !saltForms,
+      included: saltForms,
+      reason: saltForms
+        ? 'Already part of the salt bridge, so selecting the salt bridge is enough.'
+        : hbondForms
         ? (aDonates ? `${labelA} can donate and ${labelB} can accept.` : `${labelB} can donate and ${labelA} can accept.`)
         : `Needs a donor and an acceptor, but ${a.code3} ${hbondRole(sa)} and ${b.code3} ${hbondRole(sb)}.`
     },
@@ -1813,9 +1817,8 @@ function interactionsBetween(a, b, ph) {
         : 'Needs two aromatic rings.'
     },
     disulfide: {
-      forms: disulfideForms,
-      reason: disulfideForms ? 'Two cysteine thiols can oxidize to an S–S bond under oxidizing conditions.'
-        : bothCys ? 'Both are charged thiolates that repel, and strong base destabilizes disulfides.'
+      forms: bothCys,
+      reason: bothCys ? 'Two cysteine thiols can oxidize to an S–S bond under oxidizing conditions.'
         : 'Only two cysteines can form one.'
     },
     repulsion: {
@@ -1825,6 +1828,15 @@ function interactionsBetween(a, b, ph) {
         : `Needs two like charges, but ${charges}.`
     }
   };
+}
+
+// The pH values a pair is shown at. Acidic and basic amino acids only appear at pH 7, the
+// only pH where this page has salt bridges. Two cysteines leave out pH 13, where both are thiolates.
+function allowedPHs(a, b) {
+  const chargeable = aa => aa.type === 'acidic' || aa.type === 'basic';
+  if (chargeable(a) || chargeable(b)) return [7];
+  if (a.code1 === 'C' && b.code1 === 'C') return [1, 7];
+  return [1, 7, 13];
 }
 
 // The answer keys for a pair: the interactions that form, or 'none'
@@ -1841,7 +1853,7 @@ function interactionDetailsHTML(a, b, ph) {
     return `<div><b>${aa.code3}</b> at pH ${ph}: ${s.group}, ${chargeWord(s.charge)}, ${hbondRole(s)}.</div>`;
   };
   const rows = INTERACTIONS.map(([key, label]) =>
-    `<li><b>${results[key].forms ? '✓' : '✗'} ${label}:</b> ${results[key].reason}</li>`
+    `<li><b>${results[key].forms ? '✓' : results[key].included ? '–' : '✗'} ${label}:</b> ${results[key].reason}</li>`
   ).join('');
   return `<div class="side-states">${state(a)}${state(b)}</div><ul class="interact-reasons">${rows}</ul>`;
 }
@@ -1851,7 +1863,7 @@ function pickInteractionQuestion() {
   const outcomes = [...INTERACTIONS.map(([key]) => key), 'none'];
   const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
   const candidates = [];
-  AA.forEach((a, i) => AA.slice(i).forEach(b => [1, 7, 13].forEach(ph => {
+  AA.forEach((a, i) => AA.slice(i).forEach(b => allowedPHs(a, b).forEach(ph => {
     if (correctInteractions(a, b, ph).includes(outcome)) candidates.push({ a: a.code1, b: b.code1, ph });
   })));
   const same = (p, q) => q && p.a === q.a && p.b === q.b && p.ph === q.ph;
@@ -1947,14 +1959,18 @@ function toggleInteraction(key) {
 function checkInteractions() {
   if (answered || interactSelected.size === 0) return;
   const { a, b, ph } = interactQuestion;
+  const results = interactionsBetween(aaByCode(a), aaByCode(b), ph);
   const correct = correctInteractions(aaByCode(a), aaByCode(b), ph);
+  // Also selecting the hydrogen bond inside a salt bridge isn't a mistake
+  const picks = [...interactSelected].filter(key => !(results[key] && results[key].included));
   finishInteractionQuestion(
-    correct.length === interactSelected.size && correct.every(key => interactSelected.has(key))
+    correct.length === picks.length && correct.every(key => picks.includes(key))
   );
 }
 
 function finishInteractionQuestion(isExact) {
   const { a, b, ph } = interactQuestion;
+  const results = interactionsBetween(aaByCode(a), aaByCode(b), ph);
   const correct = correctInteractions(aaByCode(a), aaByCode(b), ph);
   document.querySelectorAll('.interact-opt').forEach(btn => {
     const key = btn.dataset.interaction;
@@ -1962,7 +1978,11 @@ function finishInteractionQuestion(isExact) {
     const forms = correct.includes(key);
     const picked = interactSelected.has(key);
     btn.disabled = true;
-    if (forms && picked) {
+    if (picked && results[key] && results[key].included) {
+      btn.classList.add('opt-correct');
+      btn.dataset.mark = '✓';
+      btn.setAttribute('aria-label', `${label}: part of the salt bridge, you selected it`);
+    } else if (forms && picked) {
       btn.classList.add('opt-correct');
       btn.dataset.mark = '✓';
       btn.setAttribute('aria-label', `${label}: correct, you selected it`);
@@ -1985,6 +2005,11 @@ function finishInteractionQuestion(isExact) {
 function renderExplorer() {
   const a = aaByCode(explorePair.a);
   const b = aaByCode(explorePair.b);
+  const allowed = allowedPHs(a, b);
+  if (!allowed.includes(explorePair.ph)) explorePair.ph = 7;
+  document.querySelectorAll('.explore-ph-btn').forEach(btn => {
+    btn.style.display = allowed.includes(parseInt(btn.dataset.explorePh)) ? '' : 'none';
+  });
   document.getElementById('interact-prompt').innerHTML =
     `Side chains of <strong>${a.code3}</strong> and <strong>${b.code3}</strong> at <strong>pH ${explorePair.ph}</strong>`;
   document.getElementById('inp-pairA').value = a.name;
