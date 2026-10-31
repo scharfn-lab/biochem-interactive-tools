@@ -108,13 +108,11 @@
     #scheme-box { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; }
     #scheme-box .panel-body { flex: 1; display: flex; }
 
-    /* Controls left, plots right, answers along the bottom */
+    /* Controls and answers left, plots right */
     #workspace {
       display: grid;
       grid-template-columns: 320px minmax(0, 1fr);
-      grid-template-areas:
-        "side  plots"
-        "entry entry";
+      grid-template-areas: "side plots";
       gap: 20px;
       align-items: start;
     }
@@ -126,7 +124,6 @@
     }
     #sidebar { grid-area: side; }
     #plot-column { grid-area: plots; }
-    #entry-box { grid-area: entry; }
 
     .panel-header {
       display: flex;
@@ -164,7 +161,7 @@
     }
 
     #inhib-fields { grid-template-columns: 1fr 1fr; }
-    #I-field { grid-column: 1 / -1; }
+    #I-field.wide { grid-column: 1 / -1; }
 
     /* Conditions A and B side by side; the Inhibition tab uses only A */
     #conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -210,8 +207,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 0.88em;
-      margin-bottom: 10px;
+      font-size: 0.82em;
       cursor: pointer;
     }
     .check-label input { width: 16px; height: 16px; accent-color: var(--ut-crimson); cursor: inherit; }
@@ -274,7 +270,7 @@
 
     .entry-tools { margin-top: 10px; }
     .entry-tools button { padding: 5px 14px; }
-    #entry-table table { max-width: 620px; }
+    #entry-note-inhibition { margin: 0 0 8px; }
     .score { font-size: 0.85em; }
 
     .table-scroll { overflow-x: auto; }
@@ -293,17 +289,18 @@
     thead th, thead td { border-bottom: 2px solid var(--ut-taupe); }
     thead th {
       text-align: center;
+      font-size: 0.9em;
       font-weight: 600;
       white-space: normal;
       vertical-align: bottom;
     }
     tbody th { text-align: left; font-weight: 600; }
-    th .unit { font-weight: 400; color: var(--text-secondary); }
+    th .unit { display: block; font-weight: 400; color: var(--text-secondary); }
     td.revealed { font-style: italic; }
 
     .entry-cell { padding: 3px; }
     .cell-wrap { display: flex; align-items: center; gap: 3px; }
-    .entry-cell input { min-width: 54px; padding: 4px 5px; font-size: 13px; text-align: right; }
+    .entry-cell input { min-width: 44px; padding: 4px 3px; font-size: 13px; text-align: right; }
     .mark { flex: 0 0 13px; font-weight: 700; text-align: center; }
     .entry-cell.correct { background: var(--ut-lavender); }
     .entry-cell.wrong { outline: 2px solid var(--ut-crimson); outline-offset: -2px; }
@@ -312,17 +309,16 @@
     @media (max-width: 640px) {
       #top-row { flex-direction: column; }
       #model-box, #scheme-box { flex: none; }
-      #workspace {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "side" "plots" "entry";
-      }
+      /* One column, with the answers after the plots they are worked out from */
+      #workspace { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+      #sidebar { display: contents; }
+      #plot-column { order: 1; }
+      #entry-box { order: 2; }
     }
     @media (max-width: 480px) {
       .plot-card { padding: 10px; }
       th, td { padding: 4px; }
       table { font-size: 0.82em; }
-      th .unit { display: block; }
-      .entry-cell input { min-width: 44px; padding: 4px 3px; }
     }
   </style>
 </head>
@@ -383,8 +379,12 @@
     <!-- Controls -->
     <div id="sidebar">
 
-      <section class="panel box" aria-labelledby="enzyme-title">
-        <h2 class="panel-section-title" id="enzyme-title">Enzyme parameters</h2>
+      <section class="panel box" data-panel="enzyme" aria-labelledby="enzyme-title">
+        <div class="panel-header">
+          <h2 class="panel-section-title" id="enzyme-title">Enzyme parameters</h2>
+          <div class="panel-buttons"><button type="button" data-collapse="enzyme">Hide</button></div>
+        </div>
+        <div class="panel-body">
         <div id="conditions">
           <div id="condition-a" role="group" aria-labelledby="condition-a-title">
             <h3 class="panel-section-title condition-title" id="condition-a-title">Conditions A</h3>
@@ -425,24 +425,36 @@
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       <section class="panel box" id="inhib-box" aria-labelledby="inhib-title" hidden>
-        <h2 class="panel-section-title" id="inhib-title">Inhibition</h2>
+        <div class="panel-header">
+          <h2 class="panel-section-title" id="inhib-title">Inhibition</h2>
+          <label class="check-label" id="compare-label"><input type="checkbox" id="compare"> Compare to a second [I]</label>
+        </div>
         <div class="field-row" id="inhib-fields">
           <div class="field" id="I-field"><label for="I">[I] (<span data-u="conc">µM</span>)</label><input type="number" id="I" step="any" min="0"></div>
+          <div class="field" id="I2-field" hidden><label for="I2">Second [I] (<span data-u="conc">µM</span>)</label><input type="number" id="I2" step="any" min="0"></div>
           <div class="field" id="Ki-field"><label for="Ki">K<sub>i</sub> (E + I), <span data-u="conc">µM</span></label><input type="number" id="Ki" step="any" min="0"></div>
           <div class="field" id="KiP-field"><label for="KiP">K<sub>i</sub>' (ES + I), <span data-u="conc">µM</span></label><input type="number" id="KiP" step="any" min="0"></div>
         </div>
         <p class="note" id="ki-note" hidden>K<sub>i</sub>' = K<sub>i</sub> for pure noncompetitive</p>
-        <div class="box-subsection">
-          <h3 class="panel-section-title">Second [I] (optional)</h3>
-          <label class="check-label" id="compare-label"><input type="checkbox" id="compare"> Compare a second [I]</label>
-          <div class="field" id="I2-field" hidden><label for="I2">Second [I] (<span data-u="conc">µM</span>)</label><input type="number" id="I2" step="any" min="0"></div>
-        </div>
       </section>
 
       <div id="errors" role="alert" hidden></div>
+
+      <!-- Vmax and Km entry -->
+      <section class="panel box" id="entry-box" aria-labelledby="entry-title">
+        <h2 class="panel-section-title" id="entry-title">Determine V<sub>max</sub> and K<sub>m</sub></h2>
+        <p class="note" id="entry-note-inhibition">For the inhibited curves, enter the apparent values (V<sub>max</sub><sup>app</sup> and K<sub>m</sub><sup>app</sup>).</p>
+        <div class="table-scroll" id="entry-table" role="region" aria-label="Vmax and Km answers" tabindex="0"></div>
+        <div class="entry-tools">
+          <button type="button" id="entry-check">Check</button>
+          <button type="button" id="entry-reveal">Reveal</button>
+          <span class="score" id="entry-score" aria-live="polite"></span>
+        </div>
+      </section>
     </div>
 
     <!-- Plots -->
@@ -475,18 +487,6 @@
       </section>
       <p class="plot-hint" id="plot-hint">Hover or tap a plot to read the nearest point.</p>
     </div>
-
-    <!-- Vmax and Km entry -->
-    <section class="panel box" id="entry-box" aria-labelledby="entry-title">
-      <h2 class="panel-section-title" id="entry-title">Enter V<sub>max</sub> and K<sub>m</sub></h2>
-      <p class="note">Work these out from each line's equation on the Lineweaver–Burk plot.<span id="entry-note-inhibition"> For inhibited curves, enter the apparent values (V<sub>max</sub><sup>app</sup> and K<sub>m</sub><sup>app</sup>).</span></p>
-      <div class="table-scroll" id="entry-table" role="region" aria-label="Vmax and Km answers" tabindex="0"></div>
-      <div class="entry-tools">
-        <button type="button" id="entry-check">Check</button>
-        <button type="button" id="entry-reveal">Reveal</button>
-        <span class="score" id="entry-score" aria-live="polite"></span>
-      </div>
-    </section>
   </div>
 </main>
 
@@ -520,7 +520,7 @@ const entry = { revealed: false };
 
 // Page layout choices. "Reset to defaults" leaves these alone, as it does the open tab.
 const view = {
-  collapsed: { model: false, scheme: false, mm: false, lb: false },
+  collapsed: { model: false, scheme: false, enzyme: false, mm: false, lb: false },
   zoomed: { mm: false, lb: false },
 };
 
@@ -1113,7 +1113,8 @@ function entryRows() {
   ];
 }
 
-const INHIBITION_COLUMNS = { uninhibited: 'Uninhibited', first: '+ Inhibitor', second: '+ Second [I]' };
+// Non-breaking spaces keep each + with its word in a narrow column.
+const INHIBITION_COLUMNS = { uninhibited: 'Uninhibited', first: '+ Inhibitor', second: '+ Second [I]' };
 
 function columnName(curve) {
   return state.params.mode === 'kinetics' ? curveName(curve) : INHIBITION_COLUMNS[curve.id];
@@ -1340,6 +1341,7 @@ function syncFieldStates() {
   $('compare').disabled = none;
   $('compare-label').classList.toggle('off', none);
   $('I2-field').hidden = !$('compare').checked || none;
+  $('I-field').classList.toggle('wide', $('I2-field').hidden);
 }
 
 function syncUnits() {
@@ -1428,7 +1430,7 @@ $('reset').addEventListener('click', () => {
   renderEntryTable();   // clears typed answers even if no value changed
 });
 
-const PANEL_NAMES = { model: 'enzyme model', scheme: 'reaction scheme', mm: 'Michaelis–Menten plot', lb: 'Lineweaver–Burk plot' };
+const PANEL_NAMES = { model: 'enzyme model', scheme: 'reaction scheme', enzyme: 'enzyme parameters', mm: 'Michaelis–Menten plot', lb: 'Lineweaver–Burk plot' };
 
 function syncView() {
   const { collapsed, zoomed } = view;
