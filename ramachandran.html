@@ -76,6 +76,8 @@
       margin-bottom: 10px;
     }
 
+    .centered-title { text-align: center; }
+
     .angle-block { display: flex; flex-direction: row; gap: 20px; }
     .angle-block > div { flex: 1; }
 
@@ -137,7 +139,7 @@
       grid-template-columns: 1fr 1fr;
       gap: 7px 16px;
       width: 100%;
-      padding: 0 55px;
+      padding: 0 50px;
     }
     .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.88em; color: #000000; }
     .legend-swatch { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
@@ -250,10 +252,23 @@
       top: 10px;
       right: 10px;
       display: grid;
-      grid-template-columns: repeat(3, 30px);
-      grid-template-rows: repeat(3, 30px);
-      gap: 3px;
+      grid-template-columns: repeat(3, 15px);
+      grid-template-rows: repeat(3, 15px);
+      gap: 2px;
       pointer-events: none;   /* grid itself transparent; only buttons catch events */
+    }
+
+    #clash-legend {
+      position: absolute;
+      right: 8px;
+      bottom: 6px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.85);
+      color: #000000;
+      font-size: 0.8em;
+      line-height: normal;
+      pointer-events: none;
     }
 
     #zoom-btns {
@@ -353,6 +368,7 @@
       user-select: none;
       transition: background 0.12s, color 0.12s, border-color 0.12s;
     }
+    #rotate-btns .rot-btn { width: 15px; height: 15px; font-size: 7px; border-radius: 3px; }
     .rot-btn:hover  { background: #FFCDFF; color: #000000; border-color: #C8102E; }
     .rot-btn:active { background: #C8102E; color: #FFFFFF; border-color: #C8102E; }
 
@@ -376,14 +392,14 @@
 
 <div id="main-layout">
   <div id="ribbon-section">
-    <div class="panel-section-title">Typical Structure at These Angles</div>
-    <canvas id="ribbon" width="456" height="176" role="img"></canvas>
+    <div class="panel-section-title centered-title">Typical Structure at Selected Angles</div>
+    <canvas id="ribbon" width="456" height="150" role="img"></canvas>
     <div id="ribbon-caption"></div>
   </div>
 
   <div id="panel">
       <div id="angle-section">
-        <div class="panel-section-title">Dihedral Angles</div>
+        <div class="panel-section-title centered-title">Dihedral Angles</div>
         <div class="angle-block">
           <div>
             <div class="angle-row">
@@ -425,7 +441,7 @@
     <button id="extra4-toggle" onclick="toggleExtra4()">Add 4 Additional AAs</button>
   </div>
   <div id="dipeptide-wrapper">
-    <canvas id="dipeptide" width="500" height="290" tabindex="0" role="application"></canvas>
+    <canvas id="dipeptide" width="500" height="261" tabindex="0" role="application"></canvas>
     <div id="zoom-btns">
       <button class="rot-btn zoom-btn" id="zbtn-in"  title="Zoom in">+</button>
       <button class="rot-btn zoom-btn" id="zbtn-out" title="Zoom out">−</button>
@@ -444,6 +460,7 @@
       <button class="rot-btn" id="rbtn-down"  title="Rotate down">▼</button>
       <div></div>
     </div>
+    <div id="clash-legend"><b style="color:#C8102E;">)(</b>&nbsp;Steric clash</div>
     <div id="pan-btns">
       <button class="rot-btn" id="pbtn-up"    title="Pan up">↑</button>
       <button class="rot-btn" id="pbtn-down"  title="Pan down">↓</button>
@@ -462,10 +479,9 @@
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ef5350;"></div>O (oxygen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#BDBDBD;"></div>H (hydrogen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R (side chain)</div>
-    <div class="dp-legend-item"><b style="color:#C8102E;">)(</b>&nbsp;Steric clash</div>
   </div>
   <div id="structure-presets">
-    <div class="panel-section-title">Go to Structure</div>
+    <div class="panel-section-title">Show Specific Fold</div>
     <div id="preset-row">
       <button class="preset-btn" onclick="goToStructure('alpha')">α-helix</button>
       <button class="preset-btn" onclick="goToStructure('antiparallel')">Antiparallel β</button>
@@ -483,13 +499,12 @@
       <button class="residue-btn" id="residue-gly" aria-pressed="false" onclick="setResidueType('gly')">Glycine</button>
       <button class="residue-btn" id="residue-pro" aria-pressed="false" onclick="setResidueType('pro')">Proline</button>
     </div>
-    <p class="plot-hint" id="residue-note">General residues: every amino acid except glycine and proline.</p>
     <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
-    <canvas id="plot" width="520" height="520" tabindex="0" role="application"></canvas>
+    <canvas id="plot" width="469" height="421" tabindex="0" role="application"></canvas>
     <div class="legend">
       <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Favored</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#AB47BC;"></div>Allowed</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#F3E5F5; border:1px solid #685C53;"></div>Disallowed</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#AB47BC;"></div>Allowed</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#C8102E; border:2px solid #685C53;"></div>Current angles</div>
     </div>
     <p class="plot-hint">Regions are approximate teaching models, not survey statistics.</p>
@@ -500,7 +515,8 @@
 // ═══════════════════════════════════════════════════════════════
 //  RAMACHANDRAN PLOT
 // ═══════════════════════════════════════════════════════════════
-const W = 520, H = 520, M = 55, PW = W - 2 * M;
+const PW = 369, M = 50, MT = 10, MB = 42;   // plot side; left/right, top and bottom margins
+const W = PW + 2 * M, H = MT + PW + MB;
 
 const REGIONS = [
   { phi0: -60,  psi0: -45,  sP: 24, sQ: 22, w: 1.00, name: 'alpha-helix'     },
@@ -536,11 +552,6 @@ const PLOT_LABELS = {
   gly:     [{phi:-70,psi:-30,t:'α'},{phi:-110,psi:150,t:'β'},{phi:70,psi:30,t:'αL'}],
   pro:     [{phi:-65,psi:-35,t:'α'},{phi:-65,psi:145,t:'PPII'}],
 };
-const RESIDUE_NOTES = {
-  general: 'General residues: every amino acid except glycine and proline.',
-  gly:     'Glycine: its side chain is only H, so far more of the plot opens up, especially around β.',
-  pro:     'Proline: its ring locks ϕ near −65°. The viewer still shows a generic residue, with no ring.',
-};
 let residueType = 'general';   // the whole chain is treated as this residue type
 let activeStructure = null;    // key of STRUCTURES while its preset's angles are in place
 const FAVORED_THRESH = 0.38, ALLOWED_THRESH = 0.055;
@@ -549,11 +560,11 @@ let phi = -60, psi = -45;
 let isDragging = false;
 let bgCache = null;
 
-function toCanvas(p, q) { return { x: M + (p+180)/360*PW, y: M + (180-q)/360*PW }; }
+function toCanvas(p, q) { return { x: M + (p+180)/360*PW, y: MT + (180-q)/360*PW }; }
 function toAngles(cx, cy) {
   return {
     phi: Math.max(-180, Math.min(180, (cx-M)/PW*360-180)),
-    psi: Math.max(-180, Math.min(180, 180-(cy-M)/PW*360)),
+    psi: Math.max(-180, Math.min(180, 180-(cy-MT)/PW*360)),
   };
 }
 
@@ -600,7 +611,7 @@ function buildBackground() {
   for (let cy=0; cy<H; cy++) {
     for (let cx=0; cx<W; cx++) {
       const i = (cy*W+cx)*4;
-      if (cx<M || cx>=W-M || cy<M || cy>=H-M) {
+      if (cx<M || cx>=W-M || cy<MT || cy>=MT+PW) {
         d[i]=248; d[i+1]=246; d[i+2]=252; d[i+3]=255;
       } else {
         const a = toAngles(cx, cy);
@@ -621,27 +632,27 @@ function drawAxes() {
   ctx.strokeStyle = 'rgba(104,92,83,0.35)';
   for (const a of [-90, 0, 90]) {
     const x = M + (a+180)/360*PW;
-    ctx.beginPath(); ctx.moveTo(x,M); ctx.lineTo(x,H-M); ctx.stroke();
-    const y = M + (180-a)/360*PW;
+    ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+PW); ctx.stroke();
+    const y = MT + (180-a)/360*PW;
     ctx.beginPath(); ctx.moveTo(M,y); ctx.lineTo(W-M,y); ctx.stroke();
   }
   ctx.restore();
   ctx.strokeStyle='#685C53'; ctx.lineWidth=1.5;
-  ctx.strokeRect(M, M, PW, PW);
+  ctx.strokeRect(M, MT, PW, PW);
 
   ctx.fillStyle='#000000'; ctx.font='11px "Segoe UI",Arial';
   ctx.textAlign='center'; ctx.textBaseline='top';
   for (const a of [-180,-90,0,90,180]) {
-    ctx.fillText(a+'°', M+(a+180)/360*PW, H-M+6);
+    ctx.fillText(a+'°', M+(a+180)/360*PW, MT+PW+6);
   }
   ctx.textAlign='right'; ctx.textBaseline='middle';
   for (const a of [-180,-90,0,90,180]) {
-    ctx.fillText(a+'°', M-6, M+(180-a)/360*PW);
+    ctx.fillText(a+'°', M-6, MT+(180-a)/360*PW);
   }
   ctx.font='bold 13px "Segoe UI",Arial';
   ctx.fillStyle='#B45309'; ctx.textAlign='center'; ctx.textBaseline='bottom';
   ctx.fillText('ϕ   (Phi)', W/2, H-2);
-  ctx.save(); ctx.translate(13,H/2); ctx.rotate(-Math.PI/2);
+  ctx.save(); ctx.translate(13,MT+PW/2); ctx.rotate(-Math.PI/2);
   ctx.fillStyle='#0E7490'; ctx.textBaseline='top'; ctx.fillText('ψ   (Psi)', 0, 0); ctx.restore();
 
   ctx.font='italic bold 11px "Segoe UI",Arial';
@@ -654,10 +665,10 @@ function drawAxes() {
 
 function drawPoint() {
   const {x,y}=toCanvas(phi,psi);
-  ctx.save(); ctx.beginPath(); ctx.rect(M,M,PW,PW); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(M,MT,PW,PW); ctx.clip();
   ctx.strokeStyle='rgba(200,16,46,0.55)'; ctx.lineWidth=1; ctx.setLineDash([5,4]);
   ctx.beginPath(); ctx.moveTo(M,y); ctx.lineTo(W-M,y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x,M); ctx.lineTo(x,H-M); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,MT); ctx.lineTo(x,MT+PW); ctx.stroke();
   ctx.setLineDash([]); ctx.restore();
   const grd=ctx.createRadialGradient(x,y,0,x,y,20);
   grd.addColorStop(0,'rgba(200,16,46,0.45)'); grd.addColorStop(1,'rgba(200,16,46,0)');
@@ -726,7 +737,7 @@ function getCanvasXY(e) {
 function handlePointer(e) {
   e.preventDefault();
   const {cx,cy}=getCanvasXY(e);
-  if (cx>=M && cx<=W-M && cy>=M && cy<=H-M) {
+  if (cx>=M && cx<=W-M && cy>=MT && cy<=MT+PW) {
     const a=toAngles(cx,cy); setAngles(a.phi,a.psi);
   }
 }
@@ -759,12 +770,13 @@ document.getElementById('psi-input').addEventListener('input',  e=>{ const v=par
 // ═══════════════════════════════════════════════════════════════
 const ribbonCanvas = document.getElementById('ribbon');
 const rc = ribbonCanvas.getContext('2d');
-const RW = 456, RH = 176;
+const RW = 456, RH = 150;
 const RIBBON_CAPTIONS = {
   helix:        'α-helix (right-handed)',
   leftHelix:    'Left-handed helix',
   helix310:     '3₁₀ helix (right-handed)',
   ppII:         'Polyproline II helix (left-handed, extended)',
+  gammaTurn:    'γ-turn (three residues, H-bond from i to i+2)',
   sheet:        'β-sheet / extended strand',
   antiparallel: 'Antiparallel β-sheet',
   parallel:     'Parallel β-sheet',
@@ -780,6 +792,7 @@ function ribbonStructure(p, q) {
   if (name === 'left-hand helix') return 'leftHelix';
   if (name === 'PPII / beta') return 'ppII';
   if (name === 'beta-sheet' || name === 'extended') return 'sheet';
+  if (name === 'gamma-turn') return 'gammaTurn';
   return 'none';
 }
 
@@ -791,6 +804,7 @@ function renderRibbon() {
   rc.clearRect(0, 0, RW, RH);
   if (HELIX_SHAPES[kind]) drawHelixRibbon(HELIX_SHAPES[kind], '#C8102E');
   else if (SHEET_DIRECTIONS[kind]) drawSheetRibbon(SHEET_DIRECTIONS[kind], '#6A0DAD');
+  else if (kind === 'gammaTurn') drawGammaTurnRibbon('#0E7490');
   document.getElementById('ribbon-caption').textContent = RIBBON_CAPTIONS[kind];
   ribbonCanvas.setAttribute('aria-label', `Ribbon diagram: ${RIBBON_CAPTIONS[kind]}`);
 }
@@ -822,47 +836,67 @@ function paintRibbonQuads(quads, color) {
   }
 }
 
-// Proportions follow the real helices. Each ends a quarter turn past a whole turn, so the
-// arrowhead lands on the front of the helix where it can be seen.
+// Proportions follow the real helices, scaled to fit the canvas. Each body ends just short of a
+// quarter turn past a whole turn, on the front of the helix. From headStart the arrowhead runs
+// straight along the tape's last direction. PPII is so stretched out that its tape is nearly
+// straight already, so its head simply follows the curve.
 const HELIX_SHAPES = {
-  helix:     { hand:  1, turns: 3.25, r: 54, pitch:  88, halfWidth: 16 },
-  leftHelix: { hand: -1, turns: 3.25, r: 54, pitch:  88, halfWidth: 16 },
-  helix310:  { hand:  1, turns: 3.25, r: 42, pitch:  98, halfWidth: 14 },
+  helix:     { hand:  1, turns: 3.25, r: 44, pitch:  88, halfWidth: 14, headStart: 0.974, headLength: 50 },
+  leftHelix: { hand: -1, turns: 3.25, r: 44, pitch:  88, halfWidth: 14, headStart: 0.974, headLength: 50 },
+  helix310:  { hand:  1, turns: 3.25, r: 36, pitch:  98, halfWidth: 13, headStart: 0.974, headLength: 50 },
   ppII:      { hand: -1, turns: 2.25, r: 24, pitch: 150, halfWidth: 12 },
 };
-const HELIX_HEAD = 0.07;   // share of the tape taken by the arrowhead
+const HELIX_HEAD = 0.07;   // share of a curved tape taken by its arrowhead
+const HELIX_FLARE = 2.2;   // arrowhead width at its base, as a multiple of the tape's
 
-// A point on a tape wound around the screen's x axis from the N end to the C end, turned a little
-// so its length and depth both show. t runs 0–1 along the tape, s runs -1–1 across it. The hand is
-// set by mirroring y, which keeps the arrowhead in front. The tape leans off the cylinder so its
-// outline stays round.
-function helixRibbonPoint(t, s, shape) {
-  const { hand, turns, r, pitch, halfWidth } = shape, LEAN = 30 * Math.PI / 180;
+// Center and directions of the tape at t, which runs 0–1 from the N end to the C end
+function helixFrame(t, shape) {
+  const { hand, turns, r, pitch } = shape, LEAN = 30 * Math.PI / 180;
   const th = t * turns * 2 * Math.PI;
   const radial = v3(0, hand * Math.cos(th), Math.sin(th));
   const tangent = norm3(v3(pitch, -hand * r * 2 * Math.PI * Math.sin(th), r * 2 * Math.PI * Math.cos(th)));
   const across = add3(sc3(Math.cos(LEAN), cross3(tangent, radial)), sc3(Math.sin(LEAN), radial));
-  const center = v3((t - 0.5) * turns * pitch, r * radial.y, r * radial.z);
-  const width = t > 1 - HELIX_HEAD ? halfWidth * 2.2 * (1 - t) / HELIX_HEAD : halfWidth;
-  return mApply(mRotY(-18 * Math.PI / 180), add3(center, sc3(s * width, across)));
+  return { center: v3((t - 0.5) * turns * pitch, r * radial.y, r * radial.z), tangent, across };
+}
+
+// A point on a tape wound around the screen's x axis, turned a little so its length and depth
+// both show. s runs -1–1 across the tape. The hand is set by mirroring y, which keeps the
+// arrowhead in front. The tape leans off the cylinder so its outline stays round.
+function helixRibbonPoint(t, s, shape) {
+  const { halfWidth, headStart, headLength } = shape;
+  let frame, width;
+  if (headStart !== undefined && t >= headStart) {
+    const base = helixFrame(headStart, shape), u = (t - headStart) / (1 - headStart);
+    frame = { center: add3(base.center, sc3(u * headLength, base.tangent)), across: base.across };
+    width = halfWidth * HELIX_FLARE * (1 - u);
+  } else {
+    frame = helixFrame(t, shape);
+    width = headStart === undefined && t > 1 - HELIX_HEAD ? halfWidth * HELIX_FLARE * (1 - t) / HELIX_HEAD : halfWidth;
+  }
+  return mApply(mRotY(-18 * Math.PI / 180), add3(frame.center, sc3(s * width, frame.across)));
+}
+
+function labelRibbonEnds(start, end, startOffset, endOffset) {
+  rc.fillStyle = '#000000';
+  rc.font = 'bold 13px "Segoe UI",Arial';
+  rc.textAlign = 'center'; rc.textBaseline = 'middle';
+  rc.fillText('N', RW/2 + start.x + startOffset, RH/2 - start.y);
+  rc.fillText('C', RW/2 + end.x + endOffset, RH/2 - end.y);
 }
 
 function drawHelixRibbon(shape, color) {
   const STEPS = 300, quads = [];
   const at = (t, s) => helixRibbonPoint(t, s, shape);
-  for (let i = 0; i < STEPS; i++) {
-    const t0 = i / STEPS, t1 = (i + 1) / STEPS;
-    quads.push(ribbonQuad(at(t0, -1), at(t0, 1), at(t1, 1), at(t1, -1)));
+  const ts = [];
+  for (let i = 0; i <= STEPS; i++) ts.push(i / STEPS);
+  // A sample on each side of the base makes the head a sharp step out from the tape
+  if (shape.headStart !== undefined) ts.push(shape.headStart - 1e-6, shape.headStart);
+  ts.sort((a, b) => a - b);
+  for (let i = 0; i + 1 < ts.length; i++) {
+    quads.push(ribbonQuad(at(ts[i], -1), at(ts[i], 1), at(ts[i + 1], 1), at(ts[i + 1], -1)));
   }
   paintRibbonQuads(quads, color);
-
-  // Name the two ends so the arrow reads as N→C
-  rc.fillStyle = '#000000';
-  rc.font = 'bold 13px "Segoe UI",Arial';
-  rc.textAlign = 'center'; rc.textBaseline = 'middle';
-  const start = at(0, 0), end = at(1, 0);
-  rc.fillText('N', RW/2 + start.x - 14, RH/2 - start.y);
-  rc.fillText('C', RW/2 + end.x + 14, RH/2 - end.y);
+  labelRibbonEnds(at(0, 0), at(1, 0), -14, 14);
 }
 
 // Direction of each strand: 1 runs left to right
@@ -875,7 +909,7 @@ const SHEET_DIRECTIONS = {
 // Three pleated strands with arrowheads. Antiparallel neighbors join by short hairpins;
 // parallel neighbors need a long crossover back along the sheet.
 function drawSheetRibbon(directions, color) {
-  const HALF_LEN = 185, HALF_WIDTH = 15, HEAD = 40, GAP = 54, PLEAT = 6, STEPS = 120;
+  const HALF_LEN = 185, HALF_WIDTH = 15, HEAD = 40, GAP = 50, PLEAT = 6, STEPS = 120;
   const view = mRotX(-28 * Math.PI / 180);
   const strandYs = [GAP, 0, -GAP];
   const place = (x, y, z) => mApply(view, v3(x, y, z));
@@ -920,6 +954,71 @@ function drawSheetRibbon(directions, color) {
     }
   });
   paintRibbonQuads(quads, color);
+
+  // One chain runs through all the strands: N starts the first and C ends the last
+  const first = directions[0], last = directions.at(-1);
+  labelRibbonEnds(place(-first * HALF_LEN, strandYs[0], 0), place(last * HALF_LEN, strandYs.at(-1), 0), -first * 14, last * 14);
+}
+
+// A tight turn over three residues, closed by the H-bond from C=O of i to N–H of i+2
+function drawGammaTurnRibbon(color) {
+  const RADIUS = 30, BEND_X = 70, LEG_IN = 170, LEG_OUT = 140, HALF_WIDTH = 11, HEAD = 40, STEPS = 200;
+  const view = mRotX(-20 * Math.PI / 180);
+  const arc = Math.PI * RADIUS, total = LEG_IN + arc + LEG_OUT;
+  // Center and outward side of the tape, d along it: in along the top, around, out along the bottom
+  const pathAt = d => {
+    if (d <= LEG_IN) return { x: BEND_X - LEG_IN + d, y: RADIUS, nx: 0, ny: 1 };
+    if (d <= LEG_IN + arc) {
+      const a = Math.PI / 2 - (d - LEG_IN) / RADIUS;
+      return { x: BEND_X + RADIUS * Math.cos(a), y: RADIUS * Math.sin(a), nx: Math.cos(a), ny: Math.sin(a) };
+    }
+    return { x: BEND_X - (d - LEG_IN - arc), y: -RADIUS, nx: 0, ny: -1 };
+  };
+  const at = (d, s) => {
+    const p = pathAt(d);
+    const w = d > total - HEAD ? HALF_WIDTH * HELIX_FLARE * (total - d) / HEAD : HALF_WIDTH;
+    return mApply(view, v3(p.x + s * w * p.nx, p.y + s * w * p.ny, 14 * Math.sin(Math.PI * d / total)));
+  };
+  const quads = [];
+  const ds = [];
+  for (let k = 0; k <= STEPS; k++) ds.push(k / STEPS * total);
+  ds.push(total - HEAD - 1e-6, total - HEAD);
+  ds.sort((a, b) => a - b);
+  for (let k = 0; k + 1 < ds.length; k++) {
+    quads.push(ribbonQuad(at(ds[k], 1), at(ds[k], -1), at(ds[k + 1], -1), at(ds[k + 1], 1)));
+  }
+  paintRibbonQuads(quads, color);
+
+  const onCanvas = p => [RW/2 + p.x, RH/2 - p.y];
+  const [ix, iy] = onCanvas(at(LEG_IN, 0));
+  const [mx, my] = onCanvas(at(LEG_IN + arc / 2, 0));
+  const [jx, jy] = onCanvas(at(LEG_IN + arc, 0));
+
+  rc.strokeStyle = '#2E7D32';
+  rc.lineWidth = 2;
+  rc.setLineDash([4, 3]);
+  rc.beginPath(); rc.moveTo(ix, iy); rc.lineTo(jx, jy); rc.stroke();
+  rc.setLineDash([]);
+
+  rc.font = 'bold 12px "Segoe UI",Arial';
+  rc.textBaseline = 'middle';
+  rc.textAlign = 'right';
+  rc.fillStyle = '#2E7D32';
+  rc.fillText('H-bond', ix - 6, (iy + jy) / 2);
+  rc.fillStyle = '#000000';
+  for (const [x, y] of [[ix, iy], [mx, my], [jx, jy]]) {
+    rc.fillStyle = '#FFFFFF';
+    rc.strokeStyle = '#000000';
+    rc.lineWidth = 1.5;
+    rc.beginPath(); rc.arc(x, y, 4, 0, Math.PI * 2); rc.fill(); rc.stroke();
+  }
+  rc.fillStyle = '#000000';
+  rc.textAlign = 'center';
+  rc.fillText('i', ix, iy - 22);
+  rc.fillText('i+2', jx, jy + 22);
+  rc.textAlign = 'left';
+  rc.fillText('i+1', mx + 18, my);
+  labelRibbonEnds(at(0, 0), at(total, 0), -14, -14);
 }
 
 
@@ -928,7 +1027,7 @@ function drawSheetRibbon(directions, color) {
 // ═══════════════════════════════════════════════════════════════
 const dp = document.getElementById('dipeptide');
 const dc = dp.getContext('2d');
-const DW = 500, DH = 290;
+const DW = 500, DH = 261;
 
 // ── View state: rotation matrix (replaces Euler angles) ──────────
 // Stores the current orientation as a 3×3 matrix so that every new
@@ -1989,7 +2088,6 @@ function setResidueType(type) {
     btn.classList.toggle('active', t === type);
     btn.setAttribute('aria-pressed', String(t === type));
   }
-  document.getElementById('residue-note').textContent = RESIDUE_NOTES[type];
   renderPlot(); updateUI(); renderDipeptide();
 }
 

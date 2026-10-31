@@ -51,6 +51,7 @@ function makeTarget(id) {
 
 function loadPage() {
   const elements = new Map(IDS.map(id => [id, makeTarget(id)]));
+  elements.get('plot').rect = { left: 0, top: 0, width: 469, height: 421 };
   const intervals = new Set();
   let nextInterval = 1;
   const document = makeTarget('document');
@@ -159,10 +160,10 @@ test('toCanvas and toAngles are inverses and map the plot corners', () => {
   }
   const topLeft = page.run('toCanvas(-180, 180)');
   assert.equal(topLeft.x, page.run('M'));
-  assert.equal(topLeft.y, page.run('M'));
+  assert.equal(topLeft.y, page.run('MT'));
   const bottomRight = page.run('toCanvas(180, -180)');
   assert.equal(bottomRight.x, page.run('W - M'));
-  assert.equal(bottomRight.y, page.run('H - M'));
+  assert.equal(bottomRight.y, page.run('MT + PW'));
 });
 
 test('toAngles clamps points outside the plot', () => {
@@ -271,27 +272,27 @@ test('number inputs ignore invalid text; change clamps but input does not apply'
 test('clicking and dragging the plot sets angles only inside the axes', () => {
   const page = loadPage();
   const plot = page.el('plot');
-  plot.fire('mousedown', { clientX: 260, clientY: 260 });
+  plot.fire('mousedown', { clientX: 234.5, clientY: 194.5 });
   assertClose(page.run('phi'), 0, 1e-9, 'phi at center');
   assertClose(page.run('psi'), 0, 1e-9, 'psi at center');
 
-  plot.fire('mousemove', { clientX: 55, clientY: 55 });
+  plot.fire('mousemove', { clientX: 50, clientY: 10 });
   assertClose(page.run('phi'), -180, 1e-9, 'phi while dragging');
   assertClose(page.run('psi'), 180, 1e-9, 'psi while dragging');
 
-  plot.fire('mousemove', { clientX: 10, clientY: 10 });
+  plot.fire('mousemove', { clientX: 10, clientY: 5 });
   assertClose(page.run('phi'), -180, 1e-9, 'margin is ignored');
 
   page.document.fire('mouseup');
-  plot.fire('mousemove', { clientX: 260, clientY: 260 });
+  plot.fire('mousemove', { clientX: 234.5, clientY: 194.5 });
   assertClose(page.run('phi'), -180, 1e-9, 'moves after release are ignored');
 });
 
 test('pointer coordinates account for CSS scaling of the canvas', () => {
   const page = loadPage();
   const plot = page.el('plot');
-  plot.rect = { left: 100, top: 50, width: 260, height: 260 };
-  plot.fire('mousedown', { clientX: 230, clientY: 180 });
+  plot.rect = { left: 100, top: 50, width: 234.5, height: 210.5 };
+  plot.fire('mousedown', { clientX: 217.25, clientY: 147.25 });
   assertClose(page.run('phi'), 0, 1e-9, 'phi');
   assertClose(page.run('psi'), 0, 1e-9, 'psi');
 });
@@ -844,11 +845,11 @@ for (const t of TURNS) {
       page.run(`${t.fn}()`);
       const b = box(page);
       assertClose((b.minX + b.maxX) / 2, 250, 1e-6, `x center after ${prior}`);
-      assertClose((b.minY + b.maxY) / 2, 145, 1e-6, `y center after ${prior}`);
+      assertClose((b.minY + b.maxY) / 2, 130.5, 1e-6, `y center after ${prior}`);
       // Largest atom radius at this zoom must also stay on the canvas
       const r = 14 * page.run('dipScale') / 44;
       assert.ok(b.minX - r >= 0 && b.maxX + r <= 500, `x range ${b.minX}–${b.maxX}`);
-      assert.ok(b.minY - r >= 0 && b.maxY + r <= 290, `y range ${b.minY}–${b.maxY}`);
+      assert.ok(b.minY - r >= 0 && b.maxY + r <= 261, `y range ${b.minY}–${b.maxY}`);
       first.push(JSON.stringify(b));
     }
     assert.equal(new Set(first).size, 1, 'the framing does not depend on the prior view');
@@ -901,7 +902,7 @@ const RIBBONS = [
   [-120, 130, 'sheet', 'β-sheet / extended strand'],
   [-120, 150, 'sheet', 'β-sheet / extended strand'],
   [-75, 148, 'ppII', 'Polyproline II helix (left-handed, extended)'],
-  [80, -60, 'none', 'No regular secondary structure at these angles'],
+  [80, -60, 'gammaTurn', 'γ-turn (three residues, H-bond from i to i+2)'],
   [0, 0, 'none', 'No regular secondary structure at these angles'],
 ];
 for (const [p, q, kind, caption] of RIBBONS) {
@@ -950,7 +951,7 @@ test('every helix ribbon stays on the canvas, arrowhead included', () => {
     for (let t = 0; t <= 1.0001; t += 0.01) {
       for (const s of [-1, 1]) {
         const p = page.run(`helixRibbonPoint(${Math.min(t, 1)}, ${s}, HELIX_SHAPES.${kind})`);
-        assert.ok(Math.abs(p.x) <= 228 && Math.abs(p.y) <= 88, `${kind} t=${t} s=${s}: ${p.x}, ${p.y}`);
+        assert.ok(Math.abs(p.x) <= 228 && Math.abs(p.y) <= 75, `${kind} t=${t} s=${s}: ${p.x}, ${p.y}`);
       }
     }
   }
@@ -960,14 +961,15 @@ test('every helix ribbon ends in an arrowhead on the front, labeled N to C', () 
   const page = loadPage();
   for (const kind of Object.keys(page.run('HELIX_SHAPES'))) {
     const width = t => dist(page.run(`helixRibbonPoint(${t}, -1, HELIX_SHAPES.${kind})`), page.run(`helixRibbonPoint(${t}, 1, HELIX_SHAPES.${kind})`));
-    assert.ok(width(0.94) > width(0.5) * 1.5, `${kind}: the head flares out`);
+    const base = page.run(`HELIX_SHAPES.${kind}.headStart`) ?? 0.931;
+    assert.ok(width(base) > width(0.5) * 1.5, `${kind}: the head flares out`);
     assertClose(width(1), 0, 1e-9, `${kind}: the head comes to a point`);
     assert.ok(page.run(`helixRibbonPoint(1, 0, HELIX_SHAPES.${kind})`).z > 0, `${kind}: the tip is in front`);
     const start = page.run(`helixRibbonPoint(0, 0, HELIX_SHAPES.${kind})`);
     assert.ok(start.x < page.run(`helixRibbonPoint(1, 0, HELIX_SHAPES.${kind})`).x, `${kind}: runs left to right`);
   }
   page.run('setAngles(-60, -45)');
-  const text = page.el('ribbon').context.calls.filter(c => c.fn === 'fillText').map(c => c.args[0]);
+  const text = page.el('ribbon').context.calls.filter(c => c.fn === 'fillText').map(c => c.args[0]).slice(-2);
   assert.deepEqual(text, ['N', 'C']);
 });
 
@@ -1089,9 +1091,9 @@ for (const [name, p, q, ribbon, hbonds] of STRUCTURE_PRESETS) {
       })()`));
       const xs = points.map(a => a.x), ys = points.map(a => a.y);
       assertClose((Math.min(...xs) + Math.max(...xs)) / 2, 250, 1e-6, 'x center');
-      assertClose((Math.min(...ys) + Math.max(...ys)) / 2, 145, 1e-6, 'y center');
+      assertClose((Math.min(...ys) + Math.max(...ys)) / 2, 130.5, 1e-6, 'y center');
       assert.ok(Math.min(...xs) >= 0 && Math.max(...xs) <= 500, 'x on canvas');
-      assert.ok(Math.min(...ys) >= 0 && Math.max(...ys) <= 290, 'y on canvas');
+      assert.ok(Math.min(...ys) >= 0 && Math.max(...ys) <= 261, 'y on canvas');
     }
   });
 }
@@ -1270,8 +1272,6 @@ test('the general plot is the default and matches REGIONS', () => {
   assert.equal(page.run('residueType'), 'general');
   assert.equal(page.run('REGION_SETS.general === REGIONS'), true);
   assert.match(HTML, /id="residue-general"[^>]*aria-pressed="true"/);
-  const note = page.run('RESIDUE_NOTES.general');
-  assert.ok(HTML.includes(`id="residue-note">${note}<`), 'the markup starts with the general note');
 });
 
 test('the residue buttons show which plot is active and rebuild it', () => {
@@ -1284,9 +1284,6 @@ test('the residue buttons show which plot is active and rebuild it', () => {
   assert.equal(page.el('residue-general').classList.contains('active'), false);
   assert.equal(page.el('residue-gly').attrs['aria-pressed'], 'true');
   assert.equal(page.el('residue-general').attrs['aria-pressed'], 'false');
-  assert.ok(page.el('residue-note').textContent.startsWith('Glycine'));
-  page.run("setResidueType('pro')");
-  assert.ok(page.el('residue-note').textContent.startsWith('Proline'));
 });
 
 test('the glycine plot is symmetric about the origin and wider than the general one', () => {
@@ -1375,7 +1372,6 @@ test('Reset to 1 AA returns to the general plot', () => {
   assert.equal(page.run('residueType'), 'general');
   assert.equal(page.el('residue-general').classList.contains('active'), true);
   assert.equal(page.el('residue-pro').classList.contains('active'), false);
-  assert.ok(page.el('residue-note').textContent.startsWith('General'));
 });
 
 test('the ribbon follows the active plot', () => {
@@ -1413,7 +1409,7 @@ test('every point on every plot shows a ribbon matching its region', () => {
   const page = loadPage();
   const EXPECTED = {
     'alpha-helix': 'helix', 'left-hand helix': 'leftHelix', 'PPII / beta': 'ppII',
-    'beta-sheet': 'sheet', extended: 'sheet', 'gamma-turn': 'none', '': 'none',
+    'beta-sheet': 'sheet', extended: 'sheet', 'gamma-turn': 'gammaTurn', '': 'none',
   };
   for (const type of ['general', 'gly', 'pro']) {
     page.run(`setResidueType('${type}')`);
@@ -1470,8 +1466,8 @@ const shownBox = page => page.run(`(() => {
 function assertCentered(page, label) {
   const b = shownBox(page);
   assertClose((b.minX + b.maxX) / 2, 250, 1e-6, `${label}: x center`);
-  assertClose((b.minY + b.maxY) / 2, 145, 1e-6, `${label}: y center`);
-  assert.ok(b.minX >= 0 && b.maxX <= 500 && b.minY >= 0 && b.maxY <= 290, `${label}: on the canvas`);
+  assertClose((b.minY + b.maxY) / 2, 130.5, 1e-6, `${label}: y center`);
+  assert.ok(b.minX >= 0 && b.maxX <= 500 && b.minY >= 0 && b.maxY <= 261, `${label}: on the canvas`);
 }
 
 const RESIDUE_BUTTONS = ['toggleNterm', 'toggleCterm', 'toggleExtra2', 'toggleExtra4'];
@@ -1509,4 +1505,110 @@ test('removing a terminal residue that drops the extras still fits what is left'
   page.run('toggleExtra4(); toggleNterm()');
   assert.equal(page.run('showExtra2 || showExtra4'), false);
   assertCentered(page, 'after dropping the extras');
+});
+
+// ── Layout details ─────────────────────────────────────────────
+test('the plot box has no notes under the residue buttons, only the click-or-drag hint', () => {
+  assert.ok(!IDS.includes('residue-note'));
+  const box = HTML.slice(HTML.indexOf('<div id="plot-wrapper">'), HTML.indexOf('<canvas id="plot"'));
+  assert.equal([...box.matchAll(/class="plot-hint"/g)].length, 1);
+  assert.match(box, /<b>Click or drag<\/b> on the plot to move the point\./);
+});
+
+test('the plot is 10% smaller and starts right below the hint', () => {
+  const page = loadPage();
+  assert.equal(page.run('PW'), 369, '10% smaller than the old 410');
+  assert.ok(page.run('MT') <= 10, 'no blank band above the plot');
+  assert.ok(HTML.includes(`<canvas id="plot" width="${page.run('W')}" height="${page.run('H')}"`), 'markup and script agree');
+  assert.equal(page.run('M + PW + M'), page.run('W'));
+  assert.equal(page.run('MT + PW + MB'), page.run('H'));
+});
+
+test('the viewer and ribbon canvases are 10% shorter, in markup and script alike', () => {
+  const page = loadPage();
+  assert.equal(page.run('DH'), 261);
+  assert.ok(HTML.includes('<canvas id="dipeptide" width="500" height="261"'));
+  assert.equal(page.run('RH'), 150);
+  assert.ok(HTML.includes('<canvas id="ribbon" width="456" height="150"'));
+});
+
+test('the plot legend runs Favored over Allowed and Disallowed over Current angles', () => {
+  const items = [...HTML.matchAll(/class="legend-item">.*?<\/div>([^<]+)<\/div>/g)].map(m => m[1]);
+  // A two-column grid fills across, so this order stacks those pairs
+  assert.deepEqual(items, ['Favored', 'Disallowed', 'Allowed', 'Current angles']);
+});
+
+test('the Steric clash legend overlays the viewer', () => {
+  const wrapper = HTML.slice(HTML.indexOf('<div id="dipeptide-wrapper">'), HTML.indexOf('<div id="dipeptide-legend">'));
+  assert.match(wrapper, /id="clash-legend"><b[^>]*>\)\(<\/b>&nbsp;Steric clash/);
+  const below = HTML.slice(HTML.indexOf('<div id="dipeptide-legend">'), HTML.indexOf('<div id="structure-presets">'));
+  assert.doesNotMatch(below, /Steric clash/);
+  assert.match(HTML, /#clash-legend \{[^}]*position: absolute;[^}]*right: 8px;[^}]*bottom: 6px;/);
+});
+
+test('the rotate buttons are half size and stay in the top right corner', () => {
+  assert.match(HTML, /#rotate-btns \{[^}]*top: 10px;[^}]*right: 10px;[^}]*repeat\(3, 15px\)/);
+  assert.match(HTML, /#rotate-btns \.rot-btn \{ width: 15px; height: 15px;/);
+});
+
+test('section titles use the requested wording and two are centered', () => {
+  for (const title of ['Typical Structure at Selected Angles', 'Dihedral Angles']) {
+    assert.ok(HTML.includes(`class="panel-section-title centered-title">${title}<`), title);
+  }
+  assert.match(HTML, /\.centered-title \{ text-align: center; \}/);
+  assert.ok(HTML.includes('>Show Specific Fold<'));
+  assert.doesNotMatch(HTML, /Go to Structure|at These Angles/);
+});
+
+// ── Ribbon details ─────────────────────────────────────────────
+const ribbonText = page => page.el('ribbon').context.calls.filter(c => c.fn === 'fillText').map(c => c.args);
+for (const [p, q, name] of [[-120, 130, 'sheet'], [-139, 135, 'antiparallel']]) {
+  test(`the ${name} ribbon labels the N and C ends`, () => {
+    const page = loadPage();
+    page.run("setAngles(-60, -45)");
+    page.el('ribbon').context.calls.length = 0;
+    if (name === 'sheet') page.run(`setAngles(${p}, ${q})`); else page.run(`goToStructure('${name}')`);
+    assert.deepEqual(ribbonText(page).slice(-2).map(a => a[0]), ['N', 'C']);
+  });
+}
+
+test('parallel and antiparallel ribbons start at N on the left and end at C on the right', () => {
+  const page = loadPage();
+  for (const name of ['parallel', 'antiparallel']) {
+    page.run("setAngles(-60, -45)");
+    page.el('ribbon').context.calls.length = 0;
+    page.run(`goToStructure('${name}')`);
+    const [[, nx, ny], [, cx, cy]] = ribbonText(page).slice(-2);
+    assert.ok(nx < 50 && nx >= 0, `${name} N at x=${nx}`);
+    assert.ok(cx > 406 && cx <= 456, `${name} C at x=${cx}`);
+    assert.ok(ny < cy, `${name}: N on the top strand, C on the bottom`);
+    assert.ok(ny >= 0 && cy <= 150, `${name}: on the canvas`);
+  }
+});
+
+test('the helix arrowheads run straight, like the stretched-out PPII one', () => {
+  const page = loadPage();
+  for (const kind of ['helix', 'leftHelix', 'helix310']) {
+    const at = t => page.run(`helixRibbonPoint(${t}, 0, HELIX_SHAPES.${kind})`);
+    const start = page.run(`HELIX_SHAPES.${kind}.headStart`);
+    const [a, b, c] = [at(start), at((start + 1) / 2), at(1)];
+    assertClose(dist(a, b) + dist(b, c), dist(a, c), 1e-9, `${kind} head is straight`);
+  }
+  const ppII = page.run('HELIX_SHAPES.ppII');
+  assert.deepEqual({ ...ppII }, { hand: -1, turns: 2.25, r: 24, pitch: 150, halfWidth: 12 }, 'PPII stays as it was');
+  assert.equal(page.run('HELIX_HEAD'), 0.07);
+  assert.equal(page.run('HELIX_FLARE'), 2.2);
+});
+
+test('the γ-turn image marks its three residues, the H-bond and both ends', () => {
+  const page = loadPage();
+  page.el('ribbon').context.calls.length = 0;
+  page.run('setAngles(75, -64)');
+  assert.equal(page.run('ribbonShown'), 'gammaTurn');
+  const text = ribbonText(page);
+  assert.deepEqual(text.map(a => a[0]).sort(), ['C', 'H-bond', 'N', 'i', 'i+1', 'i+2']);
+  for (const [label, x, y] of text) {
+    assert.ok(x >= 0 && x <= 456 && y >= 0 && y <= 150, `${label} at ${x}, ${y}`);
+  }
+  assert.ok(page.el('ribbon').context.calls.some(c => c.fn === 'setLineDash' && c.args[0].length === 2), 'dashed H-bond');
 });
