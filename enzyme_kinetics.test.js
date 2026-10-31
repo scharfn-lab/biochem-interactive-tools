@@ -11,7 +11,7 @@ const HTML = fs.readFileSync(path.join(__dirname, 'enzyme_kinetics.html'), 'utf8
 const SECTION = HTML.slice(HTML.indexOf('// ═══ 2.'), HTML.indexOf('// ═══ 3.'));
 const page = vm.createContext({});
 vm.runInContext(SECTION, page);
-const { factors, constants, v0, fmtSig, fmtCompact, tickLabels, niceScale, parseAnswer, isCorrect } = page;
+const { factors, constants, v0, fmtSig, fmtCompact, tickLabels, niceScale, parseAnswer, isCorrect, lineEquation } = page;
 const validate = raw => page.validate(raw);
 const buildModel = p => page.buildModel(p);
 
@@ -41,7 +41,6 @@ for (const c of HAND_CASES) {
     near(k.appVmax, c.appVmax);
     near(k.slope, alpha * 10 / Vmax);
     near(k.yInt, alphaP / Vmax);
-    near(k.xInt, -1 / c.appKm);
   });
 }
 
@@ -192,6 +191,13 @@ test('fmtCompact drops trailing zeros for [I] labels', () => {
   assert.equal(fmtCompact(0.005), '5 × 10⁻³');
 });
 
+test('lineEquation gives y = mx + b from the L-B slope and y-intercept', () => {
+  assert.equal(lineEquation(constants(1, 10, 3, 1)), 'y = 30.0x + 1.00');     // competitive
+  assert.equal(lineEquation(constants(1, 10, 1, 3)), 'y = 10.0x + 3.00');     // uncompetitive
+  assert.equal(lineEquation(constants(1, 10, 3, 1.5)), 'y = 30.0x + 1.50');   // mixed
+  assert.equal(lineEquation(constants(5e-6, 1e-9, 1, 1)), 'y = 2.00×10⁻⁴x + 2.00×10⁵');
+});
+
 test('niceScale gives clean ticks without floating-point residue', () => {
   assert.deepEqual([...niceScale(1.08, 5).ticks], [0, 0.5, 1, 1.5]);
   assert.deepEqual([...niceScale(300, 6).ticks], [0, 50, 100, 150, 200, 250, 300]);
@@ -230,7 +236,7 @@ test('answers count within ±2% of the true value, sign included', () => {
 test('every displayed value, typed back in, is accepted as correct', () => {
   const m = buildModel({ type: 'mixed', compare: false, auto: true, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 20 });
   for (const c of m.curves) {
-    for (const key of ['Vmax', 'appVmax', 'Km', 'appKm', 'alpha', 'alphaP', 'slope', 'yInt', 'xInt']) {
+    for (const key of ['Vmax', 'appVmax', 'Km', 'appKm', 'alpha', 'alphaP', 'slope', 'yInt']) {
       assert.ok(isCorrect(parseAnswer(fmtSig(c.k[key])), c.k[key]), `${key} = ${c.k[key]}`);
     }
   }

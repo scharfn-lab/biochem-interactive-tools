@@ -56,7 +56,7 @@
       flex-direction: column;
       gap: 18px;
       width: 100%;
-      max-width: 900px;
+      max-width: 1000px;
     }
 
     canvas { display: block; }
@@ -67,7 +67,7 @@
     }
 
     /* ── Buttons ── */
-    #top-buttons, .quiz-tools {
+    #top-buttons, .entry-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -98,25 +98,27 @@
       box-shadow: 0 3px 12px rgba(0,0,0,0.15);
     }
 
+    /* Controls left, enzyme model in the middle, plots right, answers along the bottom */
     #workspace {
       display: grid;
-      grid-template-columns: 340px minmax(0, 1fr);
-      gap: 24px;
+      grid-template-columns: 320px minmax(0, 1fr) 228px;
+      grid-template-areas:
+        "side  model plots"
+        "entry entry entry";
+      gap: 20px;
       align-items: start;
     }
 
-    /* Stays in view beside the lower plot; the padding leaves room for shadows and focus rings */
-    #sidebar {
+    #sidebar, #model-column, #plot-column {
       display: flex;
       flex-direction: column;
       gap: 14px;
-      position: sticky;
-      top: 8px;
-      max-height: calc(100vh - 16px);
-      overflow-y: auto;
-      padding: 6px 14px 20px;
-      margin: -6px -14px 0;
+      min-width: 0;
     }
+    #sidebar { grid-area: side; }
+    #model-column { grid-area: model; }
+    #plot-column { grid-area: plots; }
+    #entry-box { grid-area: entry; }
 
     .box { padding: 16px; }
     .box-subsection { margin-top: 16px; }
@@ -152,7 +154,7 @@
     }
     .field.off label { color: var(--text-disabled); font-weight: 400; }
 
-    input[type=number], select, .quiz-cell input {
+    input[type=number], select, .entry-cell input {
       width: 100%;
       padding: 7px 10px;
       background: #FFFFFF;
@@ -163,7 +165,7 @@
       font-size: 14px;
       transition: border-color 0.2s;
     }
-    input[type=number]:focus, select:focus, .quiz-cell input:focus { border-color: var(--ut-crimson); }
+    input[type=number]:focus, select:focus, .entry-cell input:focus { border-color: var(--ut-crimson); }
     input:disabled, select:disabled {
       background: var(--bg-disabled);
       border-color: #BFBFBF;
@@ -206,13 +208,6 @@
     #errors b { color: var(--ut-crimson); }
 
     /* ── Plots and results ── */
-    #plot-column {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      min-width: 0;
-    }
-
     .plot-card { padding: 14px; min-width: 0; }
 
     .plot-hint {
@@ -233,7 +228,7 @@
     .legend-item { display: flex; align-items: center; gap: 6px; }
     .legend-item svg { flex-shrink: 0; }
 
-    .canvas-wrap { width: 100%; max-width: 500px; margin: 0 auto; }
+    .canvas-wrap { width: 100%; max-width: 200px; margin: 0 auto; }
 
     .plot-canvas {
       width: 100%;
@@ -244,9 +239,12 @@
       touch-action: pan-y;   /* keep vertical page scrolling on phones; sideways drags scrub the readout */
     }
 
-    .results { margin-top: 14px; }
-    .quiz-tools { margin-bottom: 8px; }
-    .quiz-tools button { padding: 5px 14px; }
+    #enzyme-model svg, #reaction-scheme svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+    #reaction-scheme svg { max-width: 340px; }
+
+    .entry-tools { margin-top: 10px; }
+    .entry-tools button { padding: 5px 14px; }
+    #entry-table table { max-width: 620px; }
     .score { font-size: 0.85em; }
 
     .table-scroll { overflow-x: auto; }
@@ -273,24 +271,35 @@
     th .unit { font-weight: 400; color: var(--text-secondary); }
     td.revealed { font-style: italic; }
 
-    .quiz-cell { padding: 3px; }
+    .entry-cell { padding: 3px; }
     .cell-wrap { display: flex; align-items: center; gap: 3px; }
-    .quiz-cell input { min-width: 54px; padding: 4px 5px; font-size: 13px; text-align: right; }
+    .entry-cell input { min-width: 54px; padding: 4px 5px; font-size: 13px; text-align: right; }
     .mark { flex: 0 0 13px; font-weight: 700; text-align: center; }
-    .quiz-cell.correct { background: var(--ut-lavender); }
-    .quiz-cell.wrong { outline: 2px solid var(--ut-crimson); outline-offset: -2px; }
-    .quiz-cell.wrong .mark { color: var(--ut-crimson); }
+    .entry-cell.correct { background: var(--ut-lavender); }
+    .entry-cell.wrong { outline: 2px solid var(--ut-crimson); outline-offset: -2px; }
+    .entry-cell.wrong .mark { color: var(--ut-crimson); }
 
-    @media (max-width: 900px) {
-      #workspace { grid-template-columns: minmax(0, 1fr); }
-      #sidebar { position: static; max-height: none; overflow: visible; padding: 0; margin: 0; }
+    @media (max-width: 1040px) {
+      #workspace {
+        grid-template-columns: 320px minmax(0, 1fr);
+        grid-template-areas:
+          "side  plots"
+          "model model"
+          "entry entry";
+      }
+    }
+    @media (max-width: 640px) {
+      #workspace {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "side" "model" "plots" "entry";
+      }
     }
     @media (max-width: 480px) {
       .plot-card { padding: 10px; }
       th, td { padding: 4px; }
       table { font-size: 0.82em; }
       th .unit { display: block; }
-      .quiz-cell input { min-width: 44px; padding: 4px 3px; }
+      .entry-cell input { min-width: 44px; padding: 4px 3px; }
     }
   </style>
 </head>
@@ -306,8 +315,6 @@
       <button type="button" id="tab-kinetics">Kinetics</button>
       <button type="button" id="tab-inhibition">Inhibition</button>
     </div>
-    <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode: Off</button>
-    <button type="button" id="reveal-all" hidden>Reveal all</button>
     <button type="button" id="reset">Reset to defaults</button>
   </div>
 
@@ -403,40 +410,45 @@
       <div id="errors" role="alert" hidden></div>
     </div>
 
-  <!-- Plots and results -->
-  <div id="plot-column">
+    <!-- Enzyme model and reaction scheme -->
+    <div id="model-column">
+      <section class="panel box" aria-labelledby="model-title">
+        <h2 class="panel-section-title" id="model-title">Enzyme model</h2>
+        <div id="enzyme-model"></div>
+        <p class="note" id="model-caption"></p>
+      </section>
+      <section class="panel box" aria-labelledby="scheme-title">
+        <h2 class="panel-section-title" id="scheme-title">Reaction scheme</h2>
+        <div id="reaction-scheme"></div>
+      </section>
+    </div>
 
-    <section class="panel plot-card" aria-labelledby="mm-title">
-      <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
-      <div class="legend" id="mm-legend"></div>
-      <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
-      <p class="plot-hint">Hover or tap the plot to read the nearest point.</p>
-      <div class="results">
-        <div class="quiz-tools" id="mm-tools" hidden>
-          <button type="button" data-check="mm">Check</button>
-          <button type="button" data-reveal="mm">Reveal</button>
-          <span class="score" id="mm-score" aria-live="polite"></span>
-        </div>
-        <div class="table-scroll" id="mm-table" role="region" aria-label="Michaelis–Menten results" tabindex="0"></div>
+    <!-- Plots -->
+    <div id="plot-column">
+      <section class="panel plot-card" aria-labelledby="mm-title">
+        <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
+        <div class="legend" id="mm-legend"></div>
+        <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
+      </section>
+      <section class="panel plot-card" aria-labelledby="lb-title">
+        <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
+        <div class="legend" id="lb-legend"></div>
+        <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
+      </section>
+      <p class="plot-hint">Hover or tap a plot to read the nearest point.</p>
+    </div>
+
+    <!-- Vmax and Km entry -->
+    <section class="panel box" id="entry-box" aria-labelledby="entry-title">
+      <h2 class="panel-section-title" id="entry-title">Enter V<sub>max</sub> and K<sub>m</sub></h2>
+      <p class="note">Work these out from each line's equation on the Lineweaver–Burk plot.<span id="entry-note-inhibition"> For inhibited curves, enter the apparent values (appV<sub>max</sub> and appK<sub>m</sub>).</span></p>
+      <div class="table-scroll" id="entry-table" role="region" aria-label="Vmax and Km answers" tabindex="0"></div>
+      <div class="entry-tools">
+        <button type="button" id="entry-check">Check</button>
+        <button type="button" id="entry-reveal">Reveal</button>
+        <span class="score" id="entry-score" aria-live="polite"></span>
       </div>
     </section>
-
-    <section class="panel plot-card" aria-labelledby="lb-title">
-      <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
-      <div class="legend" id="lb-legend"></div>
-      <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
-      <p class="plot-hint">Hover or tap the plot to read the nearest point. The x-axis starts at 0, so the x-intercept lies off the plot to the left.</p>
-      <div class="results">
-        <div class="quiz-tools" id="lb-tools" hidden>
-          <button type="button" data-check="lb">Check</button>
-          <button type="button" data-reveal="lb">Reveal</button>
-          <span class="score" id="lb-score" aria-live="polite"></span>
-        </div>
-        <div class="table-scroll" id="lb-table" role="region" aria-label="Lineweaver–Burk results" tabindex="0"></div>
-      </div>
-    </section>
-
-  </div>
   </div>
 </main>
 
@@ -444,6 +456,8 @@
 'use strict';
 
 // ═══ 1. STATE ═════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
 
 const DEFAULTS = {
   Km: 10, kcat: 100, Etot: 0.01,
@@ -459,11 +473,12 @@ const state = {
   params: null,       // last valid numeric parameters
   units: null,        // { conc, time }; always current, even while a field is invalid
   model: null,        // curves and samples built from params
-  signature: '',      // detects real parameter changes, so a no-op edit keeps quiz answers
+  signature: '',      // detects real parameter changes, so a no-op edit keeps typed answers
+  scene: '',          // which enzyme diagram is drawn
   kiPrimeText: '',    // the student's own Ki', restored after leaving pure noncompetitive
 };
 
-const quiz = { on: false, revealed: { mm: false, lb: false } };
+const entry = { revealed: false };
 
 
 // ═══ 2. KINETICS MATH AND FORMATTING (no DOM access) ═════════
@@ -500,7 +515,6 @@ function constants(Vmax, Km, alpha, alphaP) {
     Vmax, Km, alpha, alphaP, appVmax, appKm,
     slope: appKm / appVmax,
     yInt: 1 / appVmax,
-    xInt: -1 / appKm,
   };
 }
 
@@ -676,6 +690,11 @@ function tickLabels(ticks) {
   });
 }
 
+// The L-B line as y = mx + b, with scientific notation closed up to fit on the plot.
+function lineEquation(k) {
+  return `y = ${fmtSig(k.slope)}x + ${fmtSig(k.yInt)}`.replaceAll(' × ', '×');
+}
+
 function niceStep(rough) {
   const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
   const fraction = rough / magnitude;
@@ -722,6 +741,7 @@ const CURVE_STYLES = {
 };
 const DRAW_ORDER = ['second', 'first', 'uninhibited'];   // dashed line on top, so it shows where curves overlap
 const DIAMOND_COUNT = 7;
+const PLOT_ASPECT = 0.84;   // 200 × 168
 const FONT = "'Segoe UI', Arial, sans-serif";
 
 const plots = {
@@ -757,7 +777,7 @@ function curveName(curve) {
 function resizeCanvas(plot) {
   const cssWidth = plot.canvas.parentElement.clientWidth;
   if (!cssWidth) return;
-  const cssHeight = Math.max(280, Math.round(cssWidth * 0.84));
+  const cssHeight = Math.round(cssWidth * PLOT_ASPECT);
   const dpr = window.devicePixelRatio || 1;
   plot.canvas.style.height = cssHeight + 'px';
   plot.canvas.width = Math.round(cssWidth * dpr);
@@ -770,16 +790,16 @@ function resizeCanvas(plot) {
 function computeGeometry(plot, ctx) {
   const W = plot.cssWidth, H = plot.cssHeight;
   const extent = plot.extent(state.model);
-  const top = 14, bottom = 48;
+  const top = 8, bottom = 36;
 
-  ctx.font = `12px ${FONT}`;
+  ctx.font = `11px ${FONT}`;
   // The y-axis ends exactly at the data's headroom rather than at the next nice tick,
   // which could leave up to 50% empty space above Vmax.
   const yTicks = niceScale(extent.y, Math.max(3, Math.min(7, Math.floor((H - top - bottom) / 50)))).ticks
     .filter(t => t <= extent.y);
   const yScale = { max: extent.y, ticks: yTicks };
   const yLabels = tickLabels(yTicks);
-  const left = 30 + Math.max(...yLabels.map(t => ctx.measureText(t).width));
+  const left = 22 + Math.max(...yLabels.map(t => ctx.measureText(t).width));
 
   // Use the most x ticks whose labels fit without touching.
   let xScale, xLabels, right;
@@ -787,8 +807,8 @@ function computeGeometry(plot, ctx) {
     xScale = niceScale(extent.x, target);
     xLabels = tickLabels(xScale.ticks);
     const widest = Math.max(...xLabels.map(t => ctx.measureText(t).width));
-    right = Math.max(14, widest / 2 + 4);
-    if ((W - left - right) / xScale.ticks.slice(1).length >= widest + 12) break;
+    right = Math.max(8, widest / 2 + 2);
+    if ((W - left - right) / xScale.ticks.slice(1).length >= widest + 8) break;
   }
 
   const plotW = W - left - right, plotH = H - top - bottom;
@@ -801,7 +821,7 @@ function computeGeometry(plot, ctx) {
 
 function drawAxes(ctx, g, plot) {
   const units = state.units;
-  ctx.font = `12px ${FONT}`;
+  ctx.font = `11px ${FONT}`;
   ctx.lineWidth = 1;
 
   // Dashed gridlines
@@ -825,18 +845,18 @@ function drawAxes(ctx, g, plot) {
   ctx.fillStyle = COLORS.text;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  g.xScale.ticks.forEach((t, i) => ctx.fillText(g.xLabels[i], g.sx(t), g.top + g.plotH + 6));
+  g.xScale.ticks.forEach((t, i) => ctx.fillText(g.xLabels[i], g.sx(t), g.top + g.plotH + 4));
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
-  g.yScale.ticks.forEach((t, i) => ctx.fillText(g.yLabels[i], g.left - 6, g.sy(t)));
+  g.yScale.ticks.forEach((t, i) => ctx.fillText(g.yLabels[i], g.left - 4, g.sy(t)));
 
   // Axis titles
-  ctx.font = `600 13px ${FONT}`;
+  ctx.font = `600 12px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(`${plot.xName} (${plot.xUnit(units)})`, g.left + g.plotW / 2, g.H - 6);
+  ctx.fillText(`${plot.xName} (${plot.xUnit(units)})`, g.left + g.plotW / 2, g.H - 3);
   ctx.save();
-  ctx.translate(14, g.top + g.plotH / 2);
+  ctx.translate(9, g.top + g.plotH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textBaseline = 'middle';
   ctx.fillText(`${plot.yName} (${plot.yUnit(units)})`, 0, 0);
@@ -844,7 +864,7 @@ function drawAxes(ctx, g, plot) {
 }
 
 function drawDiamond(ctx, x, y, color) {
-  const r = 5;
+  const r = 4;
   ctx.beginPath();
   ctx.moveTo(x, y - r);
   ctx.lineTo(x + r, y);
@@ -887,6 +907,46 @@ function drawCurves(ctx, g, plot) {
     }
   }
   ctx.restore();
+}
+
+// y = mx + b for each L-B line, in the plot's empty upper left. A line sample beside each
+// equation shows which curve it belongs to.
+function drawEquations(ctx, g) {
+  const curves = state.model.curves;
+  const pad = 3;
+  const lines = curves.map(c => lineEquation(c.k));
+  const available = g.W - g.left - 4;
+  const widthAt = (fontPx, swatch) => {
+    ctx.font = `${fontPx}px ${FONT}`;
+    return swatch + 4 + Math.max(...lines.map(l => ctx.measureText(l).width)) + pad * 2;
+  };
+  // Long scientific notation drops to smaller text rather than covering the y-axis labels.
+  const fits = widthAt(11, 18) <= available;
+  const swatchW = fits ? 18 : 10, lineH = fits ? 13 : 11;
+  const boxW = widthAt(fits ? 11 : 9, swatchW);
+  const boxH = curves.length * lineH + pad;
+  const boxX = Math.max(1, Math.min(g.left + 3, g.W - boxW - 1));
+  const boxY = g.top + 1;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  curves.forEach((c, i) => {
+    const style = CURVE_STYLES[c.id];
+    const y = boxY + pad + lineH * i + lineH / 2 - 1;
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.width;
+    ctx.setLineDash(style.dash.length ? [4, 3] : []);
+    ctx.beginPath();
+    ctx.moveTo(boxX + pad, y);
+    ctx.lineTo(boxX + pad + swatchW, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (style.diamonds) drawDiamond(ctx, boxX + pad + swatchW / 2, y, style.color);
+    ctx.fillStyle = COLORS.text;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lines[i], boxX + pad + swatchW + 4, y);
+  });
 }
 
 // Nearest sampled point on any curve, measured in screen pixels.
@@ -932,9 +992,9 @@ function drawHover(ctx, g, plot) {
     `${plot.xName} = ${fmtSig(p.x)} ${plot.xUnit(state.units)}`,
     `${plot.yName} = ${fmtSig(p.y)} ${plot.yUnit(state.units)}`,
   ];
-  ctx.font = `12px ${FONT}`;
-  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16;
-  const boxH = lines.length * 16 + 10;
+  ctx.font = `11px ${FONT}`;
+  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + 12;
+  const boxH = lines.length * 14 + 8;
   let boxX = px + 12, boxY = py - boxH - 12;
   if (boxX + boxW > g.W - 2) boxX = px - boxW - 12;
   if (boxX < 2) boxX = 2;
@@ -953,8 +1013,8 @@ function drawHover(ctx, g, plot) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   lines.forEach((line, i) => {
-    ctx.font = `${i === 0 ? '600 ' : ''}12px ${FONT}`;
-    ctx.fillText(line, boxX + 8, boxY + 6 + i * 16);
+    ctx.font = `${i === 0 ? '600 ' : ''}11px ${FONT}`;
+    ctx.fillText(line, boxX + 6, boxY + 4 + i * 14);
   });
 }
 
@@ -968,6 +1028,7 @@ function drawPlot(plot) {
   plot.geom = g;
   drawAxes(ctx, g, plot);
   drawCurves(ctx, g, plot);
+  if (plot.kind === 'lb') drawEquations(ctx, g);
   if (plot.hover) drawHover(ctx, g, plot);
 }
 
@@ -987,14 +1048,14 @@ function renderLegends() {
   document.getElementById('lb-legend').innerHTML = items;
 }
 
-// Describes the plots without giving away quiz answers.
 function updateCanvasLabels() {
   const names = state.model.curves.map(curveName).join(', ');
+  const equations = state.model.curves.map(c => `${curveName(c)}: ${lineEquation(c.k)}`).join('; ');
   const u = state.units;
   plots.mm.canvas.setAttribute('aria-label',
-    `Michaelis–Menten plot of v₀ in ${u.conc}/${u.time} against [S] in ${u.conc}. Curves: ${names}. Kinetic constants are in the table below.`);
+    `Michaelis–Menten plot of v₀ in ${u.conc}/${u.time} against [S] in ${u.conc}. Curves: ${names}.`);
   plots.lb.canvas.setAttribute('aria-label',
-    `Lineweaver–Burk plot of 1/v₀ in ${u.time}/${u.conc} against 1/[S] in ${u.conc}⁻¹. Lines: ${names}. Slopes and intercepts are in the table below.`);
+    `Lineweaver–Burk plot of 1/v₀ in ${u.time}/${u.conc} against 1/[S] in ${u.conc}⁻¹. Lines: ${equations}.`);
 }
 
 function schedulePlotDraw(plot) {
@@ -1006,31 +1067,13 @@ function schedulePlotDraw(plot) {
 }
 
 
-// ═══ 4. RESULTS TABLES AND QUIZ ═══════════════════════════════
+// ═══ 4. VMAX AND KM ENTRY ═════════════════════════════════════
 
-function tableRows(tableId) {
+function entryRows() {
   const { conc, time } = state.units;
-  if (tableId === 'mm' && state.params.mode === 'kinetics') {
-    // With no inhibitor, the apparent constants and α factors add nothing.
-    return [
-      { key: 'Vmax', html: 'V<sub>max</sub>', plain: 'Vmax', unit: `${conc}/${time}` },
-      { key: 'Km',   html: 'K<sub>m</sub>',   plain: 'Km',   unit: conc },
-    ];
-  }
-  if (tableId === 'mm') {
-    return [
-      { key: 'Vmax',    html: 'V<sub>max</sub>',    plain: 'Vmax',    unit: `${conc}/${time}` },
-      { key: 'appVmax', html: 'appV<sub>max</sub>', plain: 'appVmax', unit: `${conc}/${time}` },
-      { key: 'Km',      html: 'K<sub>m</sub>',      plain: 'Km',      unit: conc },
-      { key: 'appKm',   html: 'appK<sub>m</sub>',   plain: 'appKm',   unit: conc },
-      { key: 'alpha',   html: 'α',                  plain: 'α',       unit: 'unitless' },
-      { key: 'alphaP',  html: "α'",                 plain: "α'",      unit: 'unitless' },
-    ];
-  }
   return [
-    { key: 'slope', html: 'Slope',       plain: 'Slope',       unit: time },
-    { key: 'yInt',  html: 'y-intercept', plain: 'y-intercept', unit: `${time}/${conc}` },
-    { key: 'xInt',  html: 'x-intercept', plain: 'x-intercept', unit: `${conc}⁻¹` },
+    { key: 'appVmax', html: 'V<sub>max</sub>', plain: 'Vmax', unit: `${conc}/${time}` },
+    { key: 'appKm',   html: 'K<sub>m</sub>',   plain: 'Km',   unit: conc },
   ];
 }
 
@@ -1040,36 +1083,23 @@ function columnName(curve) {
   return state.params.mode === 'kinetics' ? curveName(curve) : INHIBITION_COLUMNS[curve.id];
 }
 
-function renderTable(tableId) {
+function renderEntryTable() {
   const curves = state.model.curves;
-  const asInputs = quiz.on && !quiz.revealed[tableId];
-  const rows = tableRows(tableId);
-
   const head = curves.map(c => `<th scope="col">${columnName(c)}</th>`).join('');
-  const body = rows.map((row, r) => {
+  const body = entryRows().map((row, r) => {
     const cells = curves.map((c, col) => {
-      if (asInputs) {
-        const label = `${row.plain}, ${columnName(c)}`;
-        return `<td class="quiz-cell" data-row="${r}" data-col="${col}"><span class="cell-wrap">` +
-          `<input type="text" autocomplete="off" spellcheck="false" aria-label="${label}"><span class="mark"></span></span></td>`;
-      }
-      return `<td${quiz.on ? ' class="revealed"' : ''}>${fmtSig(c.k[row.key])}</td>`;
+      if (entry.revealed) return `<td class="revealed">${fmtSig(c.k[row.key])}</td>`;
+      const label = `${row.plain}, ${columnName(c)}`;
+      return `<td class="entry-cell" data-row="${r}" data-col="${col}"><span class="cell-wrap">` +
+        `<input type="text" autocomplete="off" spellcheck="false" aria-label="${label}"><span class="mark"></span></span></td>`;
     }).join('');
     return `<tr><th scope="row">${row.html} <span class="unit">(${row.unit})</span></th>${cells}</tr>`;
   }).join('');
 
-  document.getElementById(`${tableId}-table`).innerHTML =
-    `<table><thead><tr><td></td>${head}</tr></thead><tbody>${body}</tbody></table>`;
-
-  const tools = document.getElementById(`${tableId}-tools`);
-  tools.hidden = !quiz.on;
-  tools.querySelectorAll('button').forEach(b => { b.disabled = quiz.revealed[tableId]; });
-  document.getElementById(`${tableId}-score`).textContent = '';
-}
-
-function renderTables() {
-  renderTable('mm');
-  renderTable('lb');
+  $('entry-table').innerHTML = `<table><thead><tr><td></td>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  $('entry-check').disabled = entry.revealed;
+  $('entry-reveal').disabled = entry.revealed;
+  $('entry-score').textContent = '';
 }
 
 function clearCellMark(cell) {
@@ -1080,11 +1110,11 @@ function clearCellMark(cell) {
   mark.removeAttribute('aria-label');
 }
 
-function checkCell(tableId, cell) {
+function checkCell(cell) {
   clearCellMark(cell);
   const input = cell.querySelector('input');
   if (input.value.trim() === '') return null;   // an unanswered cell is not marked wrong
-  const row = tableRows(tableId)[Number(cell.dataset.row)];
+  const row = entryRows()[Number(cell.dataset.row)];
   const truth = state.model.curves[Number(cell.dataset.col)].k[row.key];
   const correct = isCorrect(parseAnswer(input.value), truth);
   const mark = cell.querySelector('.mark');
@@ -1095,39 +1125,131 @@ function checkCell(tableId, cell) {
   return correct;
 }
 
-function checkTable(tableId) {
-  const cells = [...document.querySelectorAll(`#${tableId}-table .quiz-cell`)];
-  const results = cells.map(cell => checkCell(tableId, cell));
+function checkEntries() {
+  const cells = [...document.querySelectorAll('#entry-table .entry-cell')];
+  const results = cells.map(checkCell);
   const right = results.filter(r => r === true).length;
   const blank = results.filter(r => r === null).length;
-  document.getElementById(`${tableId}-score`).textContent =
-    `${right} of ${cells.length} correct` + (blank ? ` (${blank} blank)` : '');
-}
-
-function revealTable(tableId) {
-  quiz.revealed[tableId] = true;
-  renderTable(tableId);
-}
-
-function clearQuizAnswers() {
-  quiz.revealed = { mm: false, lb: false };
-}
-
-function setQuizMode(on) {
-  quiz.on = on;
-  clearQuizAnswers();
-  const toggle = document.getElementById('quiz-toggle');
-  toggle.textContent = `Quiz Mode: ${on ? 'On' : 'Off'}`;
-  toggle.setAttribute('aria-pressed', String(on));
-  toggle.classList.toggle('active', on);
-  document.getElementById('reveal-all').hidden = !on;
-  if (state.model) renderTables();
+  $('entry-score').textContent = `${right} of ${cells.length} correct` + (blank ? ` (${blank} blank)` : '');
 }
 
 
-// ═══ 5. UI WIRING ═════════════════════════════════════════════
+// ═══ 5. ENZYME MODEL AND REACTION SCHEME ══════════════════════
 
-const $ = id => document.getElementById(id);
+// What each kind of inhibition looks like. The inhibitor's shape shows where it binds: a round
+// one fits the active site, as S does, and a square one fits the allosteric site.
+const SCENES = {
+  none: {
+    active: 'S', allosteric: false, blockedS: false,
+    caption: 'The substrate (S) binds the active site. The allosteric site is empty.',
+  },
+  competitive: {
+    active: 'I', allosteric: false, blockedS: true,
+    caption: 'The inhibitor (I) binds the active site of free E, so I and S compete for the same site.',
+  },
+  uncompetitive: {
+    active: 'S', allosteric: true, blockedS: false,
+    caption: 'The inhibitor (I) binds the allosteric site only after S has bound, so it binds ES but not free E.',
+  },
+  noncompetitive: {
+    active: 'S', allosteric: true, blockedS: false,
+    caption: 'The inhibitor (I) binds the allosteric site of E or ES with the same affinity. S and I do not affect each other\'s binding.',
+  },
+  mixed: {
+    active: 'S', allosteric: true, blockedS: false,
+    caption: 'The inhibitor (I) binds the allosteric site of E or ES, with a different affinity for each.',
+  },
+};
+
+const BLOB_PATH = 'M 70 150 C 60 100, 95 78, 126 82 A 24 24 0 0 0 174 82 C 205 70, 265 85, 288 130 ' +
+  'L 254 130 L 254 164 L 288 164 C 300 205, 240 225, 180 220 C 120 220, 78 205, 70 150 Z';
+
+function roundLigand(x, y, letter, fill) {
+  return `<circle cx="${x}" cy="${y}" r="22" fill="${fill}"/>` +
+    `<text x="${x}" y="${y + 6}" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">${letter}</text>`;
+}
+
+function enzymeModelSVG(scene) {
+  const parts = [
+    `<path d="${BLOB_PATH}" fill="#FFCDFF" stroke="${COLORS.taupe}" stroke-width="2.5" stroke-linejoin="round"/>`,
+    `<text x="165" y="172" text-anchor="middle" font-size="24" font-weight="700">E</text>`,
+    `<text x="178" y="62" font-size="13">Active site</text>`,
+    `<text x="292" y="128" font-size="13">Allosteric site</text>`,
+    scene.active === 'S' ? roundLigand(150, 82, 'S', COLORS.taupe) : roundLigand(150, 82, 'I', COLORS.crimson),
+  ];
+  if (scene.allosteric) {
+    parts.push(`<rect x="256" y="132" width="30" height="30" rx="3" fill="${COLORS.crimson}"/>`,
+      `<text x="271" y="153" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">I</text>`);
+  }
+  if (scene.blockedS) {
+    parts.push(roundLigand(62, 40, 'S', COLORS.taupe),
+      `<text x="90" y="30" font-size="13">blocked</text>`);
+  }
+  return `<svg viewBox="0 0 380 232" role="img" aria-label="${scene.caption.replaceAll("'", '&#39;')}" font-family="${FONT.replaceAll("'", '')}">${parts.join('')}</svg>`;
+}
+
+// Arrows are drawn rather than typed, since equilibrium arrow glyphs vary by font.
+const arrowH = (x1, x2, y) => `<path d="M ${x1} ${y} H ${x2} m -6 -5 l 6 5 l -6 5"/>`;
+const equilibriumH = (x1, x2, y) => `<path d="M ${x1} ${y - 3} H ${x2} l -7 -5 M ${x2} ${y + 3} H ${x1} l 7 5"/>`;
+const equilibriumV = (x, y1, y2) => `<path d="M ${x - 3} ${y1} V ${y2} l -5 -7 M ${x + 3} ${y2} V ${y1} l 5 7"/>`;
+
+function schemeText(x, y, content, attrs = 'text-anchor="middle" font-size="16" font-weight="600"') {
+  return `<text x="${x}" y="${y}" ${attrs}>${content}</text>`;
+}
+
+function kLabel(x, y, sub, suffix = '') {
+  return `<text x="${x}" y="${y}" font-size="13">K<tspan dy="3" font-size="10">${sub}</tspan><tspan dy="-3">${suffix}</tspan></text>`;
+}
+
+// E + S ⇌ ES → E + P, with I binding beneath E, ES or both as the inhibition type requires.
+function schemeSVG(kind) {
+  const bindsE = ['competitive', 'noncompetitive', 'mixed'].includes(kind);
+  const bindsES = ['uncompetitive', 'noncompetitive', 'mixed'].includes(kind);
+  const eX = 40, esX = 150;
+  const rowY = 30, plusY = 54, arrowTop = 62, arrowBottom = 94, complexY = 114;
+
+  const labels = [
+    schemeText(eX, rowY, 'E'), schemeText(eX + 32, rowY, '+ S'),
+    schemeText(esX, rowY, 'ES'), schemeText(250, rowY, 'E + P'),
+    `<text x="195" y="${rowY - 13}" text-anchor="middle" font-size="13">k<tspan dy="3" font-size="10">cat</tspan></text>`,
+  ];
+  const arrows = [equilibriumH(92, 128, rowY - 5), arrowH(175, 215, rowY - 5)];
+  let words = 'E + S in equilibrium with ES, then ES goes to E + P.';
+
+  if (bindsE) {
+    labels.push(schemeText(eX, plusY, '+ I'), schemeText(eX, complexY, 'EI'), kLabel(eX + 12, 82, 'i'));
+    arrows.push(equilibriumV(eX, arrowTop, arrowBottom));
+    words += ' E + I in equilibrium with EI, with constant Ki.';
+  }
+  if (bindsES) {
+    const equal = kind === 'noncompetitive';
+    labels.push(schemeText(esX, plusY, '+ I'), schemeText(esX, complexY, 'ESI'), kLabel(esX + 12, 82, 'i', equal ? "' = Ki" : "'"));
+    arrows.push(equilibriumV(esX, arrowTop, arrowBottom));
+    words += ` ES + I in equilibrium with ESI, with constant Ki'${equal ? ' equal to Ki' : ''}.`;
+  }
+  if (bindsE && bindsES) {
+    labels.push(schemeText(eX + 32, complexY, '+ S'));
+    arrows.push(equilibriumH(92, 128, complexY - 5));
+    words += ' EI + S in equilibrium with ESI.';
+  }
+
+  const height = bindsE || bindsES ? 124 : 42;
+  return `<svg viewBox="0 0 290 ${height}" role="img" aria-label="${words.replaceAll("'", '&#39;')}" font-family="${FONT.replaceAll("'", '')}">` +
+    `<g fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${arrows.join('')}</g>${labels.join('')}</svg>`;
+}
+
+function renderModel() {
+  const kind = state.mode === 'kinetics' ? 'none' : $('type').value;
+  if (kind === state.scene) return;
+  state.scene = kind;
+  $('enzyme-model').innerHTML = enzymeModelSVG(SCENES[kind]);
+  $('model-caption').textContent = SCENES[kind].caption;
+  $('reaction-scheme').innerHTML = schemeSVG(kind);
+}
+
+
+// ═══ 6. UI WIRING ═════════════════════════════════════════════
+
 const NUMBER_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Etot2', 'kcat2', 'Km2', 'Smax', 'Smin', 'points'];
 
 function readRaw() {
@@ -1150,6 +1272,8 @@ function syncFieldStates() {
     $(id).classList.toggle('active', on);
     $(id).setAttribute('aria-pressed', String(on));
   }
+  $('entry-note-inhibition').hidden = kinetics;
+  renderModel();
   $('compare-box').hidden = !kinetics;
   $('inhib-box').hidden = kinetics;
   for (const [by, field] of Object.entries(COMPARE_FIELDS)) {
@@ -1196,7 +1320,7 @@ function showErrors(errors) {
 function renderAll() {
   renderLegends();
   updateCanvasLabels();
-  renderTables();
+  renderEntryTable();
   Object.values(plots).forEach(drawPlot);
 }
 
@@ -1213,7 +1337,7 @@ function commit() {
   state.signature = signature;
   state.model = buildModel(state.params);
   plots.mm.hover = plots.lb.hover = null;
-  clearQuizAnswers();
+  entry.revealed = false;
   renderAll();
 }
 
@@ -1254,22 +1378,20 @@ for (const mode of ['kinetics', 'inhibition']) {
 
 $('reset').addEventListener('click', () => {
   applyDefaults();
-  setQuizMode(false);
+  entry.revealed = false;
   commit();
+  renderEntryTable();   // clears typed answers even if no value changed
 });
 
-$('quiz-toggle').addEventListener('click', () => setQuizMode(!quiz.on));
-$('reveal-all').addEventListener('click', () => { revealTable('mm'); revealTable('lb'); });
-
-for (const tableId of ['mm', 'lb']) {
-  const container = $(`${tableId}-table`);
-  document.querySelector(`[data-check="${tableId}"]`).addEventListener('click', () => checkTable(tableId));
-  document.querySelector(`[data-reveal="${tableId}"]`).addEventListener('click', () => revealTable(tableId));
-  container.addEventListener('input', e => clearCellMark(e.target.closest('.quiz-cell')));
-  container.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.matches('.quiz-cell input')) checkCell(tableId, e.target.closest('.quiz-cell'));
-  });
-}
+$('entry-check').addEventListener('click', checkEntries);
+$('entry-reveal').addEventListener('click', () => {
+  entry.revealed = true;
+  renderEntryTable();
+});
+$('entry-table').addEventListener('input', e => clearCellMark(e.target.closest('.entry-cell')));
+$('entry-table').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('.entry-cell input')) checkCell(e.target.closest('.entry-cell'));
+});
 
 // Hover readout. A touch has no "leave", so its readout stays until the next tap elsewhere.
 for (const plot of Object.values(plots)) {
@@ -1305,7 +1427,7 @@ new ResizeObserver(() => {
 }).observe($('plot-column'));
 
 
-// ═══ 6. STARTUP ═══════════════════════════════════════════════
+// ═══ 7. STARTUP ═══════════════════════════════════════════════
 
 applyDefaults();
 Object.values(plots).forEach(resizeCanvas);
