@@ -14,12 +14,13 @@ vm.runInContext(SECTION, page);
 const { factors, constants, v0, fmtSig, fmtCompact, tickLabels, niceScale, parseAnswer, isCorrect, lineEquation } = page;
 const validate = raw => page.validate(raw);
 const buildModel = p => page.buildModel(p);
+const differingParameter = p => page.differingParameter(p);
 
 function near(actual, expected, tolerance = 1e-9) {
   assert.ok(Math.abs(actual - expected) <= tolerance * Math.max(1, Math.abs(expected)), `${actual} is not near ${expected}`);
 }
 
-const VALID = { type: 'competitive', compare: false, auto: true, Km: '10', kcat: '100', Etot: '0.01', I: '10', Ki: '5', KiP: '5', I2: '20', Smax: '', Smin: '', points: '' };
+const VALID = { type: 'competitive', compare: false, Km: '10', kcat: '100', Etot: '0.01', I: '10', Ki: '5', KiP: '5', I2: '20' };
 const fieldsWithErrors = raw => [...validate({ ...VALID, ...raw }).errors].map(e => e.field);   // spread: vm arrays fail strict equality
 
 // ── Hand calculations from the spec (Vmax = 1 µM/s) ─────────────
@@ -63,7 +64,7 @@ test('v₀ follows the rate law and saturates at appVmax', () => {
 });
 
 test('both plots agree: L-B points lie on the line given by slope and y-intercept', () => {
-  const m = buildModel({ type: 'mixed', compare: false, auto: true, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 20 });
+  const m = buildModel({ type: 'mixed', compare: false, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 20 });
   for (const c of m.curves) {
     for (const p of c.lb) near(p.y, c.k.slope * p.x + c.k.yInt, 1e-9);
   }
@@ -71,7 +72,7 @@ test('both plots agree: L-B points lie on the line given by slope and y-intercep
 
 // ── [S] range ───────────────────────────────────────────────────
 test('auto range uses 10 × the largest of Km and every appKm, and 0.1 × Km for [S]min', () => {
-  const base = { compare: false, auto: true, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 5 };
+  const base = { compare: false, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 5 };
   assert.equal(buildModel({ ...base, type: 'competitive' }).range.Smax, 300);
   assert.equal(buildModel({ ...base, type: 'uncompetitive' }).range.Smax, 100);   // Km beats appKm = 3.33
   const two = buildModel({ ...base, type: 'competitive', compare: true, I2: 20 }).range;
@@ -81,14 +82,14 @@ test('auto range uses 10 × the largest of Km and every appKm, and 0.1 × Km for
 });
 
 test('M-M starts at [S] = 0; L-B never reaches it and stays inside [S]min..[S]max', () => {
-  const m = buildModel({ type: 'competitive', compare: false, auto: false, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 5, Smax: 50, Smin: 2, points: 25 });
+  const m = buildModel({ type: 'competitive', compare: false, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 5 });
   const c = m.curves[1];
-  assert.equal(c.mm.length, 25);
-  assert.equal(c.lb.length, 25);
+  assert.equal(c.mm.length, 200);
+  assert.equal(c.lb.length, 200);
   assert.equal(c.mm[0].x, 0);
-  assert.equal(c.mm[24].x, 50);
-  near(c.lb[0].x, 1 / 50);
-  near(c.lb[24].x, 1 / 2);
+  near(c.mm[199].x, 300);
+  near(c.lb[0].x, 1 / 300);
+  near(c.lb[199].x, 1);
   assert.ok(c.lb.every(p => Number.isFinite(p.x) && Number.isFinite(p.y) && p.x > 0));
 });
 
@@ -99,39 +100,57 @@ test('curves shown: None has only the uninhibited curve, even with the second [I
   assert.deepEqual(ids({ compare: true }), ['uninhibited', 'first', 'second']);
 });
 
-// ── Kinetics tab comparisons ──────────────────────────────────
-const kineticsModel = raw => buildModel(validate({ ...VALID, mode: 'kinetics', compareBy: 'none', Etot2: '0.02', kcat2: '200', Km2: '20', ...raw }).params);
+// ── Kinetics tab: Conditions A and B ────────────────────────────
+const CONDITIONS = { mode: 'kinetics', Km2: '10', kcat2: '100', Etot2: '0.02' };
+const kineticsModel = raw => buildModel(validate({ ...VALID, ...CONDITIONS, ...raw }).params);
 
-test('Kinetics with no comparison has one curve and ignores inhibition', () => {
+test('Kinetics always has curves for Conditions A and B, and ignores inhibition', () => {
   const m = kineticsModel({ type: 'competitive', I: '10' });
-  assert.equal(m.curves.length, 1);
-  assert.equal(m.curves[0].k.alpha, 1);
-  assert.equal(m.curves[0].k.alphaP, 1);
+  assert.deepEqual([...m.curves].map(c => c.label), ['Conditions A', 'Conditions B']);
+  assert.ok([...m.curves].every(c => c.k.alpha === 1 && c.k.alphaP === 1));
   assert.equal(m.curves[0].k.appKm, 10);
 });
 
-test('comparing [E]total or kcat changes Vmax only; comparing Km changes Km only', () => {
-  const pair = by => [...kineticsModel({ compareBy: by }).curves].map(c => [c.k.Vmax, c.k.Km]);
-  assert.deepEqual(pair('Etot'), [[1, 10], [2, 10]]);
-  assert.deepEqual(pair('kcat'), [[1, 10], [2, 10]]);
-  assert.deepEqual(pair('Km'), [[1, 10], [1, 20]]);
+test('each curve uses its own conditions, and B can differ in several parameters at once', () => {
+  const k = kineticsModel({ Km2: '40', kcat2: '50', Etot2: '0.04' }).curves;
+  assert.equal(k[0].k.Vmax, 1);
+  assert.equal(k[0].k.Km, 10);
+  assert.equal(k[1].k.Vmax, 2);
+  assert.equal(k[1].k.Km, 40);
 });
 
-test('auto [S] range covers both Km values being compared', () => {
-  const larger = kineticsModel({ compareBy: 'Km', Km2: '40' }).range;
+test('differingParameter names the one parameter that differs, or null', () => {
+  const p = { Km: 10, kcat: 100, Etot: 0.01, Km2: 10, kcat2: 100, Etot2: 0.01 };
+  assert.equal(differingParameter(p), null);
+  assert.equal(differingParameter({ ...p, Km2: 20 }), 'Km');
+  assert.equal(differingParameter({ ...p, kcat2: 200 }), 'kcat');
+  assert.equal(differingParameter({ ...p, Etot2: 0.02 }), 'Etot');
+  assert.equal(differingParameter({ ...p, Km2: 20, kcat2: 200 }), null);
+});
+
+test('auto [S] range covers both Km values', () => {
+  const larger = kineticsModel({ Km2: '40' }).range;
   assert.equal(larger.Smax, 400);
   assert.equal(larger.Smin, 1);
-  const smaller = kineticsModel({ compareBy: 'Km', Km2: '2' }).range;
+  const smaller = kineticsModel({ Km2: '2' }).range;
   assert.equal(smaller.Smax, 100);
   near(smaller.Smin, 0.2);
 });
 
-test('only the second value being compared is validated, and only on the Kinetics tab', () => {
-  const errs = raw => [...validate({ ...VALID, mode: 'kinetics', compareBy: 'kcat', Etot2: '', kcat2: '200', Km2: '', ...raw }).errors].map(e => e.field);
+test('Conditions B is validated only on the Kinetics tab', () => {
+  const errs = raw => [...validate({ ...VALID, ...CONDITIONS, ...raw }).errors].map(e => e.field);
   assert.deepEqual(errs({}), []);
   assert.deepEqual(errs({ kcat2: '0' }), ['kcat2']);
+  assert.deepEqual(errs({ Km2: '', Etot2: '-1' }), ['Km2', 'Etot2']);
   assert.deepEqual(errs({ I: '-1', Ki: '' }), []);   // inhibition fields are not in use
-  assert.deepEqual(fieldsWithErrors({ mode: 'inhibition', compareBy: 'kcat', kcat2: '' }), []);
+  assert.deepEqual(fieldsWithErrors({ mode: 'inhibition', kcat2: '' }), []);
+});
+
+test('error messages say which conditions a Kinetics field belongs to', () => {
+  const message = raw => validate({ ...VALID, ...CONDITIONS, ...raw }).errors[0].message;
+  assert.equal(message({ Km: '-1' }), 'Km in Conditions A must be a positive number.');
+  assert.equal(message({ Etot2: '-1' }), 'Et in Conditions B must be a positive number.');
+  assert.equal(validate({ ...VALID, Km: '-1' }).errors[0].message, 'Km must be a positive number.');
 });
 
 // ── Validation ──────────────────────────────────────────────────
@@ -151,21 +170,10 @@ test('disabled fields are ignored', () => {
   assert.deepEqual(fieldsWithErrors({ type: 'uncompetitive', Ki: '' }), []);
   assert.deepEqual(fieldsWithErrors({ type: 'noncompetitive', KiP: '' }), []);
   assert.deepEqual(fieldsWithErrors({ compare: false, I2: '' }), []);
-  assert.deepEqual(fieldsWithErrors({ auto: true, Smax: '-5' }), []);
 });
 
 test('noncompetitive locks Ki\' to Ki whatever the Ki\' field holds', () => {
   assert.equal(validate({ ...VALID, type: 'noncompetitive', Ki: '7', KiP: '100' }).params.KiP, 7);
-});
-
-test('manual range is validated', () => {
-  const manual = { auto: false, Smax: '100', Smin: '1', points: '50' };
-  assert.deepEqual(fieldsWithErrors(manual), []);
-  assert.deepEqual(fieldsWithErrors({ ...manual, Smin: '100' }), ['Smin']);
-  assert.deepEqual(fieldsWithErrors({ ...manual, Smin: '0' }), ['Smin']);
-  assert.deepEqual(fieldsWithErrors({ ...manual, points: '2.5' }), ['points']);
-  assert.deepEqual(fieldsWithErrors({ ...manual, points: '1' }), ['points']);
-  assert.deepEqual(fieldsWithErrors({ ...manual, points: '1000000' }), ['points']);
 });
 
 test('values that overflow when combined are rejected', () => {
@@ -234,7 +242,7 @@ test('answers count within ±2% of the true value, sign included', () => {
 });
 
 test('every displayed value, typed back in, is accepted as correct', () => {
-  const m = buildModel({ type: 'mixed', compare: false, auto: true, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 20 });
+  const m = buildModel({ type: 'mixed', compare: false, Km: 10, kcat: 100, Etot: 0.01, I: 10, Ki: 5, KiP: 20 });
   for (const c of m.curves) {
     for (const key of ['Vmax', 'appVmax', 'Km', 'appKm', 'alpha', 'alphaP', 'slope', 'yInt']) {
       assert.ok(isCorrect(parseAnswer(fmtSig(c.k[key])), c.k[key]), `${key} = ${c.k[key]}`);

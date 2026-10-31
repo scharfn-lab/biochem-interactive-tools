@@ -67,13 +67,13 @@
     }
 
     /* ── Buttons ── */
-    #top-buttons, .entry-tools {
+    #top-buttons, #type-buttons, #difference-buttons, .entry-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
     }
-    #top-buttons { justify-content: center; }
+    #top-buttons, #type-buttons, #difference-buttons { justify-content: center; }
     #topic-buttons { display: flex; gap: 8px; }
 
     button {
@@ -106,6 +106,7 @@
     }
     #model-box { flex: 1 1 298px; min-width: 0; }
     #scheme-box { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; }
+    #scheme-box .panel-body { flex: 1; display: flex; }
 
     /* Controls left, plots right, answers along the bottom */
     #workspace {
@@ -117,11 +118,6 @@
       gap: 20px;
       align-items: start;
     }
-    #workspace.no-plots {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-areas: "side" "entry";
-    }
-
     #sidebar, #plot-column {
       display: flex;
       flex-direction: column;
@@ -140,18 +136,13 @@
       margin-bottom: 8px;
     }
     .panel-header .panel-section-title { margin-bottom: 0; }
-    .panel-header button { padding: 2px 10px; font-size: 0.78em; flex-shrink: 0; }
+    .panel-buttons { display: flex; gap: 6px; flex-shrink: 0; }
+    .panel-header button { padding: 2px 10px; font-size: 0.78em; }
 
-    #hidden-panels {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.85em;
-      color: var(--text-secondary);
-    }
-    #hidden-panels button { padding: 3px 12px; }
+    /* A hidden panel shrinks to a small row holding its title and buttons */
+    .panel.collapsed { padding-top: 6px; padding-bottom: 6px; }
+    .panel.collapsed .panel-header { margin-bottom: 0; }
+    #top-row .panel.collapsed { align-self: flex-start; }
 
     .box { padding: 16px; }
     .box-subsection { margin-top: 16px; }
@@ -167,17 +158,20 @@
 
     .field-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
       gap: 10px;
       align-items: end;
     }
 
-    /* Wide enough for "Noncompetitive" in the type dropdown */
-    #inhib-fields { display: flex; flex-wrap: wrap; }
-    #inhib-fields .field { flex: 1 1 92px; min-width: 0; }
-    #inhib-fields .type-field { flex: 1.4 1 150px; }
+    #inhib-fields { grid-template-columns: 1fr 1fr; }
+    #I-field { grid-column: 1 / -1; }
 
-    sub { line-height: 0; }   /* keeps labels with subscripts level with those without */
+    /* Conditions A and B side by side; the Inhibition tab uses only A */
+    #conditions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    #conditions.single { grid-template-columns: 1fr; }
+    #conditions.single .condition-title { display: none; }
+
+    sub, sup { line-height: 0; }   /* keeps labels with these level with those without */
 
     .field label {
       display: block;
@@ -262,7 +256,7 @@
     .legend-item svg { flex-shrink: 0; }
 
     .canvas-wrap { width: 100%; max-width: 200px; margin: 0 auto; }
-    #plot-column.large-plots .canvas-wrap { max-width: 300px; }
+    .plot-card.zoomed .canvas-wrap { max-width: 300px; }
 
     .plot-canvas {
       width: 100%;
@@ -344,16 +338,15 @@
       <button type="button" id="tab-kinetics">Kinetics</button>
       <button type="button" id="tab-inhibition">Inhibition</button>
     </div>
-    <button type="button" id="plot-size" aria-pressed="false">Larger plots</button>
     <button type="button" id="reset">Reset to defaults</button>
   </div>
 
-  <div id="hidden-panels" hidden>
-    <span>Hidden:</span>
-    <button type="button" data-show="model" hidden>Show enzyme model</button>
-    <button type="button" data-show="scheme" hidden>Show reaction scheme</button>
-    <button type="button" data-show="mm" hidden>Show M-M plot</button>
-    <button type="button" data-show="lb" hidden>Show L-B plot</button>
+  <div id="type-buttons" role="group" aria-label="Inhibition type" hidden>
+    <button type="button" data-type="none">None</button>
+    <button type="button" data-type="competitive">Competitive</button>
+    <button type="button" data-type="uncompetitive">Uncompetitive</button>
+    <button type="button" data-type="noncompetitive">Noncompetitive</button>
+    <button type="button" data-type="mixed">Mixed</button>
   </div>
 
   <!-- Enzyme model and reaction scheme -->
@@ -361,18 +354,28 @@
     <section class="panel box" id="model-box" data-panel="model" aria-labelledby="model-title">
       <div class="panel-header">
         <h2 class="panel-section-title" id="model-title">Enzyme model</h2>
-        <button type="button" data-hide="model" aria-label="Hide enzyme model">Hide</button>
+        <div class="panel-buttons"><button type="button" data-collapse="model">Hide</button></div>
       </div>
-      <div id="enzyme-model"></div>
-      <p class="note" id="model-caption"></p>
+      <div class="panel-body">
+        <div id="enzyme-model"></div>
+        <p class="note" id="model-caption"></p>
+      </div>
     </section>
     <section class="panel box" id="scheme-box" data-panel="scheme" aria-labelledby="scheme-title">
       <div class="panel-header">
         <h2 class="panel-section-title" id="scheme-title">Reaction scheme</h2>
-        <button type="button" data-hide="scheme" aria-label="Hide reaction scheme">Hide</button>
+        <div class="panel-buttons"><button type="button" data-collapse="scheme">Hide</button></div>
       </div>
-      <div id="reaction-scheme"></div>
+      <div class="panel-body">
+        <div id="reaction-scheme"></div>
+      </div>
     </section>
+  </div>
+
+  <div id="difference-buttons" role="group" aria-label="Make Conditions A and B differ in one parameter">
+    <button type="button" data-difference="Etot">Different [E]</button>
+    <button type="button" data-difference="Km">Different K<sub>m</sub></button>
+    <button type="button" data-difference="kcat">Different k<sub>cat</sub></button>
   </div>
 
   <div id="workspace">
@@ -382,10 +385,23 @@
 
       <section class="panel box" aria-labelledby="enzyme-title">
         <h2 class="panel-section-title" id="enzyme-title">Enzyme parameters</h2>
-        <div class="field-row">
-          <div class="field"><label for="Km">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km" step="any" min="0"></div>
-          <div class="field"><label for="kcat">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat" step="any" min="0"></div>
-          <div class="field"><label for="Etot">[E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
+        <div id="conditions">
+          <div id="condition-a" role="group" aria-labelledby="condition-a-title">
+            <h3 class="panel-section-title condition-title" id="condition-a-title">Conditions A</h3>
+            <div class="field-row">
+              <div class="field"><label for="Km">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km" step="any" min="0"></div>
+              <div class="field"><label for="kcat">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat" step="any" min="0"></div>
+              <div class="field"><label for="Etot">E<sub>t</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
+            </div>
+          </div>
+          <div id="condition-b" role="group" aria-labelledby="condition-b-title">
+            <h3 class="panel-section-title condition-title" id="condition-b-title">Conditions B</h3>
+            <div class="field-row">
+              <div class="field"><label for="Km2">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km2" step="any" min="0"></div>
+              <div class="field"><label for="kcat2">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat2" step="any" min="0"></div>
+              <div class="field"><label for="Etot2">E<sub>t</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot2" step="any" min="0"></div>
+            </div>
+          </div>
         </div>
         <div class="box-subsection">
           <h3 class="panel-section-title">Units</h3>
@@ -411,37 +427,9 @@
         </div>
       </section>
 
-      <section class="panel box" id="compare-box" aria-labelledby="compare-title">
-        <h2 class="panel-section-title" id="compare-title">Compare two enzymes</h2>
-        <div class="field-row">
-          <div class="field">
-            <label for="compareBy">Compare</label>
-            <select id="compareBy">
-              <option value="none">None</option>
-              <option value="Etot">[E]total</option>
-              <option value="kcat">kcat</option>
-              <option value="Km">Km</option>
-            </select>
-          </div>
-          <div class="field" id="Etot2-field" hidden><label for="Etot2">Second [E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot2" step="any" min="0"></div>
-          <div class="field" id="kcat2-field" hidden><label for="kcat2">Second k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat2" step="any" min="0"></div>
-          <div class="field" id="Km2-field" hidden><label for="Km2">Second K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km2" step="any" min="0"></div>
-        </div>
-      </section>
-
       <section class="panel box" id="inhib-box" aria-labelledby="inhib-title" hidden>
         <h2 class="panel-section-title" id="inhib-title">Inhibition</h2>
         <div class="field-row" id="inhib-fields">
-          <div class="field type-field">
-            <label for="type">Type</label>
-            <select id="type">
-              <option value="none">None</option>
-              <option value="competitive">Competitive</option>
-              <option value="uncompetitive">Uncompetitive</option>
-              <option value="noncompetitive">Noncompetitive</option>
-              <option value="mixed">Mixed</option>
-            </select>
-          </div>
           <div class="field" id="I-field"><label for="I">[I] (<span data-u="conc">µM</span>)</label><input type="number" id="I" step="any" min="0"></div>
           <div class="field" id="Ki-field"><label for="Ki">K<sub>i</sub> (E + I), <span data-u="conc">µM</span></label><input type="number" id="Ki" step="any" min="0"></div>
           <div class="field" id="KiP-field"><label for="KiP">K<sub>i</sub>' (ES + I), <span data-u="conc">µM</span></label><input type="number" id="KiP" step="any" min="0"></div>
@@ -454,16 +442,6 @@
         </div>
       </section>
 
-      <section class="panel box" aria-labelledby="range-title">
-        <h2 class="panel-section-title" id="range-title">[S] range</h2>
-        <label class="check-label"><input type="checkbox" id="auto"> Auto</label>
-        <div class="field-row">
-          <div class="field" id="Smax-field"><label for="Smax">[S]<sub>max</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Smax" step="any" min="0" placeholder="auto"></div>
-          <div class="field" id="Smin-field"><label for="Smin">[S]<sub>min</sub>, L-B (<span data-u="conc">µM</span>)</label><input type="number" id="Smin" step="any" min="0" placeholder="auto"></div>
-          <div class="field" id="points-field"><label for="points">Number of points</label><input type="number" id="points" step="1" min="2" placeholder="auto"></div>
-        </div>
-      </section>
-
       <div id="errors" role="alert" hidden></div>
     </div>
 
@@ -472,26 +450,36 @@
       <section class="panel plot-card" data-panel="mm" aria-labelledby="mm-title">
         <div class="panel-header">
           <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
-          <button type="button" data-hide="mm" aria-label="Hide Michaelis–Menten plot">Hide</button>
+          <div class="panel-buttons">
+            <button type="button" data-zoom="mm" aria-pressed="false" aria-label="Zoom Michaelis–Menten plot">Zoom</button>
+            <button type="button" data-collapse="mm">Hide</button>
+          </div>
         </div>
-        <div class="legend" id="mm-legend"></div>
-        <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
+        <div class="panel-body">
+          <div class="legend" id="mm-legend"></div>
+          <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
+        </div>
       </section>
       <section class="panel plot-card" data-panel="lb" aria-labelledby="lb-title">
         <div class="panel-header">
           <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
-          <button type="button" data-hide="lb" aria-label="Hide Lineweaver–Burk plot">Hide</button>
+          <div class="panel-buttons">
+            <button type="button" data-zoom="lb" aria-pressed="false" aria-label="Zoom Lineweaver–Burk plot">Zoom</button>
+            <button type="button" data-collapse="lb">Hide</button>
+          </div>
         </div>
-        <div class="legend" id="lb-legend"></div>
-        <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
+        <div class="panel-body">
+          <div class="legend" id="lb-legend"></div>
+          <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
+        </div>
       </section>
-      <p class="plot-hint">Hover or tap a plot to read the nearest point.</p>
+      <p class="plot-hint" id="plot-hint">Hover or tap a plot to read the nearest point.</p>
     </div>
 
     <!-- Vmax and Km entry -->
     <section class="panel box" id="entry-box" aria-labelledby="entry-title">
       <h2 class="panel-section-title" id="entry-title">Enter V<sub>max</sub> and K<sub>m</sub></h2>
-      <p class="note">Work these out from each line's equation on the Lineweaver–Burk plot.<span id="entry-note-inhibition"> For inhibited curves, enter the apparent values (appV<sub>max</sub> and appK<sub>m</sub>).</span></p>
+      <p class="note">Work these out from each line's equation on the Lineweaver–Burk plot.<span id="entry-note-inhibition"> For inhibited curves, enter the apparent values (V<sub>max</sub><sup>app</sup> and K<sub>m</sub><sup>app</sup>).</span></p>
       <div class="table-scroll" id="entry-table" role="region" aria-label="Vmax and Km answers" tabindex="0"></div>
       <div class="entry-tools">
         <button type="button" id="entry-check">Check</button>
@@ -514,12 +502,12 @@ const DEFAULTS = {
   concUnit: 'µM', timeUnit: 's',
   type: 'competitive', I: 10, Ki: 5, KiP: 5,
   compare: false, I2: 20,
-  compareBy: 'none', Etot2: 0.02, kcat2: 200, Km2: 20,
-  auto: true,
+  Km2: 10, kcat2: 100, Etot2: 0.02,
 };
 
 const state = {
   mode: 'kinetics',   // which tab is open: 'kinetics' or 'inhibition'
+  type: DEFAULTS.type,   // the selected inhibition type button
   params: null,       // last valid numeric parameters
   units: null,        // { conc, time }; always current, even while a field is invalid
   model: null,        // curves and samples built from params
@@ -532,8 +520,8 @@ const entry = { revealed: false };
 
 // Page layout choices. "Reset to defaults" leaves these alone, as it does the open tab.
 const view = {
-  largePlots: false,
-  hidden: { model: false, scheme: false, mm: false, lb: false },
+  collapsed: { model: false, scheme: false, mm: false, lb: false },
+  zoomed: { mm: false, lb: false },
 };
 
 
@@ -548,11 +536,10 @@ const ACTIVE_FIELDS = {
   mixed:          { I: true,  Ki: true,  KiP: true  },
 };
 
-// The Kinetics tab's "Compare" choices and the field holding each second value.
-const COMPARE_FIELDS = { Etot: 'Etot2', kcat: 'kcat2', Km: 'Km2' };
+// Each Conditions A field on the Kinetics tab and its Conditions B partner.
+const CONDITION_B_FIELDS = { Km: 'Km2', kcat: 'kcat2', Etot: 'Etot2' };
 
 const AUTO_POINTS = 200;
-const MAX_POINTS = 5000;
 
 function factors(type, I, Ki, KiP) {
   switch (type) {
@@ -578,16 +565,19 @@ function v0(k, S) {
   return k.Vmax * S / (k.alpha * k.Km + k.alphaP * S);
 }
 
-// Two uninhibited enzymes that differ in one parameter.
+// The uninhibited enzyme under Conditions A and Conditions B.
 function kineticsCurves(p) {
-  const curve = (id, q, varied) => ({ id, I: null, varied, k: constants(q.kcat * q.Etot, q.Km, 1, 1) });
-  const by = p.compareBy;
-  if (by === 'none') return [curve('uninhibited', p, null)];
-  const second = { ...p, [by]: p[COMPARE_FIELDS[by]] };
+  const curve = (id, label, Km, kcat, Etot) => ({ id, I: null, label, k: constants(kcat * Etot, Km, 1, 1) });
   return [
-    curve('uninhibited', p, { field: by, value: p[by] }),
-    curve('first', second, { field: by, value: second[by] }),
+    curve('uninhibited', 'Conditions A', p.Km, p.kcat, p.Etot),
+    curve('first', 'Conditions B', p.Km2, p.kcat2, p.Etot2),
   ];
+}
+
+// The one parameter that differs between Conditions A and B, or null if none or several do.
+function differingParameter(p) {
+  const differing = Object.entries(CONDITION_B_FIELDS).filter(([a, b]) => p[a] !== p[b]).map(([a]) => a);
+  return differing.length === 1 ? differing[0] : null;
 }
 
 function buildCurves(p) {
@@ -605,7 +595,8 @@ function buildCurves(p) {
   return curves;
 }
 
-function autoRange(p, curves) {
+// [S] always runs to 10 × the largest Km shown; L-B starts at 0.1 × the smallest.
+function autoRange(curves) {
   const largestKm = Math.max(...curves.map(c => Math.max(c.k.Km, c.k.appKm)));
   const smallestKm = Math.min(...curves.map(c => c.k.Km));
   return { Smax: 10 * largestKm, Smin: 0.1 * smallestKm, points: AUTO_POINTS };
@@ -635,7 +626,7 @@ function sampleLB(k, range) {
 
 function buildModel(p) {
   const curves = buildCurves(p);
-  const range = p.auto ? autoRange(p, curves) : { Smax: p.Smax, Smin: p.Smin, points: p.points };
+  const range = autoRange(curves);
   for (const c of curves) {
     c.mm = sampleMM(c.k, range);
     c.lb = sampleLB(c.k, range);
@@ -644,9 +635,8 @@ function buildModel(p) {
 }
 
 const FIELD_NAMES = {
-  Km: 'Km', kcat: 'kcat', Etot: '[E]total', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
-  Etot2: 'Second [E]total', kcat2: 'Second kcat', Km2: 'Second Km',
-  Smax: '[S]max', Smin: '[S]min', points: 'Number of points',
+  Km: 'Km', kcat: 'kcat', Etot: 'Et', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
+  Km2: 'Km in Conditions B', kcat2: 'kcat in Conditions B', Etot2: 'Et in Conditions B',
 };
 
 function parseField(text) {
@@ -654,7 +644,7 @@ function parseField(text) {
   return t === '' ? NaN : Number(t);
 }
 
-// raw holds field text plus { mode, type, compare, compareBy, auto }. Fields not in use are not checked.
+// raw holds field text plus { mode, type, compare }. Fields not in use are not checked.
 function validate(raw) {
   const errors = [];
   const kinetics = raw.mode === 'kinetics';
@@ -663,18 +653,18 @@ function validate(raw) {
     mode: kinetics ? 'kinetics' : 'inhibition',
     type,
     compare: raw.compare && type !== 'none',
-    compareBy: kinetics ? raw.compareBy : 'none',
-    auto: raw.auto,
   };
+  const nameOf = field => (kinetics && field in CONDITION_B_FIELDS ? `${FIELD_NAMES[field]} in Conditions A` : FIELD_NAMES[field]);
   const read = (field, allowZero) => {
     const value = parseField(raw[field]);
     params[field] = value;
     if (!Number.isFinite(value) || value < 0 || (value === 0 && !allowZero)) {
-      errors.push({ field, message: `${FIELD_NAMES[field]} must be ${allowZero ? 'zero or positive' : 'a positive number'}.` });
+      errors.push({ field, message: `${nameOf(field)} must be ${allowZero ? 'zero or positive' : 'a positive number'}.` });
     }
   };
 
   read('Km'); read('kcat'); read('Etot');
+  if (kinetics) Object.values(CONDITION_B_FIELDS).forEach(field => read(field));
 
   const active = ACTIVE_FIELDS[type];
   if (active.I) read('I', true);
@@ -682,17 +672,6 @@ function validate(raw) {
   if (active.KiP) read('KiP');
   if (type === 'noncompetitive') params.KiP = params.Ki;
   if (params.compare) read('I2', true);
-  if (params.compareBy !== 'none') read(COMPARE_FIELDS[params.compareBy]);
-
-  if (!raw.auto) {
-    read('Smax'); read('Smin');
-    if (params.Smin >= params.Smax) errors.push({ field: 'Smin', message: '[S]min must be less than [S]max.' });
-    const n = parseField(raw.points);
-    params.points = n;
-    if (!Number.isInteger(n) || n < 2 || n > MAX_POINTS) {
-      errors.push({ field: 'points', message: `Number of points must be a whole number from 2 to ${MAX_POINTS}.` });
-    }
-  }
 
   // Values can each be fine yet overflow when combined.
   if (!errors.length) {
@@ -818,16 +797,10 @@ const plots = {
   },
 };
 
-const VARIED_LABELS = { Etot: '[E]total', kcat: 'kcat', Km: 'Km' };
-
 function curveName(curve) {
-  const { conc, time } = state.units;
-  if (curve.varied) {
-    const unit = curve.varied.field === 'kcat' ? `${time}⁻¹` : conc;
-    return `${VARIED_LABELS[curve.varied.field]} = ${fmtCompact(curve.varied.value)} ${unit}`;
-  }
-  if (curve.I !== null) return `[I] = ${fmtCompact(curve.I)} ${conc}`;
-  return state.params.mode === 'kinetics' ? 'Enzyme' : 'Uninhibited';
+  if (curve.label) return curve.label;
+  if (curve.I !== null) return `[I] = ${fmtCompact(curve.I)} ${state.units.conc}`;
+  return 'Uninhibited';
 }
 
 function resizeCanvas(plot) {
@@ -1152,7 +1125,8 @@ function renderEntryTable() {
   const body = entryRows().map((row, r) => {
     const cells = curves.map((c, col) => {
       if (entry.revealed) return `<td class="revealed">${fmtSig(c.k[row.key])}</td>`;
-      const label = `${row.plain}, ${columnName(c)}`;
+      const apparent = state.params.mode === 'inhibition' && c.id !== 'uninhibited' ? 'apparent ' : '';
+      const label = `${apparent}${row.plain}, ${columnName(c)}`;
       return `<td class="entry-cell" data-row="${r}" data-col="${col}"><span class="cell-wrap">` +
         `<input type="text" autocomplete="off" spellcheck="false" aria-label="${label}"><span class="mark"></span></span></td>`;
     }).join('');
@@ -1304,7 +1278,7 @@ function schemeSVG(kind) {
 }
 
 function renderModel() {
-  const kind = state.mode === 'kinetics' ? 'none' : $('type').value;
+  const kind = state.mode === 'kinetics' ? 'none' : state.type;
   if (kind === state.scene) return;
   state.scene = kind;
   $('enzyme-model').innerHTML = enzymeModelSVG(SCENES[kind]);
@@ -1315,13 +1289,13 @@ function renderModel() {
 
 // ═══ 6. UI WIRING ═════════════════════════════════════════════
 
-const NUMBER_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Etot2', 'kcat2', 'Km2', 'Smax', 'Smin', 'points'];
+const NUMBER_FIELDS = ['Km', 'kcat', 'Etot', 'I', 'Ki', 'KiP', 'I2', 'Km2', 'kcat2', 'Etot2'];
+
+// The "Different ..." buttons make Conditions B double Conditions A in one parameter.
+const DIFFERENCE_FACTOR = 2;
 
 function readRaw() {
-  const raw = {
-    mode: state.mode, type: $('type').value, compare: $('compare').checked,
-    compareBy: $('compareBy').value, auto: $('auto').checked,
-  };
+  const raw = { mode: state.mode, type: state.type, compare: $('compare').checked };
   NUMBER_FIELDS.forEach(f => { raw[f] = $(f).value; });
   return raw;
 }
@@ -1331,21 +1305,27 @@ function setFieldEnabled(field, enabled) {
   $(`${field}-field`).classList.toggle('off', !enabled);
 }
 
+function setPressed(button, on) {
+  button.classList.toggle('active', on);
+  button.setAttribute('aria-pressed', String(on));
+}
+
 function syncFieldStates() {
   const kinetics = state.mode === 'kinetics';
   for (const [id, on] of [['tab-kinetics', kinetics], ['tab-inhibition', !kinetics]]) {
-    $(id).classList.toggle('active', on);
-    $(id).setAttribute('aria-pressed', String(on));
+    setPressed($(id), on);
   }
+  document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === state.type));
   $('entry-note-inhibition').hidden = kinetics;
   renderModel();
-  $('compare-box').hidden = !kinetics;
+  $('type-buttons').hidden = kinetics;
+  $('difference-buttons').hidden = !kinetics;
   $('inhib-box').hidden = kinetics;
-  for (const [by, field] of Object.entries(COMPARE_FIELDS)) {
-    $(`${field}-field`).hidden = $('compareBy').value !== by;
-  }
+  $('condition-b').hidden = !kinetics;
+  $('conditions').classList.toggle('single', !kinetics);
+  $('condition-a').setAttribute('role', kinetics ? 'group' : 'none');
 
-  const type = $('type').value;
+  const type = state.type;
   const active = ACTIVE_FIELDS[type];
   setFieldEnabled('I', active.I);
   setFieldEnabled('Ki', active.Ki);
@@ -1360,9 +1340,6 @@ function syncFieldStates() {
   $('compare').disabled = none;
   $('compare-label').classList.toggle('off', none);
   $('I2-field').hidden = !$('compare').checked || none;
-
-  const auto = $('auto').checked;
-  ['Smax', 'Smin', 'points'].forEach(f => setFieldEnabled(f, !auto));
 }
 
 function syncUnits() {
@@ -1396,6 +1373,8 @@ function commit() {
   const { errors, params } = validate(readRaw());
   showErrors(errors);
   if (!errors.length) state.params = params;
+  const different = state.params.mode === 'kinetics' ? differingParameter(state.params) : null;
+  document.querySelectorAll('[data-difference]').forEach(b => setPressed(b, b.dataset.difference === different));
 
   const signature = JSON.stringify([state.params, state.units]);
   if (signature === state.signature) return;
@@ -1407,14 +1386,11 @@ function commit() {
 }
 
 function applyDefaults() {
-  ['Km', 'kcat', 'Etot', 'I', 'Ki', 'I2', 'Etot2', 'kcat2', 'Km2'].forEach(f => { $(f).value = DEFAULTS[f]; });
-  $('compareBy').value = DEFAULTS.compareBy;
+  ['Km', 'kcat', 'Etot', 'I', 'Ki', 'I2', 'Km2', 'kcat2', 'Etot2'].forEach(f => { $(f).value = DEFAULTS[f]; });
   $('concUnit').value = DEFAULTS.concUnit;
   $('timeUnit').value = DEFAULTS.timeUnit;
-  $('type').value = DEFAULTS.type;
+  state.type = DEFAULTS.type;
   $('compare').checked = DEFAULTS.compare;
-  $('auto').checked = DEFAULTS.auto;
-  ['Smax', 'Smin', 'points'].forEach(f => { $(f).value = ''; });
   state.kiPrimeText = String(DEFAULTS.KiP);
 }
 
@@ -1422,17 +1398,21 @@ NUMBER_FIELDS.forEach(f => $(f).addEventListener('input', () => {
   if (f === 'KiP') state.kiPrimeText = $('KiP').value;
   commit();
 }));
-['type', 'concUnit', 'timeUnit', 'compare', 'compareBy'].forEach(id => $(id).addEventListener('change', commit));
+['concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', commit));
 
-// Unchecking Auto starts the manual fields from the current automatic range.
-$('auto').addEventListener('change', () => {
-  const auto = $('auto').checked;
-  const r = state.model.range;
-  $('Smax').value = auto ? '' : Number(r.Smax.toPrecision(4));
-  $('Smin').value = auto ? '' : Number(r.Smin.toPrecision(4));
-  $('points').value = auto ? '' : r.points;
+document.querySelectorAll('[data-type]').forEach(button => button.addEventListener('click', () => {
+  state.type = button.dataset.type;
   commit();
-});
+}));
+
+// Conditions B becomes a copy of A with one parameter changed.
+document.querySelectorAll('[data-difference]').forEach(button => button.addEventListener('click', () => {
+  const by = button.dataset.difference;
+  for (const [a, b] of Object.entries(CONDITION_B_FIELDS)) $(b).value = $(a).value;
+  const value = parseField($(by).value);
+  if (Number.isFinite(value)) $(CONDITION_B_FIELDS[by]).value = Number((value * DIFFERENCE_FACTOR).toPrecision(12));
+  commit();
+}));
 
 for (const mode of ['kinetics', 'inhibition']) {
   $(`tab-${mode}`).addEventListener('click', () => {
@@ -1448,41 +1428,37 @@ $('reset').addEventListener('click', () => {
   renderEntryTable();   // clears typed answers even if no value changed
 });
 
+const PANEL_NAMES = { model: 'enzyme model', scheme: 'reaction scheme', mm: 'Michaelis–Menten plot', lb: 'Lineweaver–Burk plot' };
+
 function syncView() {
-  const { hidden, largePlots } = view;
-  for (const [name, isHidden] of Object.entries(hidden)) {
-    document.querySelector(`[data-panel="${name}"]`).hidden = isHidden;
-    document.querySelector(`[data-show="${name}"]`).hidden = !isHidden;
+  const { collapsed, zoomed } = view;
+  for (const [name, isCollapsed] of Object.entries(collapsed)) {
+    const panel = document.querySelector(`[data-panel="${name}"]`);
+    const toggle = document.querySelector(`[data-collapse="${name}"]`);
+    panel.classList.toggle('collapsed', isCollapsed);
+    panel.querySelector('.panel-body').hidden = isCollapsed;
+    toggle.textContent = isCollapsed ? 'Show' : 'Hide';
+    toggle.setAttribute('aria-expanded', String(!isCollapsed));
+    toggle.setAttribute('aria-label', `${isCollapsed ? 'Show' : 'Hide'} ${PANEL_NAMES[name]}`);
   }
-  const noPlots = hidden.mm && hidden.lb;
-  $('hidden-panels').hidden = !Object.values(hidden).some(Boolean);
-  $('top-row').hidden = hidden.model && hidden.scheme;
-  $('plot-column').hidden = noPlots;
-  $('workspace').classList.toggle('no-plots', noPlots);
-  $('plot-column').classList.toggle('large-plots', largePlots);
-  $('plot-size').disabled = noPlots;
-  $('plot-size').classList.toggle('active', largePlots);
-  $('plot-size').setAttribute('aria-pressed', String(largePlots));
-  plots.mm.hover = hidden.mm ? null : plots.mm.hover;
-  plots.lb.hover = hidden.lb ? null : plots.lb.hover;
+  for (const [name, isZoomed] of Object.entries(zoomed)) {
+    const button = document.querySelector(`[data-zoom="${name}"]`);
+    button.hidden = collapsed[name];
+    setPressed(button, isZoomed);
+    document.querySelector(`[data-panel="${name}"]`).classList.toggle('zoomed', isZoomed);
+    if (collapsed[name]) plots[name].hover = null;
+  }
+  $('plot-hint').hidden = collapsed.mm && collapsed.lb;
   refitPlots();
 }
 
-$('plot-size').addEventListener('click', () => {
-  view.largePlots = !view.largePlots;
+document.querySelectorAll('[data-collapse]').forEach(button => button.addEventListener('click', () => {
+  view.collapsed[button.dataset.collapse] = !view.collapsed[button.dataset.collapse];
   syncView();
-});
-
-// The clicked button disappears, so focus moves to the one that undoes it.
-document.querySelectorAll('[data-hide]').forEach(button => button.addEventListener('click', () => {
-  view.hidden[button.dataset.hide] = true;
-  syncView();
-  document.querySelector(`[data-show="${button.dataset.hide}"]`).focus();
 }));
-document.querySelectorAll('[data-show]').forEach(button => button.addEventListener('click', () => {
-  view.hidden[button.dataset.show] = false;
+document.querySelectorAll('[data-zoom]').forEach(button => button.addEventListener('click', () => {
+  view.zoomed[button.dataset.zoom] = !view.zoomed[button.dataset.zoom];
   syncView();
-  document.querySelector(`[data-hide="${button.dataset.show}"]`).focus();
 }));
 
 $('entry-check').addEventListener('click', checkEntries);
@@ -1534,6 +1510,7 @@ new ResizeObserver(() => {
 applyDefaults();
 Object.values(plots).forEach(resizeCanvas);
 commit();
+syncView();
 </script>
 </body>
 </html>
