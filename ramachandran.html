@@ -1160,7 +1160,7 @@ function renderDipeptide() {
     if (betaTurnMode !== null && showNterm && showCterm) {
       bondDefs.push(['HN3', 'O6', 'bturn_hbond']);           // sheet: N-H of AA3 → C=O of AA6
     }
-    if (betaTurnMode === 'typeII' && showExtra4 && showExtra2) {
+    if (betaTurnMode !== null && showExtra4 && showExtra2) {
       // sheet: AA1 ↔ AA8. The flanks follow the sliders, so draw these only while in range.
       for (const [a, b] of [['O1', 'HN8'], ['HN1', 'O8']]) {
         if (len3(sub3(atoms[a], atoms[b])) < HBOND_MAX_DIST) bondDefs.push([a, b, 'bturn_hbond']);
@@ -1514,16 +1514,19 @@ function setBetaTurnTypeI() {
   if (!showExtra2) toggleExtra2();
   if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeI';
-  phi = -120; psi = 130;          // β-sheet for flanking residues
+  phi = -114; psi = 102;          // average of aa1, aa2, aa7 and aa8, shown on the plot
   dipOffX = 0; dipOffY = 0;
-  for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = -120; residueAngles[key].psi = 130;
-  }
-  // aa3/aa6 close the AA3 ↔ AA6 sheet pair: HN3···O6 2.15 Å, O3···HN6 1.92 Å
-  residueAngles.aa3.phi = -145; residueAngles.aa3.psi = 160;
+  // Each strand residue has its own angles so both sheet pairs close.
+  // H···O: O3–HN6 1.92 Å, HN3–O6 2.18 Å, O1–HN8 2.14 Å, HN1–O8 2.15 Å
+  residueAngles.aa1.phi = -128; residueAngles.aa1.psi = 131;
+  residueAngles.aa2.phi = -112; residueAngles.aa2.psi = 85;
+  residueAngles.aa3.phi = -153; residueAngles.aa3.psi = 155;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = -30;
   residueAngles.aa5.phi = -90;  residueAngles.aa5.psi = 0;
-  residueAngles.aa6.phi = -150; residueAngles.aa6.psi = 100;
+  residueAngles.aa6.phi = -159; residueAngles.aa6.psi = 92;
+  residueAngles.aa7.phi = -95;  residueAngles.aa7.psi = 81;
+  residueAngles.aa8.phi = -122; residueAngles.aa8.psi = 110;
+  residueAngles.aa9.phi = phi;  residueAngles.aa9.psi = psi;   // no H-bond partner
   renderPlot(); updateUI(); renderDipeptide();
 }
 

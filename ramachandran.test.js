@@ -510,9 +510,11 @@ test('α-helix H-bonds are drawn only as the residues they join are shown', () =
 
 // ── β-turn presets ─────────────────────────────────────────────
 const TURNS = [
-  { fn: 'setBetaTurnTypeI', mode: 'typeI', button: 'bturn-type1', flank: [-120, 130], aa3: [-145, 160], aa4: [-60, -30], aa5: [-90, 0], aa6: [-150, 100],
-    hbonds: 'HN3-O6,O3-HN6', arcs: ['ϕ=-90°', 'ψ=0°'] },
+  { fn: 'setBetaTurnTypeI', mode: 'typeI', button: 'bturn-type1', flank: [-114, 102], aa3: [-153, 155], aa4: [-60, -30], aa5: [-90, 0], aa6: [-159, 92],
+    aa1: [-128, 131], aa2: [-112, 85], aa7: [-95, 81], aa8: [-122, 110], levels: ['favored', 'allowed'],
+    hbonds: 'HN1-O8,HN3-O6,O1-HN8,O3-HN6', arcs: ['ϕ=-90°', 'ψ=0°'] },
   { fn: 'setBetaTurnTypeII', mode: 'typeII', button: 'bturn-type2', flank: [-95, 100], aa3: [-130, 155], aa4: [-60, 120], aa5: [80, 0], aa6: [-140, 95],
+    aa1: [-95, 100], aa2: [-95, 100], aa7: [-95, 100], aa8: [-95, 100], levels: ['favored'],
     hbonds: 'HN1-O8,HN3-O6,O1-HN8,O3-HN6', arcs: ['ϕ=80°', 'ψ=0°'] },
 ];
 
@@ -523,6 +525,9 @@ for (const t of TURNS) {
     assert.equal(page.run('betaTurnMode'), t.mode);
     assert.deepEqual([page.run('residueAngles.aa4.phi'), page.run('residueAngles.aa4.psi')], t.aa4);
     assert.deepEqual([page.run('residueAngles.aa5.phi'), page.run('residueAngles.aa5.psi')], t.aa5);
+    for (const key of ['aa1', 'aa2', 'aa7', 'aa8']) {
+      assert.deepEqual([page.run(`residueAngles.${key}.phi`), page.run(`residueAngles.${key}.psi`)], t[key], key);
+    }
     assert.ok(page.el(t.button).textContent.startsWith('Remove'));
     for (const f of ['showNterm', 'showCterm', 'showExtra2', 'showExtra4']) assert.equal(page.run(f), true, f);
     assert.equal(drawnHBonds(page), t.hbonds);
@@ -567,14 +572,15 @@ for (const t of TURNS) {
     assertHBondDistances(page);
   });
 
-  test(`${t.fn} keeps residues in the favored regions it shows on the plot`, () => {
+  test(`${t.fn} keeps strand residues in the plot regions it allows`, () => {
     const page = loadPage();
     page.run(`${t.fn}()`);
     assert.deepEqual([page.run('phi'), page.run('psi')], t.flank);
-    for (const key of ['aa3', 'aa6']) {
-      assert.equal(page.run(`getRegion(residueAngles.${key}.phi, residueAngles.${key}.psi).level`), 'favored', key);
+    for (const key of ['aa1', 'aa2', 'aa3', 'aa6', 'aa7', 'aa8']) {
+      const level = page.run(`getRegion(residueAngles.${key}.phi, residueAngles.${key}.psi).level`);
+      assert.ok(t.levels.includes(level), `${key} is ${level}`);
     }
-    assert.equal(page.run('getRegion(phi, psi).level'), 'favored', 'flanks');
+    assert.ok(t.levels.includes(page.run('getRegion(phi, psi).level')), 'plot point');
   });
 
   test(`${t.fn} labels the arcs with the angles of aa5`, () => {
@@ -587,6 +593,37 @@ for (const t of TURNS) {
     assert.deepEqual(labels(page).filter(l => /^[ϕψ]=/.test(l)), t.arcs, 'still aa5 after moving the flanks');
   });
 }
+
+test('Type I makes all four sheet H-bonds with good geometry and no clashes', () => {
+  const page = loadPage();
+  page.run('setBetaTurnTypeI()');
+  const a = page.run('buildChain()');
+  for (const [h, n, o] of [['HN6', 'N6', 'O3'], ['HN3', 'N3', 'O6'], ['HN8', 'N8', 'O1'], ['HN1', 'N1', 'O8']]) {
+    const d = dist(a[h], a[o]);
+    assert.ok(d >= 1.8 && d <= 2.2, `${h}···${o} is ${d.toFixed(2)} Å`);
+    const nho = bondAngle(a[n], a[h], a[o]);
+    assert.ok(nho >= 150, `N–${h}···${o} is ${nho.toFixed(0)}°`);
+  }
+  const heavy = [];
+  for (let i = 1; i <= 9; i++) for (const k of ['N', 'Ca', 'C', 'O', 'Cb']) heavy.push([k + i, i]);
+  for (const [x, i] of heavy) {
+    for (const [y, j] of heavy) {
+      if (j - i < 2) continue;
+      const d = dist(a[x], a[y]);
+      assert.ok(d >= 2.8, `${x}–${y} clash at ${d.toFixed(2)} Å`);
+    }
+  }
+});
+
+test('moving a slider in Type I sets the strands to one angle and drops the outer bonds', () => {
+  const page = loadPage();
+  page.run('setBetaTurnTypeI()');
+  page.el('phi-slider').fire('input', { target: { value: '-110' } });
+  for (const key of ['aa1', 'aa2', 'aa7', 'aa8', 'aa9']) {
+    assert.deepEqual([page.run(`residueAngles.${key}.phi`), page.run(`residueAngles.${key}.psi`)], [-110, 102], key);
+  }
+  assert.equal(drawnHBonds(page), 'HN3-O6,O3-HN6');
+});
 
 test('switching directly between turn types replaces the preset', () => {
   const page = loadPage();
