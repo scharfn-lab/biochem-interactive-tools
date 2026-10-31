@@ -482,9 +482,17 @@ test('a question with no answer fields is never scored as perfect', () => {
   ask(page, 'A', 7);
   page.run(`toggleNameHide('c1'); toggleNameHide('c3'); toggleNameHide('name')`);
   assert.deepEqual(visibleFields(page), []);
+  assert.equal(page.el('btn-check').disabled, true);
+  assert.match(page.el('feedback').innerHTML, /Nothing to answer/);
   page.run('showAnswers()');
-  assert.equal(page.el('s-correct').textContent, 0);
+  assert.equal(page.run('score.total'), 0);
+  assert.equal(page.run('score.correct'), 0);
+  assert.equal(page.run('answered'), false);
   assert.doesNotMatch(page.el('feedback').innerHTML, /Perfect/);
+
+  page.run(`toggleNameHide('c1')`);
+  assert.equal(page.el('btn-check').disabled, false, 'restoring a field restores the question');
+  assert.equal(page.el('feedback').innerHTML, '');
 });
 
 // ── Display mode switching ─────────────────────────────────────
@@ -804,6 +812,25 @@ test('RDKit arriving in name mode does not replace the names with a stale struct
   page.run(`setDisplayMode('name')`);
   ask(page, 'A', 7);
   assert.match(boxHTML(page), /Alanine/);
+  page.loader.load();
+  assert.match(boxHTML(page), /Alanine/);
+  assert.equal(page.run('pendingSmiles'), null);
+});
+
+test('a structure toggled on in name mode before RDKit loads is drawn once it arrives', () => {
+  const page = loadPage({ rdkit: false });
+  page.run(`setDisplayMode('name')`);
+  ask(page, 'A', 7);
+  page.run('toggleNameStructure()');
+  page.loader.load();
+  assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[7]')));
+});
+
+test('a structure toggled back off in name mode before RDKit loads is not drawn', () => {
+  const page = loadPage({ rdkit: false });
+  page.run(`setDisplayMode('name')`);
+  ask(page, 'A', 7);
+  page.run('toggleNameStructure(); toggleNameStructure()');
   page.loader.load();
   assert.match(boxHTML(page), /Alanine/);
 });

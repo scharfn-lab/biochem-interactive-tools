@@ -683,18 +683,18 @@ const AA = [
     name: "Threonine", code1: "T", code3: "Thr", type: "polar",
     note: "β-Hydroxyl group; two chiral centers (2S,3R); phosphorylation site.",
     smiles: {
-      2:  "[NH3+][C@@H]([C@@H](O)C)C(=O)O",
-      7:  "[NH3+][C@@H]([C@@H](O)C)C(=O)[O-]",
-      13: "N[C@@H]([C@@H](O)C)C(=O)[O-]"
+      2:  "[NH3+][C@@H]([C@H](O)C)C(=O)O",
+      7:  "[NH3+][C@@H]([C@H](O)C)C(=O)[O-]",
+      13: "N[C@@H]([C@H](O)C)C(=O)[O-]"
     }
   },
   {
     name: "Cysteine", code1: "C", code3: "Cys", type: "polar",
     note: "Thiol side chain, R config at α-C (thiol raises CIP priority above carboxyl); pKa ~8.3; forms disulfide bonds.",
     smiles: {
-      2:  "[NH3+][C@H](CS)C(=O)O",
-      7:  "[NH3+][C@H](CS)C(=O)[O-]",
-      13: "N[C@H](C[S-])C(=O)[O-]"
+      2:  "[NH3+][C@@H](CS)C(=O)O",
+      7:  "[NH3+][C@@H](CS)C(=O)[O-]",
+      13: "N[C@@H](C[S-])C(=O)[O-]"
     }
   },
   {
@@ -966,10 +966,10 @@ window.initRDKitModule({
   if (msg) msg.style.display = 'none';
   if (displayMode === 'identify') {
     renderIdentifyQuestion();
-  } else if (pendingSmiles !== null) {
+  } else if (pendingSmiles !== null && (displayMode === 'structure' || nameShowingStructure)) {
     drawStructure(pendingSmiles);
-    pendingSmiles = null;
   }
+  pendingSmiles = null;
 }).catch(() => {
   document.getElementById('struct-box').innerHTML =
     '<div class="struct-msg">Structure renderer failed to load.</div>';
@@ -1217,8 +1217,13 @@ function renderQuestion() {
   fb.className = 'feedback';
   fb.innerHTML = '';
 
-  // Re-enable check button
-  document.getElementById('btn-check').disabled = false;
+  // Re-enable check button, unless the hide toggles left nothing to answer
+  document.getElementById('btn-check').disabled = activeFields.length === 0;
+  if (activeFields.length === 0) {
+    fb.className = 'feedback show partial';
+    fb.innerHTML = `<div class="fb-title">Nothing to answer</div>
+      <div class="fb-answers">All answer fields are hidden. Turn off a Hide button or add another question type.</div>`;
+  }
 
   if (activeFields.length > 0)
     document.getElementById('inp-' + activeFields[0]).focus();
@@ -1334,6 +1339,7 @@ function showAnswers() {
   }
 
   const activeFields = getActiveFields();
+  if (activeFields.length === 0) return;
   const { aa } = current;
   const correctMap = {
     c1: aa.code1, c3: aa.code3, name: aa.name,
