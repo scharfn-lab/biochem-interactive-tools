@@ -79,7 +79,8 @@ function fakeRDKit(log) {
   };
 }
 
-function loadPage({ rdkit = true } = {}) {
+// Most tests begin from the structure section; asOpened keeps the page's real starting section
+function loadPage({ rdkit = true, asOpened = false } = {}) {
   const roots = [...MARKUP.matchAll(/<(\w+)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*\/?>/g)].map(m => {
     const attrs = Object.fromEntries([...m[2].matchAll(/([\w-]+)="([^"]*)"/g)].map(a => [a[1], a[2]]));
     return makeElement(m[1], attrs);
@@ -101,6 +102,7 @@ function loadPage({ rdkit = true } = {}) {
   const context = vm.createContext({ document, window });
   vm.runInContext(SCRIPT, context);
   document.fire('DOMContentLoaded');
+  if (!asOpened) vm.runInContext(`setDisplayMode('structure')`, context);
   if (rdkit === true) loader.load();
 
   const run = code => vm.runInContext(code, context);
@@ -138,7 +140,26 @@ const startIdentify = (page, code = 'A', ph = 7) => {
 };
 
 // ── Page wiring ────────────────────────────────────────────────
-test('loads in structure mode with a question ready and one name field shown', () => {
+test('the page opens on Determine Structure with Randomly select', () => {
+  const page = loadPage({ asOpened: true });
+  assert.equal(page.run('displayMode'), 'identify');
+  assert.deepEqual(page.qa('.mode-btn').filter(b => b.classList.contains('active')).map(b => b.id), ['mode-btn-identify']);
+  assert.match(MARKUP, /class="mode-btn active" id="mode-btn-identify"\s+aria-pressed="true"/);
+  assert.deepEqual(page.qa('[data-style]').filter(b => b.classList.contains('active')).map(b => b.dataset.style), ['random']);
+  assert.equal(page.el('identify-panel').style.display, '');
+  assert.equal(page.el('identify-name-toggles').style.display, '');
+  assert.equal(page.q('.main-grid').style.display, 'none');
+  assert.equal(page.el('qtype-bar').style.display, 'none');
+  assert.equal(page.el('name-toggles').style.display, 'none');
+
+  assert.ok(page.run('current'), 'a question is ready');
+  assert.equal(page.qa('.identify-cell').length, 8);
+  assert.ok(page.qa('.identify-cell').every(c => c.children[0].innerHTML.includes('<svg')));
+  assert.match(page.el('identify-ph-badge').textContent, /^pH (1|7|13)$/);
+  assert.notEqual(page.el('identify-aa-name').textContent, '');
+});
+
+test('the structure section starts with a question ready and one name field shown', () => {
   const page = loadPage();
   assert.equal(page.run('displayMode'), 'structure');
   assert.ok(page.run('current'), 'first question was generated');
@@ -1381,7 +1402,7 @@ test('the name type row sits below the question types and needs "Determine name"
   assert.ok(MARKUP.indexOf('id="qtype-bar"') < MARKUP.indexOf('id="name-toggles"'));
   const page = loadPage();
   const row = page.el('name-toggles');
-  assert.equal(row.style.display, undefined, 'on by default with Determine name');
+  assert.equal(row.style.display, '', 'on by default with Determine name');
 
   page.run(`toggleQuestionType('ph'); toggleQuestionType('name')`);
   assert.equal(row.style.display, 'none');

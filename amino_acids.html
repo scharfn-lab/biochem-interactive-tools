@@ -523,8 +523,8 @@
 
   <!-- Display mode toggle -->
   <div class="mode-toggle-row" role="group" aria-label="Display mode">
-    <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Structure <span class="mode-sub">(From Name + pH)</span></button>
-    <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Determine Properties <span class="mode-sub">(From Structure)</span></button>
+    <button class="mode-btn active" id="mode-btn-identify"  aria-pressed="true"  onclick="setDisplayMode('identify')">Determine Structure <span class="mode-sub">(From Name + pH)</span></button>
+    <button class="mode-btn"        id="mode-btn-structure" aria-pressed="false" onclick="setDisplayMode('structure')">Determine Properties <span class="mode-sub">(From Structure)</span></button>
     <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Determine Property <span class="mode-sub">(From Name or Structure)</span></button>
     <button class="mode-btn"        id="mode-btn-interact"  aria-pressed="false" onclick="setDisplayMode('interact')">Determine Interactions <span class="mode-sub">(Between Two Amino Acids)</span></button>
   </div>
@@ -996,7 +996,7 @@ let answered     = false;      // true only when ALL active fields are correct
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 let breakdown    = {};         // per response type: { correct, incorrect }
 let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
-let displayMode    = 'structure';       // 'structure' | 'name' | 'identify'
+let displayMode    = 'identify';        // 'structure' | 'name' | 'identify' | 'interact'
 let structureNameType  = 'random'; // structure mode: name asked for, 'random' | 'c1' | 'c3' | 'name'
 let nameModeNameType   = 'random'; // name mode: name shown, same choices
 let identifyNameStyle  = 'random'; // identify mode: how the amino acid is named, same choices
@@ -2135,7 +2135,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('inp-ph').addEventListener('change', () => gradeField('ph'));
 
-  nextQuestion();  // starts in 'name' mode, which shows c1/c3/name
+  setDisplayMode('identify');  // the starting page
+  nextQuestion();
 });
 </script>
 </body>
