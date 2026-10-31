@@ -392,9 +392,9 @@
     <button id="plane-toggle" onclick="togglePlanes()">Show Peptide Planes</button>
     <button id="cterm-toggle" onclick="toggleCterm()">Add C-terminal AA</button>
   </div>
-  <div id="extra-row" style="display:none; text-align:center; margin-top:4px;">
+  <div id="extra-row" style="text-align:center; margin-top:4px;">
     <button id="extra2-toggle" onclick="toggleExtra2()">Add 2 Additional AAs</button>
-    <button id="show-one" onclick="showOneAminoAcid()">Show 1 Amino Acid</button>
+    <button id="reset-one" onclick="resetToOneAA()">Reset to 1 AA</button>
     <button id="extra4-toggle" onclick="toggleExtra4()">Add 4 Additional AAs</button>
   </div>
   <div id="dipeptide-wrapper">
@@ -1466,8 +1466,6 @@ function toggleCterm() {
 }
 
 function syncExtraRow() {
-  document.getElementById('extra-row').style.display =
-    (showNterm || showCterm) ? 'block' : 'none';
   if ((!showNterm || !showCterm) && (showExtra2 || showExtra4)) {
     showExtra2 = false; showExtra4 = false; updateExtraBtn();
   }
@@ -1499,7 +1497,7 @@ function toggleExtra4() {
 }
 
 // Back to the page's initial state: one residue, default conformation, view, zoom and pan
-function showOneAminoAcid() {
+function resetToOneAA() {
   if (showNterm) toggleNterm();
   if (showCterm) toggleCterm();
   betaTurnMode = null;

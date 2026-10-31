@@ -469,16 +469,12 @@ test('extension toggles cascade and keep button labels in sync', () => {
   page.run('toggleExtra4()');
   assert.deepEqual(flags(), [true, true, true, true], 'adding 4 turns on everything it needs');
   assert.equal(page.el('extra4-toggle').textContent, 'Remove 4 Additional AAs');
-  assert.equal(page.el('extra-row').style.display, 'block');
 
   page.run('toggleNterm()');
   assert.deepEqual(flags(), [false, true, false, false], 'removing a flank drops the extensions');
   assert.equal(page.el('extra2-toggle').textContent, 'Add 2 Additional AAs');
   assert.equal(page.el('extra4-toggle').textContent, 'Add 4 Additional AAs');
   assert.equal(page.el('nterm-toggle').textContent, 'Add N-terminal AA');
-
-  page.run('toggleCterm()');
-  assert.equal(page.el('extra-row').style.display, 'none');
 });
 
 test('toggling any pair of options renders in every conformation', () => {
@@ -720,13 +716,15 @@ test('the default view is a proper rotation', () => {
   assertClose(dot(cross(m[0], m[1]), m[2]), 1, 1e-9, 'determinant');
 });
 
-test('the Show 1 button sits between the Add 2 and Add 4 buttons', () => {
+test('the Reset button is always visible, between the Add 2 and Add 4 buttons', () => {
   const row = HTML.match(/<div id="extra-row"[\s\S]*?<\/div>/)[0];
-  assert.deepEqual([...row.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]), ['extra2-toggle', 'show-one', 'extra4-toggle']);
-  assert.match(row, />Show 1 Amino Acid</);
+  assert.deepEqual([...row.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]), ['extra2-toggle', 'reset-one', 'extra4-toggle']);
+  assert.match(row, />Reset to 1 AA</);
+  assert.doesNotMatch(row.match(/<div[^>]*>/)[0], /display:\s*none/, 'row is not hidden in the markup');
+  assert.doesNotMatch(SCRIPT, /extra-row/, 'the script never hides the row');
 });
 
-test('Show 1 Amino Acid restores the page from any state', () => {
+test('Reset to 1 AA restores the page from any state', () => {
   const setups = [
     'toggleNterm()',
     'toggleExtra4(); setAngles(-60, -45)',
@@ -738,7 +736,7 @@ test('Show 1 Amino Acid restores the page from any state', () => {
     const page = loadPage();
     const initial = projected(page);
     page.run(setup);
-    page.run('showOneAminoAcid()');
+    page.run('resetToOneAA()');
 
     for (const f of ['showNterm', 'showCterm', 'showExtra2', 'showExtra4']) assert.equal(page.run(f), false, `${setup}: ${f}`);
     assert.equal(page.run('betaTurnMode'), null, setup);
@@ -755,7 +753,6 @@ test('Show 1 Amino Acid restores the page from any state', () => {
       assert.ok(!page.el(id).textContent.startsWith('Remove'), `${setup}: #${id} says "${page.el(id).textContent}"`);
       assert.ok(!page.el(id).classList.contains('active'), `${setup}: #${id} is active`);
     }
-    assert.equal(page.el('extra-row').style.display, 'none', setup);
     assert.equal(page.el('phi-display').textContent, '-120°', setup);
 
     const now = projected(page);
