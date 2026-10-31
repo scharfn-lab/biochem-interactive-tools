@@ -56,7 +56,7 @@
       flex-direction: column;
       gap: 18px;
       width: 100%;
-      max-width: 1000px;
+      max-width: 700px;
     }
 
     canvas { display: block; }
@@ -98,27 +98,60 @@
       box-shadow: 0 3px 12px rgba(0,0,0,0.15);
     }
 
-    /* Controls left, enzyme model in the middle, plots right, answers along the bottom */
+    /* Enzyme model and reaction scheme on top; stretch keeps the two boxes the same height */
+    #top-row {
+      display: flex;
+      gap: 14px;
+      align-items: stretch;
+    }
+    #model-box { flex: 1 1 298px; min-width: 0; }
+    #scheme-box { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; }
+
+    /* Controls left, plots right, answers along the bottom */
     #workspace {
       display: grid;
-      grid-template-columns: 320px minmax(0, 1fr) 228px;
+      grid-template-columns: 320px minmax(0, 1fr);
       grid-template-areas:
-        "side  model plots"
-        "entry entry entry";
+        "side  plots"
+        "entry entry";
       gap: 20px;
       align-items: start;
     }
+    #workspace.no-plots {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "side" "entry";
+    }
 
-    #sidebar, #model-column, #plot-column {
+    #sidebar, #plot-column {
       display: flex;
       flex-direction: column;
       gap: 14px;
       min-width: 0;
     }
     #sidebar { grid-area: side; }
-    #model-column { grid-area: model; }
     #plot-column { grid-area: plots; }
     #entry-box { grid-area: entry; }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .panel-header .panel-section-title { margin-bottom: 0; }
+    .panel-header button { padding: 2px 10px; font-size: 0.78em; flex-shrink: 0; }
+
+    #hidden-panels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85em;
+      color: var(--text-secondary);
+    }
+    #hidden-panels button { padding: 3px 12px; }
 
     .box { padding: 16px; }
     .box-subsection { margin-top: 16px; }
@@ -229,6 +262,7 @@
     .legend-item svg { flex-shrink: 0; }
 
     .canvas-wrap { width: 100%; max-width: 200px; margin: 0 auto; }
+    #plot-column.large-plots .canvas-wrap { max-width: 300px; }
 
     .plot-canvas {
       width: 100%;
@@ -240,6 +274,8 @@
     }
 
     #enzyme-model svg, #reaction-scheme svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+    #enzyme-model svg { max-width: 266px; }
+    #reaction-scheme { flex: 1; display: flex; align-items: center; }
     #reaction-scheme svg { max-width: 340px; }
 
     .entry-tools { margin-top: 10px; }
@@ -279,19 +315,12 @@
     .entry-cell.wrong { outline: 2px solid var(--ut-crimson); outline-offset: -2px; }
     .entry-cell.wrong .mark { color: var(--ut-crimson); }
 
-    @media (max-width: 1040px) {
-      #workspace {
-        grid-template-columns: 320px minmax(0, 1fr);
-        grid-template-areas:
-          "side  plots"
-          "model model"
-          "entry entry";
-      }
-    }
     @media (max-width: 640px) {
+      #top-row { flex-direction: column; }
+      #model-box, #scheme-box { flex: none; }
       #workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "side" "model" "plots" "entry";
+        grid-template-areas: "side" "plots" "entry";
       }
     }
     @media (max-width: 480px) {
@@ -315,7 +344,35 @@
       <button type="button" id="tab-kinetics">Kinetics</button>
       <button type="button" id="tab-inhibition">Inhibition</button>
     </div>
+    <button type="button" id="plot-size" aria-pressed="false">Larger plots</button>
     <button type="button" id="reset">Reset to defaults</button>
+  </div>
+
+  <div id="hidden-panels" hidden>
+    <span>Hidden:</span>
+    <button type="button" data-show="model" hidden>Show enzyme model</button>
+    <button type="button" data-show="scheme" hidden>Show reaction scheme</button>
+    <button type="button" data-show="mm" hidden>Show M-M plot</button>
+    <button type="button" data-show="lb" hidden>Show L-B plot</button>
+  </div>
+
+  <!-- Enzyme model and reaction scheme -->
+  <div id="top-row">
+    <section class="panel box" id="model-box" data-panel="model" aria-labelledby="model-title">
+      <div class="panel-header">
+        <h2 class="panel-section-title" id="model-title">Enzyme model</h2>
+        <button type="button" data-hide="model" aria-label="Hide enzyme model">Hide</button>
+      </div>
+      <div id="enzyme-model"></div>
+      <p class="note" id="model-caption"></p>
+    </section>
+    <section class="panel box" id="scheme-box" data-panel="scheme" aria-labelledby="scheme-title">
+      <div class="panel-header">
+        <h2 class="panel-section-title" id="scheme-title">Reaction scheme</h2>
+        <button type="button" data-hide="scheme" aria-label="Hide reaction scheme">Hide</button>
+      </div>
+      <div id="reaction-scheme"></div>
+    </section>
   </div>
 
   <div id="workspace">
@@ -410,28 +467,21 @@
       <div id="errors" role="alert" hidden></div>
     </div>
 
-    <!-- Enzyme model and reaction scheme -->
-    <div id="model-column">
-      <section class="panel box" aria-labelledby="model-title">
-        <h2 class="panel-section-title" id="model-title">Enzyme model</h2>
-        <div id="enzyme-model"></div>
-        <p class="note" id="model-caption"></p>
-      </section>
-      <section class="panel box" aria-labelledby="scheme-title">
-        <h2 class="panel-section-title" id="scheme-title">Reaction scheme</h2>
-        <div id="reaction-scheme"></div>
-      </section>
-    </div>
-
     <!-- Plots -->
     <div id="plot-column">
-      <section class="panel plot-card" aria-labelledby="mm-title">
-        <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
+      <section class="panel plot-card" data-panel="mm" aria-labelledby="mm-title">
+        <div class="panel-header">
+          <h2 class="panel-section-title" id="mm-title">Michaelis–Menten plot</h2>
+          <button type="button" data-hide="mm" aria-label="Hide Michaelis–Menten plot">Hide</button>
+        </div>
         <div class="legend" id="mm-legend"></div>
         <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
       </section>
-      <section class="panel plot-card" aria-labelledby="lb-title">
-        <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
+      <section class="panel plot-card" data-panel="lb" aria-labelledby="lb-title">
+        <div class="panel-header">
+          <h2 class="panel-section-title" id="lb-title">Lineweaver–Burk plot</h2>
+          <button type="button" data-hide="lb" aria-label="Hide Lineweaver–Burk plot">Hide</button>
+        </div>
         <div class="legend" id="lb-legend"></div>
         <div class="canvas-wrap"><canvas class="plot-canvas" id="lb-canvas" role="img"></canvas></div>
       </section>
@@ -479,6 +529,12 @@ const state = {
 };
 
 const entry = { revealed: false };
+
+// Page layout choices. "Reset to defaults" leaves these alone, as it does the open tab.
+const view = {
+  largePlots: false,
+  hidden: { model: false, scheme: false, mm: false, lb: false },
+};
 
 
 // ═══ 2. KINETICS MATH AND FORMATTING (no DOM access) ═════════
@@ -1058,6 +1114,13 @@ function updateCanvasLabels() {
     `Lineweaver–Burk plot of 1/v₀ in ${u.time}/${u.conc} against 1/[S] in ${u.conc}⁻¹. Lines: ${equations}.`);
 }
 
+function refitPlots() {
+  for (const plot of Object.values(plots)) {
+    resizeCanvas(plot);
+    drawPlot(plot);
+  }
+}
+
 function schedulePlotDraw(plot) {
   if (plot.frame) return;
   plot.frame = requestAnimationFrame(() => {
@@ -1173,8 +1236,8 @@ function enzymeModelSVG(scene) {
   const parts = [
     `<path d="${BLOB_PATH}" fill="#FFCDFF" stroke="${COLORS.taupe}" stroke-width="2.5" stroke-linejoin="round"/>`,
     `<text x="165" y="172" text-anchor="middle" font-size="24" font-weight="700">E</text>`,
-    `<text x="178" y="62" font-size="13">Active site</text>`,
-    `<text x="292" y="128" font-size="13">Allosteric site</text>`,
+    `<text x="178" y="60" font-size="17">Active site</text>`,
+    `<text x="294" y="112" font-size="17">Allosteric <tspan x="294" dy="18">site</tspan></text>`,
     scene.active === 'S' ? roundLigand(150, 82, 'S', COLORS.taupe) : roundLigand(150, 82, 'I', COLORS.crimson),
   ];
   if (scene.allosteric) {
@@ -1183,7 +1246,7 @@ function enzymeModelSVG(scene) {
   }
   if (scene.blockedS) {
     parts.push(roundLigand(62, 40, 'S', COLORS.taupe),
-      `<text x="90" y="30" font-size="13">blocked</text>`);
+      `<text x="90" y="30" font-size="17">blocked</text>`);
   }
   return `<svg viewBox="0 0 380 232" role="img" aria-label="${scene.caption.replaceAll("'", '&#39;')}" font-family="${FONT.replaceAll("'", '')}">${parts.join('')}</svg>`;
 }
@@ -1197,8 +1260,10 @@ function schemeText(x, y, content, attrs = 'text-anchor="middle" font-size="16" 
   return `<text x="${x}" y="${y}" ${attrs}>${content}</text>`;
 }
 
-function kLabel(x, y, sub, suffix = '') {
-  return `<text x="${x}" y="${y}" font-size="13">K<tspan dy="3" font-size="10">${sub}</tspan><tspan dy="-3">${suffix}</tspan></text>`;
+function kLabel(x, y, prime = false, equalsKi = false) {
+  const ki = 'K<tspan dy="3" font-size="10">i</tspan>';
+  const tail = equalsKi ? `<tspan dy="-3">' = K</tspan><tspan dy="3" font-size="10">i</tspan>` : prime ? `<tspan dy="-3">'</tspan>` : '';
+  return `<text x="${x}" y="${y}" font-size="13">${ki}${tail}</text>`;
 }
 
 // E + S ⇌ ES → E + P, with I binding beneath E, ES or both as the inhibition type requires.
@@ -1217,13 +1282,13 @@ function schemeSVG(kind) {
   let words = 'E + S in equilibrium with ES, then ES goes to E + P.';
 
   if (bindsE) {
-    labels.push(schemeText(eX, plusY, '+ I'), schemeText(eX, complexY, 'EI'), kLabel(eX + 12, 82, 'i'));
+    labels.push(schemeText(eX, plusY, '+ I'), schemeText(eX, complexY, 'EI'), kLabel(eX + 12, 82));
     arrows.push(equilibriumV(eX, arrowTop, arrowBottom));
     words += ' E + I in equilibrium with EI, with constant Ki.';
   }
   if (bindsES) {
     const equal = kind === 'noncompetitive';
-    labels.push(schemeText(esX, plusY, '+ I'), schemeText(esX, complexY, 'ESI'), kLabel(esX + 12, 82, 'i', equal ? "' = Ki" : "'"));
+    labels.push(schemeText(esX, plusY, '+ I'), schemeText(esX, complexY, 'ESI'), kLabel(esX + 12, 82, true, equal));
     arrows.push(equilibriumV(esX, arrowTop, arrowBottom));
     words += ` ES + I in equilibrium with ESI, with constant Ki'${equal ? ' equal to Ki' : ''}.`;
   }
@@ -1382,6 +1447,43 @@ $('reset').addEventListener('click', () => {
   commit();
   renderEntryTable();   // clears typed answers even if no value changed
 });
+
+function syncView() {
+  const { hidden, largePlots } = view;
+  for (const [name, isHidden] of Object.entries(hidden)) {
+    document.querySelector(`[data-panel="${name}"]`).hidden = isHidden;
+    document.querySelector(`[data-show="${name}"]`).hidden = !isHidden;
+  }
+  const noPlots = hidden.mm && hidden.lb;
+  $('hidden-panels').hidden = !Object.values(hidden).some(Boolean);
+  $('top-row').hidden = hidden.model && hidden.scheme;
+  $('plot-column').hidden = noPlots;
+  $('workspace').classList.toggle('no-plots', noPlots);
+  $('plot-column').classList.toggle('large-plots', largePlots);
+  $('plot-size').disabled = noPlots;
+  $('plot-size').classList.toggle('active', largePlots);
+  $('plot-size').setAttribute('aria-pressed', String(largePlots));
+  plots.mm.hover = hidden.mm ? null : plots.mm.hover;
+  plots.lb.hover = hidden.lb ? null : plots.lb.hover;
+  refitPlots();
+}
+
+$('plot-size').addEventListener('click', () => {
+  view.largePlots = !view.largePlots;
+  syncView();
+});
+
+// The clicked button disappears, so focus moves to the one that undoes it.
+document.querySelectorAll('[data-hide]').forEach(button => button.addEventListener('click', () => {
+  view.hidden[button.dataset.hide] = true;
+  syncView();
+  document.querySelector(`[data-show="${button.dataset.hide}"]`).focus();
+}));
+document.querySelectorAll('[data-show]').forEach(button => button.addEventListener('click', () => {
+  view.hidden[button.dataset.show] = false;
+  syncView();
+  document.querySelector(`[data-hide="${button.dataset.show}"]`).focus();
+}));
 
 $('entry-check').addEventListener('click', checkEntries);
 $('entry-reveal').addEventListener('click', () => {
