@@ -90,7 +90,7 @@ function loadPage({ rdkit = true } = {}) {
 
   const log = { deleted: 0, failHighlights: false };
   const loader = {};
-  const window = {
+  const window = rdkit === 'missing' ? {} : {
     initRDKitModule: () => ({
       then(onLoad) { loader.load = () => onLoad(fakeRDKit(log)); return { catch(onFail) { loader.fail = onFail; } }; },
     }),
@@ -98,7 +98,7 @@ function loadPage({ rdkit = true } = {}) {
   const context = vm.createContext({ document, window });
   vm.runInContext(SCRIPT, context);
   document.fire('DOMContentLoaded');
-  if (rdkit) loader.load();
+  if (rdkit === true) loader.load();
 
   const run = code => vm.runInContext(code, context);
   return {
@@ -1019,6 +1019,75 @@ test('a failed RDKit load says so', () => {
   const page = loadPage({ rdkit: false });
   page.loader.fail();
   assert.match(boxHTML(page), /failed to load/);
+  assert.equal(page.el('struct-box').getAttribute('role'), null, 'the message stays readable');
+});
+
+test('the failure message stays through later questions instead of going back to Loading', () => {
+  const page = loadPage({ rdkit: false });
+  page.loader.fail();
+  page.run('nextQuestion()');
+  assert.match(boxHTML(page), /failed to load/);
+  assert.doesNotMatch(boxHTML(page), /Loading/);
+  page.run(`setDisplayMode('name'); setDisplayMode('structure')`);
+  assert.match(boxHTML(page), /failed to load/);
+});
+
+test('a failed load leaves name mode usable', () => {
+  const page = loadPage({ rdkit: false });
+  page.run(`setDisplayMode('name')`);
+  ask(page, 'A', 7);
+  answer(page, 'type', 'polar');
+  page.loader.fail();
+  assert.match(boxHTML(page), /Alanine/, 'the names are not replaced');
+  assert.equal(page.el('inp-type').className, 'field-input bad', 'work in progress is kept');
+
+  page.run('toggleNameStructure()');
+  assert.match(boxHTML(page), /failed to load/);
+  page.run('setNameStructPH(13)');
+  assert.match(boxHTML(page), /failed to load/);
+  page.run('toggleNameStructure()');
+  assert.match(boxHTML(page), /Alanine/);
+});
+
+test('a failed load in identify mode explains itself and scores nothing', () => {
+  const page = loadPage({ rdkit: false });
+  startIdentify(page);
+  assert.ok(cells(page).every(c => /Loading/.test(cellHTML(c))));
+  page.loader.fail();
+  const unavailable = () => {
+    assert.ok(cells(page).every(c => /Unavailable/.test(cellHTML(c)) && c.disabled));
+    assert.equal(page.el('identify-btn-show').disabled, true);
+    assert.match(page.el('feedback').innerHTML, /failed to load/);
+  };
+  unavailable();
+  page.run('nextQuestion()');
+  unavailable();
+  page.run(`setDisplayMode('structure'); setDisplayMode('identify')`);
+  unavailable();
+  assert.equal(page.run('score.total'), 0);
+});
+
+test('a failed load does not disturb an identify question already finished', () => {
+  const page = loadPage({ rdkit: false });
+  startIdentify(page);
+  page.run('showAnswers()');
+  const finished = page.el('feedback').innerHTML;
+  page.loader.fail();
+  assert.equal(page.el('feedback').innerHTML, finished);
+  assert.equal(page.el('s-total').textContent, 1);
+});
+
+test('the page still works when the RDKit script itself never loaded', async () => {
+  const page = loadPage({ rdkit: 'missing' });
+  assert.ok(page.run('current'), 'the first question was generated');
+  await new Promise(setImmediate);
+  assert.match(boxHTML(page), /failed to load/);
+
+  page.run(`setDisplayMode('name')`);
+  ask(page, 'A', 7);
+  assert.match(boxHTML(page), /Alanine/);
+  answer(page, 'type', 'nonpolar');
+  assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%']);
 });
 
 test('RDKit is pinned to one exact version for both the script and its wasm', () => {

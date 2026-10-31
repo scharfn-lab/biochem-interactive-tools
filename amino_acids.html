@@ -984,11 +984,18 @@ function getMaxPts() {
 
 // ─── RDKit ────────────────────────────────────────────────────────────────────
 let rdkitReady   = false;
+let rdkitFailed  = false;
 let pendingSmiles = null;
 
-window.initRDKitModule({
-  locateFile: f => `https://unpkg.com/@rdkit/rdkit@2026.9.1/dist/${f}`
-}).then(RDKit => {
+const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Show Amino Acid Names.';
+
+// The global is missing when the CDN script itself could not be fetched
+(window.initRDKitModule
+  ? window.initRDKitModule({
+      locateFile: f => `https://unpkg.com/@rdkit/rdkit@2026.9.1/dist/${f}`
+    })
+  : Promise.reject(new Error('RDKit script did not load'))
+).then(RDKit => {
   window.RDKit = RDKit;
   rdkitReady = true;
   const msg = document.getElementById('struct-msg');
@@ -1000,13 +1007,25 @@ window.initRDKitModule({
   }
   pendingSmiles = null;
 }).catch(() => {
-  document.getElementById('struct-box').innerHTML =
-    '<div class="struct-msg">Structure renderer failed to load.</div>';
+  rdkitFailed = true;
+  pendingSmiles = null;
+  if (displayMode === 'identify') {
+    if (current) {
+      redrawIdentifyCells();
+      showIdentifyUnavailable();
+    }
+  } else if (displayMode === 'structure' || nameShowingStructure) {
+    drawStructure('');
+  }
 });
 
 // Returns true when a structure was actually drawn. Messages are spans so they
 // are valid inside the identify-mode cell buttons.
 function drawStructureInto(smiles, container, w, h) {
+  if (rdkitFailed) {
+    container.innerHTML = '<span class="struct-msg" style="font-size:0.75rem">Unavailable</span>';
+    return false;
+  }
   if (!rdkitReady) {
     container.innerHTML = '<span class="struct-msg" style="font-size:0.75rem">Loading…</span>';
     return false;
@@ -1049,6 +1068,11 @@ function labelStructBox(isDrawing) {
 
 function drawStructure(smiles) {
   const box = document.getElementById('struct-box');
+  if (rdkitFailed) {
+    box.innerHTML = `<div class="struct-msg">${RDKIT_FAILED_MSG}</div>`;
+    labelStructBox(false);
+    return;
+  }
   if (!rdkitReady) {
     pendingSmiles = smiles;
     box.innerHTML = '<div class="struct-msg">Loading structure renderer…</div>';
@@ -1154,6 +1178,19 @@ function renderIdentifyQuestion() {
     drawStructureInto(opt.aa.smiles[opt.ph], struct, 160, 130);
     grid.appendChild(cell);
   });
+
+  if (rdkitFailed) showIdentifyUnavailable();
+}
+
+// Without drawings there is nothing to choose between, so no pick can be scored
+function showIdentifyUnavailable() {
+  if (answered) return;
+  document.querySelectorAll('.identify-cell').forEach(c => { c.disabled = true; });
+  document.getElementById('identify-btn-show').disabled = true;
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show wrong';
+  fb.innerHTML = `<div class="fb-title">Structures unavailable</div>
+    <div class="fb-answers">${RDKIT_FAILED_MSG}</div>`;
 }
 
 // Fills in the existing cells once RDKit arrives, keeping the options and any picks
