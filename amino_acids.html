@@ -90,7 +90,7 @@
       font-weight: 600;
       border: 1px solid #8A8A8A;
       border-radius: 20px;
-      background: #D4D4D4;
+      background: #DEDEDE;
       color: #555555;
       cursor: pointer;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
@@ -276,7 +276,7 @@
       font-weight: 600;
       border: 1px solid #8A8A8A;
       border-radius: 20px;
-      background: #D4D4D4;
+      background: #DEDEDE;
       color: #555555;
       cursor: pointer;
       transition: all 0.15s;
@@ -284,21 +284,21 @@
     .mode-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
     .mode-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
-    /* Name-mode hide toggles */
+    /* Name type toggles */
     .name-toggles { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-    .name-hide-btn {
+    .name-type-btn {
       padding: 5px 14px;
       font-size: 0.82rem;
       font-weight: 600;
       border: 1px solid #8A8A8A;
       border-radius: 20px;
-      background: #D4D4D4;
+      background: #DEDEDE;
       color: #555555;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
-    .name-hide-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
+    .name-type-btn:hover { border-color: #C8102E; color: #C8102E; background: #FFF8FF; }
+    .name-type-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
 
     /* Identify-mode panel */
     #identify-panel { margin-bottom: 18px; }
@@ -372,7 +372,7 @@
       padding: 4px 14px;
       border: 1.5px solid #8A8A8A;
       border-radius: 6px;
-      background: #D4D4D4;
+      background: #DEDEDE;
       font-size: 0.82rem;
       font-weight: 600;
       cursor: pointer;
@@ -423,13 +423,6 @@
       color: #000000;
       text-align: center;
     }
-    .name-display-codes {
-      font-size: 1.1rem;
-      color: #685C53;
-      font-weight: 600;
-      letter-spacing: 1px;
-    }
-    .code-sep { color: #BFBFBF; }
   </style>
 </head>
 <body>
@@ -460,17 +453,17 @@
   <!-- Display mode toggle -->
   <div class="mode-toggle-row" role="group" aria-label="Display mode">
     <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Determine Properties (From Structure)</button>
-    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Show Amino Acid Names</button>
+    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Determine Property (From Name)</button>
     <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Structure (From Name + pH)</button>
   </div>
 
   <!-- Identify-mode name style controls (only one can be selected) -->
   <div class="name-toggles" id="identify-name-toggles" style="display:none" role="group" aria-label="Show name as">
     <span class="qtype-label">Show name as:</span>
-    <button class="name-hide-btn active" data-style="random" aria-pressed="true"  onclick="setIdentifyNameStyle('random')">Randomly select</button>
-    <button class="name-hide-btn"        data-style="c1"     aria-pressed="false" onclick="setIdentifyNameStyle('c1')">1-letter</button>
-    <button class="name-hide-btn"        data-style="c3"     aria-pressed="false" onclick="setIdentifyNameStyle('c3')">3-letter</button>
-    <button class="name-hide-btn"        data-style="name"   aria-pressed="false" onclick="setIdentifyNameStyle('name')">Full name</button>
+    <button class="name-type-btn active" data-style="random" aria-pressed="true"  onclick="setIdentifyNameStyle('random')">Randomly select</button>
+    <button class="name-type-btn"        data-style="c1"     aria-pressed="false" onclick="setIdentifyNameStyle('c1')">1-letter</button>
+    <button class="name-type-btn"        data-style="c3"     aria-pressed="false" onclick="setIdentifyNameStyle('c3')">3-letter</button>
+    <button class="name-type-btn"        data-style="name"   aria-pressed="false" onclick="setIdentifyNameStyle('name')">Full name</button>
   </div>
 
   <!-- Question type selector -->
@@ -481,13 +474,13 @@
     <button class="qtype-btn"        data-type="properties" aria-pressed="false" onclick="toggleQuestionType('properties')">Determine properties</button>
   </div>
 
-  <!-- Hide toggles: one choice with "Determine name" in structure mode, any combination in name mode -->
-  <div class="name-toggles" id="name-toggles" role="group" aria-label="Hide from display">
-    <span class="qtype-label">Hide from display:</span>
-    <button class="name-hide-btn active" id="name-random-btn" aria-pressed="true" onclick="toggleNameRandom()">Randomly select</button>
-    <button class="name-hide-btn" data-field="c1"   aria-pressed="false" onclick="toggleNameHide('c1')">Hide 1-letter</button>
-    <button class="name-hide-btn" data-field="c3"   aria-pressed="false" onclick="toggleNameHide('c3')">Hide 3-letter</button>
-    <button class="name-hide-btn" data-field="name" aria-pressed="false" onclick="toggleNameHide('name')">Hide Full Name</button>
+  <!-- Name type (only one can be selected): the name asked for in structure mode, the name shown in name mode -->
+  <div class="name-toggles" id="name-toggles" role="group" aria-label="Name type">
+    <span class="qtype-label">Name Type:</span>
+    <button class="name-type-btn active" data-field="random" aria-pressed="true"  onclick="setNameType('random')">Randomly select</button>
+    <button class="name-type-btn"        data-field="c1"     aria-pressed="false" onclick="setNameType('c1')">1-letter</button>
+    <button class="name-type-btn"        data-field="c3"     aria-pressed="false" onclick="setNameType('c3')">3-letter</button>
+    <button class="name-type-btn"        data-field="name"   aria-pressed="false" onclick="setNameType('name')">Full name</button>
   </div>
 
   <!-- Main grid -->
@@ -800,10 +793,9 @@ let answered     = false;      // true only when ALL active fields are correct
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
 let displayMode    = 'structure';       // 'structure' | 'name' | 'identify'
-let nameHideFlags  = { c1: false, c3: false, name: false }; // name mode: fields hidden from the display
-let structureHide  = 'random';   // structure mode: name field left out, 'random' | 'c1' | 'c3' | 'name'
+let structureNameType  = 'random'; // structure mode: name asked for, 'random' | 'c1' | 'c3' | 'name'
+let nameModeNameType   = 'random'; // name mode: name shown, same choices
 let identifyNameStyle  = 'random'; // identify mode: how the amino acid is named, same choices
-let nameRandom         = false;  // randomly show one non-hidden name field in name mode
 let nameShowingStructure = false;  // true when name mode is showing structure view
 let nameStructPH         = 7;      // active pH in name-mode structure view
 let questionBag          = [];     // amino acids left in this round, so all 20 come up
@@ -830,25 +822,25 @@ function toggleQuestionType(type) {
   document.querySelectorAll('.qtype-btn').forEach(b => {
     setActive(b, activeQtypeSet.has(b.dataset.type));
   });
-  updateHideRow();
+  updateNameTypeRow();
   renderQuestion();
 }
 
-// The hide buttons only matter in structure mode while "Determine name" is on
-function updateHideRow() {
+// In structure mode the name type only matters while "Determine name" is on
+function updateNameTypeRow() {
   const visible = displayMode === 'name' ||
     (displayMode === 'structure' && activeQtypeSet.has('name'));
   document.getElementById('name-toggles').style.display = visible ? '' : 'none';
 }
 
-function syncHideButtons() {
-  const structureMode = displayMode === 'structure';
-  document.querySelectorAll('.name-hide-btn[data-field]').forEach(b => {
-    const field = b.dataset.field;
-    setActive(b, structureMode ? structureHide === field : nameHideFlags[field]);
+function selectedNameType() {
+  return displayMode === 'structure' ? structureNameType : nameModeNameType;
+}
+
+function syncNameTypeButtons() {
+  document.querySelectorAll('.name-type-btn[data-field]').forEach(b => {
+    setActive(b, b.dataset.field === selectedNameType());
   });
-  setActive(document.getElementById('name-random-btn'),
-    structureMode ? structureHide === 'random' : nameRandom);
 }
 
 function setDisplayMode(mode) {
@@ -891,8 +883,8 @@ function setDisplayMode(mode) {
     );
   }
 
-  updateHideRow();
-  syncHideButtons();
+  updateNameTypeRow();
+  syncNameTypeButtons();
 
   const nameMode = mode === 'name';
   document.getElementById('ph-badge').style.display             = nameMode ? 'none' : '';
@@ -910,10 +902,10 @@ function setDisplayMode(mode) {
   renderQuestion();
 }
 
-function toggleNameHide(fieldId) {
-  if (displayMode === 'structure') structureHide = fieldId;
-  else nameHideFlags[fieldId] = !nameHideFlags[fieldId];
-  syncHideButtons();
+function setNameType(type) {
+  if (displayMode === 'structure') structureNameType = type;
+  else nameModeNameType = type;
+  syncNameTypeButtons();
   renderQuestion();
 }
 
@@ -923,13 +915,6 @@ function setIdentifyNameStyle(style) {
     setActive(b, b.dataset.style === style)
   );
   if (current) document.getElementById('identify-aa-name').textContent = resolveIdentifyName(current.aa);
-}
-
-function toggleNameRandom() {
-  if (displayMode === 'structure') structureHide = 'random';
-  else nameRandom = !nameRandom;
-  syncHideButtons();
-  renderQuestion();
 }
 
 function toggleNameStructure() {
@@ -965,11 +950,11 @@ function resolveIdentifyName(aa) {
   return style === 'c1' ? aa.code1 : style === 'c3' ? aa.code3 : aa.name;
 }
 
-// A random choice is kept on the question so re-rendering it doesn't change the fields
-function structureHiddenField() {
-  if (structureHide !== 'random') return structureHide;
-  if (!current.randomHide) current.randomHide = randomNameField();
-  return current.randomHide;
+// A random choice is kept on the question so re-rendering it doesn't change the name
+function activeNameType() {
+  if (selectedNameType() !== 'random') return selectedNameType();
+  if (!current.randomNameType) current.randomNameType = randomNameField();
+  return current.randomNameType;
 }
 
 function getActiveFields() {
@@ -978,14 +963,12 @@ function getActiveFields() {
   if (displayMode === 'structure') {
     // Union of all active qtype fields
     activeQtypeSet.forEach(type => QTYPE[type].fields.forEach(f => fields.add(f)));
-    // The hide choice removes one name field from the answer area
-    fields.delete(structureHiddenField());
+    // "Determine name" asks only for the selected name type
+    QTYPE.name.fields.forEach(f => {
+      if (f !== activeNameType()) fields.delete(f);
+    });
   } else {
-    // Name mode: hidden name fields become answer fields
-    if (nameHideFlags.c1)   fields.add('c1');
-    if (nameHideFlags.c3)   fields.add('c3');
-    if (nameHideFlags.name) fields.add('name');
-    // Add non-name qtype fields
+    // Name mode shows the name, so only non-name qtype fields are asked
     activeQtypeSet.forEach(type => {
       if (type !== 'name') QTYPE[type].fields.forEach(f => fields.add(f));
     });
@@ -1003,7 +986,7 @@ let rdkitReady   = false;
 let rdkitFailed  = false;
 let pendingSmiles = null;
 
-const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Show Amino Acid Names.';
+const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Determine Property (From Name).';
 
 // The global is missing when the CDN script itself could not be fetched
 (window.initRDKitModule
@@ -1102,30 +1085,9 @@ function drawNameDisplay(aa) {
   const box = document.getElementById('struct-box');
   labelStructBox(false);
 
-  // Build eligible fields (those not hidden)
-  const eligible = [];
-  if (!nameHideFlags.c1)   eligible.push({ type: 'c1',   text: aa.code1, isCode: true });
-  if (!nameHideFlags.c3)   eligible.push({ type: 'c3',   text: aa.code3, isCode: true });
-  if (!nameHideFlags.name) eligible.push({ type: 'name', text: aa.name,  isCode: false });
-
-  if (eligible.length === 0) {
-    box.innerHTML = '<div class="name-display"><em class="struct-msg">All name fields hidden</em></div>';
-    return;
-  }
-
-  // If nameRandom, pick one; otherwise show all
-  const toShow = nameRandom
-    ? [eligible[Math.floor(Math.random() * eligible.length)]]
-    : eligible;
-
-  const nameField = toShow.find(f => !f.isCode);
-  const namePart = nameField
-    ? `<div class="name-display-main">${nameField.text}</div>` : '';
-  const codeItems = toShow.filter(f => f.isCode).map(f => `<span>${f.text}</span>`);
-  const codeRow = codeItems.length
-    ? `<div class="name-display-codes">${codeItems.join('<span class="code-sep"> · </span>')}</div>` : '';
-
-  box.innerHTML = `<div class="name-display">${namePart}${codeRow}</div>`;
+  const type = activeNameType();
+  const text = type === 'c1' ? aa.code1 : type === 'c3' ? aa.code3 : aa.name;
+  box.innerHTML = `<div class="name-display"><div class="name-display-main">${text}</div></div>`;
 }
 
 // ─── Identify mode helpers ────────────────────────────────────────────────────
@@ -1390,7 +1352,7 @@ function completeQuestion(pts) {
 
   const n     = maxPts;
   const cls   = pts === n ? 'all-correct' : pts >= 1 ? 'partial' : 'wrong';
-  const title = pts === n ? `Perfect! All ${n} correct.`
+  const title = pts === n ? (n === 1 ? 'Correct!' : `Perfect! All ${n} correct.`)
               : pts >= 1  ? `${pts}/${n} correct.`
               :              `0/${n} correct.`;
 
