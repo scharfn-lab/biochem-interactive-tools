@@ -67,13 +67,14 @@
     }
 
     /* ── Buttons ── */
-    #top-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, .entry-tools {
+    #action-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, .entry-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
     }
-    #top-buttons, #type-buttons, #difference-buttons, #rates-view-buttons { justify-content: center; }
+    #top-buttons { display: flex; flex-direction: column; gap: 8px; }
+    #action-buttons, #type-buttons, #difference-buttons, #rates-view-buttons { justify-content: center; }
     #top-buttons button { padding: 7px 15px; }
     #topic-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
@@ -359,7 +360,7 @@
 <body>
 
 <h1>Enzyme Kinetics</h1>
-<p class="subtitle">CHE 317 · Michaelis–Menten and Lineweaver–Burk plots</p>
+<p class="subtitle">Michaelis–Menten and Lineweaver–Burk plots</p>
 
 <main id="main-layout">
 
@@ -369,8 +370,10 @@
       <button type="button" id="tab-kinetics">Kinetics</button>
       <button type="button" id="tab-inhibition">Inhibition</button>
     </div>
-    <button type="button" id="random">Select Random Parameters</button>
-    <button type="button" id="reset">Reset to defaults</button>
+    <div id="action-buttons">
+      <button type="button" id="random">Select Random Parameters</button>
+      <button type="button" id="reset">Reset to defaults</button>
+    </div>
   </div>
 
   <!-- Enzyme model and reaction scheme -->
@@ -437,7 +440,7 @@
             <div class="field-row">
               <div class="field"><label for="Km">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km" step="any" min="0"></div>
               <div class="field"><label for="kcat">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat" step="any" min="0"></div>
-              <div class="field" id="Etot-field"><label for="Etot">E<sub>t</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
+              <div class="field" id="Etot-field"><label for="Etot">[E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot" step="any" min="0"></div>
             </div>
           </div>
           <div id="condition-b" role="group" aria-labelledby="condition-b-title">
@@ -445,7 +448,7 @@
             <div class="field-row">
               <div class="field"><label for="Km2">K<sub>m</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Km2" step="any" min="0"></div>
               <div class="field"><label for="kcat2">k<sub>cat</sub> (<span data-u="perTime">s⁻¹</span>)</label><input type="number" id="kcat2" step="any" min="0"></div>
-              <div class="field"><label for="Etot2">E<sub>t</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot2" step="any" min="0"></div>
+              <div class="field"><label for="Etot2">[E]<sub>total</sub> (<span data-u="conc">µM</span>)</label><input type="number" id="Etot2" step="any" min="0"></div>
             </div>
           </div>
         </div>
@@ -510,7 +513,7 @@
           <span class="control-label">Selected starting [S]</span>
           <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
           <p class="readout" id="demo-readout" aria-live="polite"></p>
-          <p class="note">One point on the Michaelis-Menten plot represents the initial rate (slope of product formation over time) at one [Substrate].</p>
+          <p class="note">One data point on the M-M plot represents the initial rate (slope of product formation over time, before the reaction slows down) at a specific [Substrate].</p>
         </div>
         <div id="collect-controls">
           <div id="run-row">
@@ -801,8 +804,8 @@ function ratesTimeEnd(k) {
 }
 
 const FIELD_NAMES = {
-  Km: 'Km', kcat: 'kcat', Etot: 'Et', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
-  Km2: 'Km in Conditions B', kcat2: 'kcat in Conditions B', Etot2: 'Et in Conditions B',
+  Km: 'Km', kcat: 'kcat', Etot: '[E]total', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
+  Km2: 'Km in Conditions B', kcat2: 'kcat in Conditions B', Etot2: '[E]total in Conditions B',
 };
 
 function parseField(text) {
@@ -856,7 +859,7 @@ const RANDOM_TYPES = ['competitive', 'uncompetitive', 'noncompetitive', 'mixed']
 const RANDOM_DIFFERENCES = [2, 2.5, 3, 4, 5];
 const MIN_CONC_NM = 1, MAX_CONC_NM = 9e8, MAX_ET_NM = 1e5, MAX_KI_NM = 5e7;
 
-// A full set of field values, rounded to 2 significant figures. Et stays well below Km, as the
+// A full set of field values, rounded to 2 significant figures. [E]total stays well below Km, as the
 // Michaelis-Menten model assumes. [I] is set from Ki and Ki' rather than drawn on its own, so
 // I/Ki and I/Ki' are both at least about 1.5 and any inhibition type shows clearly on the plots.
 function randomParameters(rand = Math.random, units = {}) {
@@ -1643,6 +1646,10 @@ function checkEntries() {
 // What each kind of inhibition looks like. The inhibitor's shape shows where it binds: a round
 // one fits the active site, as S does, and a square one fits the allosteric site.
 const SCENES = {
+  rates: {
+    active: 'S', allosteric: false, blockedS: false,
+    caption: 'The substrate (S) binds the active site.',
+  },
   none: {
     active: 'S', allosteric: false, blockedS: false,
     caption: 'The substrate (S) binds the active site. The allosteric site is empty.',
@@ -1745,7 +1752,7 @@ function schemeSVG(kind) {
 }
 
 function renderModel() {
-  const kind = state.mode === 'inhibition' ? state.type : 'none';
+  const kind = state.mode === 'inhibition' ? state.type : state.mode === 'rates' ? 'rates' : 'none';
   const scene = challenge.active ? 'hidden' : kind;
   if (scene === state.scene) return;
   state.scene = scene;
@@ -1789,7 +1796,7 @@ function setPressed(button, on) {
   button.setAttribute('aria-pressed', String(on));
 }
 
-// Et and the units sit in the horizontal box on Measuring Rates and in Enzyme parameters elsewhere.
+// [E]total and the units sit in the horizontal box on Measuring Rates and in Enzyme parameters elsewhere.
 function placeSharedFields(rates) {
   const place = (id, parent) => {
     if ($(id).parentElement !== parent) parent.appendChild($(id));

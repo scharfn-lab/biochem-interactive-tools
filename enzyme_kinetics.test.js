@@ -140,7 +140,7 @@ test('differingParameter names the one parameter that differs, or null', () => {
   assert.equal(differingParameter({ ...p, Km2: 20, kcat2: 200 }), null);
 });
 
-test('kcat/Km: hand calculation, and it follows kcat and Km but not Et', () => {
+test('kcat/Km: hand calculation, and it follows kcat and Km but not [E]total', () => {
   const ratio = raw => kineticsModel(raw).curves[1].k.kcatOverKm;
   assert.equal(kineticsModel({}).curves[0].k.kcatOverKm, 10);        // 100/10
   assert.equal(ratio({ kcat2: '200' }), 20);
@@ -175,7 +175,7 @@ test('Conditions B is validated only on the Kinetics tab', () => {
 test('error messages say which conditions a Kinetics field belongs to', () => {
   const message = raw => validate({ ...VALID, ...CONDITIONS, ...raw }).errors[0].message;
   assert.equal(message({ Km: '-1' }), 'Km in Conditions A must be a positive number.');
-  assert.equal(message({ Etot2: '-1' }), 'Et in Conditions B must be a positive number.');
+  assert.equal(message({ Etot2: '-1' }), '[E]total in Conditions B must be a positive number.');
   assert.equal(validate({ ...VALID, Km: '-1' }).errors[0].message, 'Km must be a positive number.');
 });
 
@@ -198,7 +198,7 @@ test('random values pass validation on both tabs', () => {
   });
 });
 
-test('random concentrations stay between nM and high mM, and Et stays well below Km', () => {
+test('random concentrations stay between nM and high mM, and [E]total stays well below Km', () => {
   eachRandomDraw(r => {
     const nM = NM_PER_UNIT[r.concUnit];
     assert.ok(nM, r.concUnit);
