@@ -4,9 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Amino Acid Practice</title>
-  <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+  <script src="https://unpkg.com/@rdkit/rdkit@2026.9.1/dist/RDKit_minimal.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid #000000;
+      outline-offset: 2px;
+    }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -18,8 +23,8 @@
     }
 
     .container {
-      background: #FFF8FF;
-      border: 1px solid #685C53;
+      background: #FFFFFF;
+      border: 1px solid #404040;
       border-radius: 20px;
       padding: 36px 40px;
       max-width: 920px;
@@ -33,7 +38,7 @@
     h1 {
       text-align: center;
       font-size: 1.8rem;
-      color: #C8102E;
+      color: #D0012B;
       margin-bottom: 6px;
       letter-spacing: 1px;
     }
@@ -41,7 +46,7 @@
     .subtitle {
       text-align: center;
       font-size: 0.85rem;
-      color: #685C53;
+      color: #404040;
       margin-bottom: 28px;
     }
 
@@ -50,17 +55,17 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(104,92,83,0.08);
+      background: #F0F0F0;
       border-radius: 10px;
       padding: 10px 20px;
       margin-bottom: 22px;
     }
 
     .score-item { text-align: center; }
-    .score-item .label { color: #685C53; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .score-item .label { color: #404040; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
     .score-item .value { font-size: 1.35rem; font-weight: 700; color: #000000; }
-    .score-item .value.red    { color: #C8102E; }
-    .score-item .value.muted  { color: #685C53; }
+    .score-item .value.red    { color: #D0012B; }
+    .score-item .value.muted  { color: #404040; }
 
     /* Question type selector */
     .qtype-bar {
@@ -73,7 +78,7 @@
 
     .qtype-label {
       font-size: 0.75rem;
-      color: #685C53;
+      color: #404040;
       text-transform: uppercase;
       letter-spacing: 0.4px;
       white-space: nowrap;
@@ -83,17 +88,17 @@
       padding: 5px 14px;
       font-size: 0.82rem;
       font-weight: 600;
-      border: 1px solid #685C53;
+      border: 1px solid #404040;
       border-radius: 20px;
       background: transparent;
-      color: #685C53;
+      color: #404040;
       cursor: pointer;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
       letter-spacing: 0.2px;
     }
 
-    .qtype-btn:hover { border-color: #C8102E; color: #C8102E; }
-    .qtype-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
+    .qtype-btn:hover { border-color: #D0012B; color: #D0012B; }
+    .qtype-btn.active { background: #D0012B; border-color: #D0012B; color: #FFFFFF; }
 
     /* Main grid */
     .main-grid {
@@ -107,8 +112,8 @@
 
     /* Structure panel */
     .structure-panel {
-      background: #FFF8FF;
-      border: 1px solid #685C53;
+      background: #FFFFFF;
+      border: 1px solid #404040;
       border-radius: 14px;
       padding: 16px;
       display: flex;
@@ -120,9 +125,9 @@
     .ph-badge {
       font-size: 0.78rem;
       font-weight: 700;
-      color: #C8102E;
-      background: rgba(200,16,46,0.08);
-      border: 1px solid rgba(200,16,46,0.3);
+      color: #D0012B;
+      background: #FFFFFF;
+      border: 1px solid #D0012B;
       border-radius: 20px;
       padding: 4px 14px;
       margin-bottom: 12px;
@@ -131,7 +136,7 @@
     }
 
     #struct-box {
-      background: #f1f5f9;
+      background: #F0F0F0;
       border-radius: 10px;
       width: 100%;
       flex: 1;
@@ -145,8 +150,9 @@
     #struct-box svg { max-width: 100%; height: 230px; }
 
     .struct-msg {
+      display: block;
       font-size: 0.82rem;
-      color: #94a3b8;
+      color: #404040;
       font-style: italic;
       padding: 20px;
       text-align: center;
@@ -163,7 +169,7 @@
 
     .field-label {
       font-size: 0.78rem;
-      color: #685C53;
+      color: #404040;
       text-transform: uppercase;
       letter-spacing: 0.4px;
     }
@@ -175,24 +181,23 @@
       padding: 10px 13px;
       font-size: 0.95rem;
       background: #FFFFFF;
-      border: 1px solid #685C53;
+      border: 1px solid #404040;
       border-radius: 8px;
       color: #000000;
-      outline: none;
       transition: border-color 0.2s, background 0.2s;
     }
 
-    .field-input:focus { border-color: #C8102E; }
-    .field-input.ok  { border-color: #C8102E; background: #DBEAFE; }
-    .field-input.bad { border-color: #C8102E; background: #FFEBEE; }
-    .field-input:disabled { opacity: 0.7; cursor: not-allowed; }
+    .field-input:focus { border-color: #D0012B; }
+    .field-input.ok  { border-color: #000000; background: #E6E0CC; }
+    .field-input.bad { border-color: #D0012B; background: #FFFFFF; }
+    .field-input:disabled { cursor: not-allowed; }
 
     select.field-input { cursor: pointer; }
     select.field-input option { background: #FFFFFF; color: #000000; }
 
     .ind { font-size: 1.1rem; width: 22px; flex-shrink: 0; text-align: center; }
-    .ind.ok-ind  { color: #1565C0; }
-    .ind.bad-ind { color: #8B0000; }
+    .ind.ok-ind  { color: #000000; }
+    .ind.bad-ind { color: #D0012B; }
 
     /* Buttons */
     .btn {
@@ -207,15 +212,15 @@
     }
 
     .btn-check {
-      background: rgba(200,16,46,0.08);
-      color: #C8102E;
-      border: 1px solid rgba(200,16,46,0.3);
+      background: #FFFFFF;
+      color: #D0012B;
+      border: 1px solid #D0012B;
       flex: 1;
     }
-    .btn-check:hover { transform: translateY(-1px); background: rgba(200,16,46,0.15); }
+    .btn-check:hover { transform: translateY(-1px); background: #D0012B; color: #FFFFFF; }
 
-    .btn-next { background: #C8102E; color: #FFFFFF; flex: 1; }
-    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(200,16,46,0.35); }
+    .btn-next { background: #D0012B; color: #FFFFFF; flex: 1; }
+    .btn-next:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(208,1,43,0.35); }
 
     .btn:active { transform: translateY(0) !important; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
@@ -233,27 +238,38 @@
 
     .feedback.show {
       padding: 16px 20px;
-      max-height: 300px;
+      max-height: 420px;
     }
 
-    .feedback.all-correct { background: #DBEAFE; border: 1px solid #685C53; color: #000000; }
-    .feedback.partial     { background: #F5E6FF; border: 1px solid #685C53; color: #000000; }
-    .feedback.wrong       { background: #FFEBEE; border: 1px solid #C8102E; color: #000000; }
+    .feedback.all-correct { background: #E6E0CC; border: 1px solid #404040; color: #000000; }
+    .feedback.partial     { background: #F0F0F0; border: 1px solid #404040; color: #000000; }
+    .feedback.wrong       { background: #FFFFFF; border: 1px solid #D0012B; color: #000000; }
 
     .feedback .fb-title { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-    .feedback .fb-answers { font-size: 0.85rem; color: #685C53; margin-top: 6px; }
+    .feedback .fb-answers { font-size: 0.85rem; color: #404040; margin-top: 6px; }
     .feedback .fb-answers b { color: #000000; }
+    .feedback .fb-note { font-size: 0.85rem; color: #000000; margin-top: 8px; line-height: 1.4; }
+
+    .page-note {
+      font-size: 0.8rem;
+      color: #404040;
+      line-height: 1.4;
+      margin-top: 16px;
+      text-align: center;
+    }
 
     .reset-link {
       display: block;
-      text-align: center;
-      margin-top: 16px;
+      margin: 16px auto 0;
+      background: none;
+      border: none;
+      font: inherit;
       font-size: 0.78rem;
-      color: #685C53;
+      color: #404040;
       cursor: pointer;
       text-decoration: underline;
     }
-    .reset-link:hover { color: #C8102E; }
+    .reset-link:hover { color: #D0012B; }
 
     /* Display mode toggle */
     .mode-toggle-row {
@@ -266,15 +282,15 @@
       padding: 8px 16px;
       font-size: 0.85rem;
       font-weight: 600;
-      border: 1px solid #685C53;
+      border: 1px solid #404040;
       border-radius: 20px;
       background: transparent;
-      color: #685C53;
+      color: #404040;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .mode-btn:hover { border-color: #C8102E; color: #C8102E; }
-    .mode-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
+    .mode-btn:hover { border-color: #D0012B; color: #D0012B; }
+    .mode-btn.active { background: #D0012B; border-color: #D0012B; color: #FFFFFF; }
 
     /* Name-mode hide toggles */
     .name-toggles { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -282,27 +298,28 @@
       padding: 5px 14px;
       font-size: 0.82rem;
       font-weight: 600;
-      border: 1px solid #685C53;
+      border: 1px solid #404040;
       border-radius: 20px;
       background: transparent;
-      color: #685C53;
+      color: #404040;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .name-hide-btn:hover { border-color: #C8102E; color: #C8102E; }
-    .name-hide-btn.active { background: rgba(200,16,46,0.08); border-color: rgba(200,16,46,0.3); color: #C8102E; }
+    .name-hide-btn:hover { border-color: #D0012B; color: #D0012B; }
+    .name-hide-btn.active { background: #D0012B; border-color: #D0012B; color: #FFFFFF; }
 
     /* Identify-mode panel */
+    #identify-panel { margin-bottom: 18px; }
     .identify-header {
       margin-bottom: 16px;
       text-align: center;
     }
     .identify-question {
       font-size: 1.05rem;
-      color: #000;
+      color: #000000;
       line-height: 1.5;
     }
-    .identify-question strong { color: #C8102E; }
+    .identify-question strong { color: #D0012B; }
 
     .identify-grid {
       display: grid;
@@ -311,10 +328,16 @@
       margin-bottom: 6px;
     }
 
+    .cell-struct { display: flex; align-items: center; justify-content: center; }
+    .cell-struct svg { max-width: 100%; height: auto; }
+
     .identify-cell {
-      border: 2px solid #685C53;
+      width: 100%;
+      font: inherit;
+      color: #000000;
+      border: 2px solid #404040;
       border-radius: 10px;
-      background: #f1f5f9;
+      background: #F0F0F0;
       cursor: pointer;
       display: flex;
       flex-direction: column;
@@ -327,36 +350,35 @@
       overflow: hidden;
     }
     .identify-cell:hover:not(.locked) {
-      border-color: #C8102E;
-      background: #f8f0f0;
+      border-color: #D0012B;
+      background: #E6E0CC;
     }
     .identify-cell.correct {
-      border-color: #1565C0;
-      background: #DBEAFE;
+      border-color: #000000;
+      background: #E6E0CC;
     }
     .identify-cell.wrong {
-      border-color: #C8102E;
-      background: #FFEBEE;
+      border-color: #D0012B;
+      background: #FFFFFF;
     }
     .identify-cell.revealed {
-      border-color: #1565C0;
-      background: #DBEAFE;
-      opacity: 0.85;
+      border-color: #000000;
+      background: #E6E0CC;
     }
     .identify-cell.locked { cursor: default; }
     .identify-cell.locked.post-answer:not(.correct) {
       cursor: pointer;
     }
     .identify-cell.locked.post-answer:not(.correct):hover {
-      border-color: #685C53;
-      background: #f8f0f0;
+      border-color: #404040;
+      background: #E6E0CC;
     }
 
     /* Name-mode structure pH selector buttons */
     #name-ph-btns { display: flex; }
     .name-ph-btn {
       padding: 4px 14px;
-      border: 1.5px solid #685C53;
+      border: 1.5px solid #404040;
       border-radius: 6px;
       background: #F0F0F0;
       font-size: 0.82rem;
@@ -385,7 +407,7 @@
       bottom: 4px; left: 6px;
       font-size: 0.7rem;
       font-weight: 600;
-      color: #C8102E;
+      color: #D0012B;
       line-height: 1.2;
     }
 
@@ -410,11 +432,11 @@
     }
     .name-display-codes {
       font-size: 1.1rem;
-      color: #685C53;
+      color: #404040;
       font-weight: 600;
       letter-spacing: 1px;
     }
-    .code-sep { color: #BFBFBF; }
+    .code-sep { color: #828282; }
   </style>
 </head>
 <body>
@@ -443,35 +465,35 @@
   </div>
 
   <!-- Display mode toggle -->
-  <div class="mode-toggle-row">
-    <button class="mode-btn active" id="mode-btn-structure" onclick="setDisplayMode('structure')">Show Amino Acid Structures</button>
-    <button class="mode-btn"        id="mode-btn-name"      onclick="setDisplayMode('name')">Show Amino Acid Names</button>
-    <button class="mode-btn"        id="mode-btn-identify"  onclick="setDisplayMode('identify')">Determine Amino Acid Structure</button>
+  <div class="mode-toggle-row" role="group" aria-label="Display mode">
+    <button class="mode-btn active" id="mode-btn-structure" aria-pressed="true"  onclick="setDisplayMode('structure')">Show Amino Acid Structures</button>
+    <button class="mode-btn"        id="mode-btn-name"      aria-pressed="false" onclick="setDisplayMode('name')">Show Amino Acid Names</button>
+    <button class="mode-btn"        id="mode-btn-identify"  aria-pressed="false" onclick="setDisplayMode('identify')">Determine Amino Acid Structure</button>
   </div>
 
   <!-- Name-mode hide toggles -->
-  <div class="name-toggles" id="name-toggles">
+  <div class="name-toggles" id="name-toggles" role="group" aria-label="Hide from display">
     <span class="qtype-label">Hide from display:</span>
-    <button class="name-hide-btn" data-field="c1"   onclick="toggleNameHide('c1')">Hide 1-letter</button>
-    <button class="name-hide-btn" data-field="c3"   onclick="toggleNameHide('c3')">Hide 3-letter</button>
-    <button class="name-hide-btn" data-field="name" onclick="toggleNameHide('name')">Hide Full Name</button>
-    <button class="name-hide-btn" id="name-random-btn" style="display:none" onclick="toggleNameRandom()">Randomly select</button>
+    <button class="name-hide-btn" data-field="c1"   aria-pressed="false" onclick="toggleNameHide('c1')">Hide 1-letter</button>
+    <button class="name-hide-btn" data-field="c3"   aria-pressed="false" onclick="toggleNameHide('c3')">Hide 3-letter</button>
+    <button class="name-hide-btn" data-field="name" aria-pressed="false" onclick="toggleNameHide('name')">Hide Full Name</button>
+    <button class="name-hide-btn" id="name-random-btn" style="display:none" aria-pressed="false" onclick="toggleNameRandom()">Randomly select</button>
   </div>
 
   <!-- Identify-mode name style controls -->
-  <div class="name-toggles" id="identify-name-toggles" style="display:none">
+  <div class="name-toggles" id="identify-name-toggles" style="display:none" role="group" aria-label="Show name as">
     <span class="qtype-label">Show name as:</span>
-    <button class="name-hide-btn active" data-style="c1"   onclick="toggleIdentifyNameStyle('c1')">1-letter</button>
-    <button class="name-hide-btn active" data-style="c3"   onclick="toggleIdentifyNameStyle('c3')">3-letter</button>
-    <button class="name-hide-btn active" data-style="name" onclick="toggleIdentifyNameStyle('name')">Full name</button>
+    <button class="name-hide-btn active" data-style="c1"   aria-pressed="true" onclick="toggleIdentifyNameStyle('c1')">1-letter</button>
+    <button class="name-hide-btn active" data-style="c3"   aria-pressed="true" onclick="toggleIdentifyNameStyle('c3')">3-letter</button>
+    <button class="name-hide-btn active" data-style="name" aria-pressed="true" onclick="toggleIdentifyNameStyle('name')">Full name</button>
   </div>
 
   <!-- Question type selector -->
-  <div class="qtype-bar" id="qtype-bar">
+  <div class="qtype-bar" id="qtype-bar" role="group" aria-label="Question type">
     <span class="qtype-label">Question type:</span>
-    <button class="qtype-btn active" data-type="name"       onclick="toggleQuestionType('name')">Determine name</button>
-    <button class="qtype-btn"        data-type="ph"         onclick="toggleQuestionType('ph')">Determine pH</button>
-    <button class="qtype-btn"        data-type="properties" onclick="toggleQuestionType('properties')">Determine properties</button>
+    <button class="qtype-btn active" data-type="name"       aria-pressed="true"  onclick="toggleQuestionType('name')">Determine name</button>
+    <button class="qtype-btn"        data-type="ph"         aria-pressed="false" onclick="toggleQuestionType('ph')">Determine pH</button>
+    <button class="qtype-btn"        data-type="properties" aria-pressed="false" onclick="toggleQuestionType('properties')">Determine properties</button>
   </div>
 
   <!-- Main grid -->
@@ -484,9 +506,9 @@
       <div id="name-struct-controls" style="display:none; text-align:center; margin-bottom:6px">
         <button id="name-struct-toggle" class="btn btn-check" onclick="toggleNameStructure()">Show structure</button>
         <div id="name-ph-btns" style="display:none; justify-content:center; gap:6px; margin-top:8px">
-          <button class="name-ph-btn" data-ph="2"  onclick="setNameStructPH(2)">pH 2</button>
-          <button class="name-ph-btn active" data-ph="7"  onclick="setNameStructPH(7)">pH 7</button>
-          <button class="name-ph-btn" data-ph="13" onclick="setNameStructPH(13)">pH 13</button>
+          <button class="name-ph-btn" data-ph="2"  aria-pressed="false" onclick="setNameStructPH(2)">pH 2</button>
+          <button class="name-ph-btn active" data-ph="7"  aria-pressed="true" onclick="setNameStructPH(7)">pH 7</button>
+          <button class="name-ph-btn" data-ph="13" aria-pressed="false" onclick="setNameStructPH(13)">pH 13</button>
         </div>
       </div>
 
@@ -498,34 +520,34 @@
     <!-- Answer fields -->
     <div class="answer-panel">
       <div class="field-group" id="fg-c1">
-        <div class="field-label">1-Letter Code</div>
+        <label class="field-label" for="inp-c1">1-Letter Code</label>
         <div class="field-row">
           <input class="field-input" id="inp-c1" type="text" maxlength="2"
                  placeholder="e.g. A" autocomplete="off" />
-          <span class="ind" id="ind-c1"></span>
+          <span class="ind" id="ind-c1" aria-live="polite"></span>
         </div>
       </div>
 
       <div class="field-group" id="fg-c3">
-        <div class="field-label">3-Letter Code</div>
+        <label class="field-label" for="inp-c3">3-Letter Code</label>
         <div class="field-row">
           <input class="field-input" id="inp-c3" type="text" maxlength="4"
                  placeholder="e.g. Ala" autocomplete="off" />
-          <span class="ind" id="ind-c3"></span>
+          <span class="ind" id="ind-c3" aria-live="polite"></span>
         </div>
       </div>
 
       <div class="field-group" id="fg-name">
-        <div class="field-label">Full Name</div>
+        <label class="field-label" for="inp-name">Full Name</label>
         <div class="field-row">
           <input class="field-input" id="inp-name" type="text"
                  placeholder="e.g. Alanine" autocomplete="off" />
-          <span class="ind" id="ind-name"></span>
+          <span class="ind" id="ind-name" aria-live="polite"></span>
         </div>
       </div>
 
       <div class="field-group" id="fg-type">
-        <div class="field-label">Type</div>
+        <label class="field-label" for="inp-type">Type</label>
         <div class="field-row">
           <select class="field-input" id="inp-type">
             <option value="">— Select type —</option>
@@ -534,12 +556,12 @@
             <option value="acidic">Acidic</option>
             <option value="basic">Basic</option>
           </select>
-          <span class="ind" id="ind-type"></span>
+          <span class="ind" id="ind-type" aria-live="polite"></span>
         </div>
       </div>
 
       <div class="field-group" id="fg-ph">
-        <div class="field-label">pH Shown</div>
+        <label class="field-label" for="inp-ph">pH Shown</label>
         <div class="field-row">
           <select class="field-input" id="inp-ph">
             <option value="">— Select pH —</option>
@@ -547,7 +569,7 @@
             <option value="7">pH 7</option>
             <option value="13">pH 13</option>
           </select>
-          <span class="ind" id="ind-ph"></span>
+          <span class="ind" id="ind-ph" aria-live="polite"></span>
         </div>
       </div>
 
@@ -561,14 +583,14 @@
   <!-- Identify mode panel -->
   <div id="identify-panel" style="display:none">
     <div class="identify-header">
-      <p class="identify-question">
+      <p class="identify-question" aria-live="polite">
         Which structure correctly represents
         <strong id="identify-aa-name"></strong> at
         <span class="ph-badge" id="identify-ph-badge">pH ?</span>?
       </p>
     </div>
-    <div class="identify-grid" id="identify-grid">
-      <!-- 8 .identify-cell divs built by JS -->
+    <div class="identify-grid" id="identify-grid" role="group" aria-label="Structure options">
+      <!-- 8 .identify-cell buttons built by JS -->
     </div>
     <div class="btn-row" style="margin-top:16px">
       <button class="btn btn-check" id="identify-btn-show" onclick="showAnswers()">Show Answer</button>
@@ -577,9 +599,14 @@
   </div>
 
   <!-- Feedback -->
-  <div class="feedback" id="feedback"></div>
+  <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
 
-  <span class="reset-link" onclick="resetScore()">Reset score</span>
+  <p class="page-note">
+    Simplification: pH 2 structures show the α-carboxyl fully protonated (COOH). Its pKa is about 2,
+    so a real sample at pH 2 is a substantial mix of COOH and COO⁻.
+  </p>
+
+  <button type="button" class="reset-link" onclick="resetScore()">Reset score</button>
 </div>
 
 <script>
@@ -725,7 +752,7 @@ const AA = [
     }
   },
   {
-    name: "Aspartate", code1: "D", code3: "Asp", type: "acidic",
+    name: "Aspartate", altNames: ["Aspartic acid"], code1: "D", code3: "Asp", type: "acidic",
     note: "Side chain carboxyl pKa ~3.9 (S); negatively charged (COO⁻) at pH 7 and above.",
     smiles: {
       2:  "[NH3+][C@@H](CC(=O)O)C(=O)O",
@@ -734,7 +761,7 @@ const AA = [
     }
   },
   {
-    name: "Glutamate", code1: "E", code3: "Glu", type: "acidic",
+    name: "Glutamate", altNames: ["Glutamic acid"], code1: "E", code3: "Glu", type: "acidic",
     note: "Side chain carboxyl pKa ~4.1 (S); negatively charged (COO⁻) at pH 7 and above.",
     smiles: {
       2:  "[NH3+][C@@H](CCC(=O)O)C(=O)O",
@@ -779,25 +806,29 @@ const TYPE_LABELS = {
 };
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let current      = null;       // { aa, ph }
+let current      = null;       // { aa, ph, counted, hadWrong, identifyOptions }
 let answered     = false;      // true only when ALL active fields are correct
-let scored       = false;      // true after first checkAnswers() per question
 let score        = { total: 0, correct: 0, partial: 0, pts: 0, maxPts: 0 };
 let activeQtypeSet = new Set(['name']); // which qtypes are active (multi-select)
-let displayMode    = 'structure';       // 'structure' | 'name'
+let displayMode    = 'structure';       // 'structure' | 'name' | 'identify'
 let nameHideFlags  = { c1: false, c3: false, name: false };
 let identifyNamePool   = new Set(['c1', 'c3', 'name']); // styles allowed in identify mode
-let identifyHadWrong   = false;  // true if any wrong pick this question
 let nameRandom         = false;  // randomly show one non-hidden name field in name mode
 let nameShowingStructure = false;  // true when name mode is showing structure view
 let nameStructPH         = 7;      // active pH in name-mode structure view
+let questionBag          = [];     // amino acids left in this round, so all 20 come up
 
-// fields: which inp-* IDs to check; revealPH: show badge before Check
+// fields: which inp-* IDs to check
 const QTYPE = {
-  name:       { fields: ['c1','c3','name'], revealPH: true,  maxPts: 3 },
-  ph:         { fields: ['ph'],             revealPH: false, maxPts: 1 },
-  properties: { fields: ['type'],           revealPH: true,  maxPts: 1 }
+  name:       { fields: ['c1','c3','name'] },
+  ph:         { fields: ['ph'] },
+  properties: { fields: ['type'] }
 };
+
+function setActive(btn, on) {
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', on);
+}
 
 function toggleQuestionType(type) {
   if (activeQtypeSet.has(type)) {
@@ -807,7 +838,7 @@ function toggleQuestionType(type) {
     activeQtypeSet.add(type);
   }
   document.querySelectorAll('.qtype-btn').forEach(b => {
-    b.classList.toggle('active', activeQtypeSet.has(b.dataset.type));
+    setActive(b, activeQtypeSet.has(b.dataset.type));
   });
   renderQuestion();
 }
@@ -816,7 +847,7 @@ function setDisplayMode(mode) {
   displayMode = mode;
 
   ['structure','name','identify'].forEach(m => {
-    document.getElementById('mode-btn-' + m).classList.toggle('active', m === mode);
+    setActive(document.getElementById('mode-btn-' + m), m === mode);
   });
 
   const identifyMode = mode === 'identify';
@@ -837,7 +868,7 @@ function setDisplayMode(mode) {
     activeQtypeSet.delete('name');
     if (activeQtypeSet.size === 0) activeQtypeSet.add('properties');
     document.querySelectorAll('.qtype-btn').forEach(b =>
-      b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
+      setActive(b, activeQtypeSet.has(b.dataset.type))
     );
   }
 
@@ -850,7 +881,7 @@ function setDisplayMode(mode) {
     activeQtypeSet.delete('ph');
     if (activeQtypeSet.size === 0) activeQtypeSet.add('properties');
     document.querySelectorAll('.qtype-btn').forEach(b =>
-      b.classList.toggle('active', activeQtypeSet.has(b.dataset.type))
+      setActive(b, activeQtypeSet.has(b.dataset.type))
     );
   }
 
@@ -863,7 +894,7 @@ function setDisplayMode(mode) {
     document.getElementById('name-struct-toggle').textContent = 'Show structure';
     document.getElementById('name-ph-btns').style.display     = 'none';
     document.querySelectorAll('.name-ph-btn').forEach(b =>
-      b.classList.toggle('active', parseInt(b.dataset.ph) === 7)
+      setActive(b, parseInt(b.dataset.ph) === 7)
     );
   }
 
@@ -872,8 +903,7 @@ function setDisplayMode(mode) {
 
 function toggleNameHide(fieldId) {
   nameHideFlags[fieldId] = !nameHideFlags[fieldId];
-  document.querySelector(`.name-hide-btn[data-field="${fieldId}"]`)
-    .classList.toggle('active', nameHideFlags[fieldId]);
+  setActive(document.querySelector(`.name-hide-btn[data-field="${fieldId}"]`), nameHideFlags[fieldId]);
   renderQuestion();
 }
 
@@ -882,15 +912,14 @@ function toggleIdentifyNameStyle(style) {
   if (identifyNamePool.has(style)) identifyNamePool.delete(style);
   else                             identifyNamePool.add(style);
   document.querySelectorAll('[data-style]').forEach(b =>
-    b.classList.toggle('active', identifyNamePool.has(b.dataset.style))
+    setActive(b, identifyNamePool.has(b.dataset.style))
   );
   if (current) document.getElementById('identify-aa-name').textContent = resolveIdentifyName(current.aa);
 }
 
 function toggleNameRandom() {
   nameRandom = !nameRandom;
-  document.getElementById('name-random-btn')
-    .classList.toggle('active', nameRandom);
+  setActive(document.getElementById('name-random-btn'), nameRandom);
   renderQuestion();
 }
 
@@ -913,7 +942,7 @@ function toggleNameStructure() {
 function setNameStructPH(ph) {
   nameStructPH = ph;
   document.querySelectorAll('.name-ph-btn').forEach(b =>
-    b.classList.toggle('active', parseInt(b.dataset.ph) === ph)
+    setActive(b, parseInt(b.dataset.ph) === ph)
   );
   drawStructure(current.aa.smiles[ph]);
 }
@@ -958,14 +987,14 @@ let rdkitReady   = false;
 let pendingSmiles = null;
 
 window.initRDKitModule({
-  locateFile: f => `https://unpkg.com/@rdkit/rdkit/dist/${f}`
+  locateFile: f => `https://unpkg.com/@rdkit/rdkit@2026.9.1/dist/${f}`
 }).then(RDKit => {
   window.RDKit = RDKit;
   rdkitReady = true;
   const msg = document.getElementById('struct-msg');
   if (msg) msg.style.display = 'none';
   if (displayMode === 'identify') {
-    renderIdentifyQuestion();
+    redrawIdentifyCells();
   } else if (pendingSmiles !== null && (displayMode === 'structure' || nameShowingStructure)) {
     drawStructure(pendingSmiles);
   }
@@ -975,17 +1004,22 @@ window.initRDKitModule({
     '<div class="struct-msg">Structure renderer failed to load.</div>';
 });
 
+// Returns true when a structure was actually drawn. Messages are spans so they
+// are valid inside the identify-mode cell buttons.
 function drawStructureInto(smiles, container, w, h) {
   if (!rdkitReady) {
-    container.innerHTML = '<div class="struct-msg" style="font-size:0.75rem">Loading…</div>';
-    return;
+    container.innerHTML = '<span class="struct-msg" style="font-size:0.75rem">Loading…</span>';
+    return false;
   }
   try {
     const mol = window.RDKit.get_mol(smiles);
     if (!mol || !mol.is_valid()) throw new Error('invalid');
     let svg;
     try {
-      svg = mol.get_svg_with_highlights(JSON.stringify({ width: w, height: h, addStereoAnnotation: false }));
+      // RDKit's default sulfur yellow is too faint to read; this dark gold meets WCAG AA
+      svg = mol.get_svg_with_highlights(JSON.stringify({
+        width: w, height: h, addStereoAnnotation: false, atomColourPalette: { 16: [0.4, 0.3, 0] }
+      }));
     } catch {
       svg = mol.get_svg(w, h);
     }
@@ -994,8 +1028,22 @@ function drawStructureInto(smiles, container, w, h) {
       /(<rect[^>]*)(fill:#FFFFFF|fill:white)([^>]*>)/gi,
       '$1fill:transparent$3'
     );
+    return true;
   } catch {
-    container.innerHTML = '<div class="struct-msg" style="font-size:0.75rem">Unavailable</div>';
+    container.innerHTML = '<span class="struct-msg" style="font-size:0.75rem">Unavailable</span>';
+    return false;
+  }
+}
+
+// The label stays neutral: naming the amino acid here would give away the answer
+function labelStructBox(isDrawing) {
+  const box = document.getElementById('struct-box');
+  if (isDrawing) {
+    box.setAttribute('role', 'img');
+    box.setAttribute('aria-label', 'Amino acid structure');
+  } else {
+    box.removeAttribute('role');
+    box.removeAttribute('aria-label');
   }
 }
 
@@ -1004,13 +1052,15 @@ function drawStructure(smiles) {
   if (!rdkitReady) {
     pendingSmiles = smiles;
     box.innerHTML = '<div class="struct-msg">Loading structure renderer…</div>';
+    labelStructBox(false);
     return;
   }
-  drawStructureInto(smiles, box, Math.min(Math.max((box.clientWidth || 400) - 16, 200), 560), 230);
+  labelStructBox(drawStructureInto(smiles, box, Math.min(Math.max((box.clientWidth || 400) - 16, 200), 560), 230));
 }
 
 function drawNameDisplay(aa) {
   const box = document.getElementById('struct-box');
+  labelStructBox(false);
 
   // Build eligible fields (those not hidden)
   const eligible = [];
@@ -1085,8 +1135,6 @@ function renderIdentifyQuestion() {
   document.getElementById('identify-ph-badge').textContent = `pH ${ph}`;
   document.getElementById('identify-btn-show').disabled = false;
 
-  identifyHadWrong = false;
-
   const fb = document.getElementById('feedback');
   fb.className = 'feedback';
   fb.innerHTML = '';
@@ -1094,12 +1142,25 @@ function renderIdentifyQuestion() {
   const grid = document.getElementById('identify-grid');
   grid.innerHTML = '';
   options.forEach((opt, i) => {
-    const cell = document.createElement('div');
+    const cell = document.createElement('button');
+    cell.type = 'button';
     cell.className = 'identify-cell';
     cell.dataset.index = i;
+    cell.setAttribute('aria-label', `Structure option ${i + 1}`);
     cell.onclick = () => handleIdentifyClick(i);
-    drawStructureInto(opt.aa.smiles[opt.ph], cell, 160, 130);
+    const struct = document.createElement('span');
+    struct.className = 'cell-struct';
+    cell.appendChild(struct);
+    drawStructureInto(opt.aa.smiles[opt.ph], struct, 160, 130);
     grid.appendChild(cell);
+  });
+}
+
+// Fills in the existing cells once RDKit arrives, keeping the options and any picks
+function redrawIdentifyCells() {
+  document.querySelectorAll('.cell-struct').forEach((struct, i) => {
+    const opt = current.identifyOptions[i];
+    drawStructureInto(opt.aa.smiles[opt.ph], struct, 160, 130);
   });
 }
 
@@ -1131,10 +1192,13 @@ function handleIdentifyClick(index) {
     v.className = 'cell-verdict';
     v.textContent = '✓';
     cell.appendChild(v);
-    completeQuestion(identifyHadWrong ? 0 : 1);
+    cell.setAttribute('aria-label', `Structure option ${index + 1}: correct`);
+    completeQuestion(current.hadWrong ? 0 : 1);
   } else {
-    identifyHadWrong = true;
+    current.hadWrong = true;
     cell.classList.add('wrong', 'locked');
+    cell.setAttribute('aria-disabled', 'true');
+    cell.setAttribute('aria-label', `Structure option ${index + 1}: incorrect, ${chosen.aa.code3} at pH ${chosen.ph}`);
     const vw = document.createElement('span');
     vw.className = 'cell-verdict';
     vw.textContent = '✗';
@@ -1159,9 +1223,21 @@ function resolveCurrentPH() {
 // ─── Quiz flow ────────────────────────────────────────────────────────────────
 const ALL_FIELD_IDS = ['c1','c3','name','type','ph'];
 
+// Deals every amino acid once per round, never the same one twice in a row
+function drawAminoAcid() {
+  if (questionBag.length === 0) {
+    questionBag = shuffle(AA);
+    const last = questionBag.length - 1;
+    if (current && questionBag[last] === current.aa) {
+      [questionBag[0], questionBag[last]] = [questionBag[last], questionBag[0]];
+    }
+  }
+  return questionBag.pop();
+}
+
 function nextQuestion() {
   current = {
-    aa: AA[Math.floor(Math.random() * AA.length)],
+    aa: drawAminoAcid(),
     ph: resolveCurrentPH()
   };
   renderQuestion();
@@ -1170,7 +1246,6 @@ function nextQuestion() {
 function renderQuestion() {
   if (!current) return;
   answered = false;
-  scored   = false;
 
   if (displayMode === 'identify') {
     renderIdentifyQuestion();
@@ -1191,7 +1266,7 @@ function renderQuestion() {
     document.getElementById('name-struct-toggle').textContent = 'Show structure';
     document.getElementById('name-ph-btns').style.display     = 'none';
     document.querySelectorAll('.name-ph-btn').forEach(b =>
-      b.classList.toggle('active', parseInt(b.dataset.ph) === 7)
+      setActive(b, parseInt(b.dataset.ph) === 7)
     );
   }
 
@@ -1208,6 +1283,7 @@ function renderQuestion() {
     el.value        = '';
     el.className    = 'field-input';
     el.disabled     = false;
+    el.removeAttribute('aria-invalid');
     ind.textContent = '';
     ind.className   = 'ind';
   });
@@ -1230,7 +1306,7 @@ function renderQuestion() {
 }
 
 // ─── Answer checking ──────────────────────────────────────────────────────────
-function norm(s) { return s.trim().toLowerCase(); }
+function norm(s) { return s.trim().toLowerCase().replace(/\s+/g, ' '); }
 
 function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
@@ -1239,22 +1315,29 @@ function capitalize(s) {
 function completeQuestion(pts) {
   if (answered) return;
   answered = true;
-  scored   = true;
 
   const maxPts = getMaxPts();
   const { aa } = current;
 
-  score.total++;
-  score.pts    += pts;
-  score.maxPts += maxPts;
-  if (pts === maxPts) score.correct++;
-  else if (pts >= 1)  score.partial++;
-  updateScore();
+  // Re-rendering the same question reopens it, but it only counts once
+  const alreadyCounted = current.counted;
+  if (!alreadyCounted) {
+    current.counted = true;
+    score.total++;
+    score.pts    += pts;
+    score.maxPts += maxPts;
+    if (pts === maxPts) score.correct++;
+    else if (pts >= 1)  score.partial++;
+    updateScore();
+  }
 
   document.getElementById('ph-badge').textContent = `pH ${current.ph}`;
   document.getElementById('btn-check').disabled = true;
   if (displayMode === 'identify') {
-    document.querySelectorAll('.identify-cell').forEach(c => c.classList.add('post-answer'));
+    document.querySelectorAll('.identify-cell').forEach(c => {
+      c.classList.add('post-answer');
+      c.removeAttribute('aria-disabled');
+    });
   }
 
   const n     = maxPts;
@@ -1271,7 +1354,9 @@ function completeQuestion(pts) {
       <b>${aa.code1}</b> &nbsp;·&nbsp; <b>${aa.code3}</b> &nbsp;·&nbsp;
       <b>${aa.name}</b> &nbsp;·&nbsp; <b>${TYPE_LABELS[aa.type]}</b> &nbsp;·&nbsp;
       <b>pH ${current.ph}</b>
-    </div>`;
+    </div>
+    <div class="fb-note">${aa.note}</div>
+    ${alreadyCounted ? '<div class="fb-note">This question was already scored, so your score did not change.</div>' : ''}`;
 }
 
 function gradeField(id) {
@@ -1296,19 +1381,23 @@ function gradeField(id) {
 
   if (!userVal) {
     el.className    = 'field-input';
+    el.removeAttribute('aria-invalid');
     ind.textContent = '';
     ind.className   = 'ind';
     return;
   }
 
-  const ok = norm(userVal) === norm(correctMap[id]);
+  const accepted = id === 'name' ? [aa.name, ...(aa.altNames || [])] : [correctMap[id]];
+  const ok = accepted.some(a => norm(a) === norm(userVal));
   if (ok) {
     el.className    = 'field-input ok';
     el.disabled     = true;
+    el.removeAttribute('aria-invalid');
     ind.textContent = '✓';
     ind.className   = 'ind ok-ind';
   } else {
     el.className    = 'field-input bad';
+    el.setAttribute('aria-invalid', 'true');
     ind.textContent = '✗';
     ind.className   = 'ind bad-ind';
   }
@@ -1334,6 +1423,7 @@ function showAnswers() {
     v.className = 'cell-verdict';
     v.textContent = '✓';
     cells[correctIdx].appendChild(v);
+    cells[correctIdx].setAttribute('aria-label', `Structure option ${correctIdx + 1}: correct answer`);
     completeQuestion(0);
     return;
   }
@@ -1360,6 +1450,7 @@ function showAnswers() {
       el.value     = correctMap[id];
       el.className = 'field-input ok';
       el.disabled  = true;
+      el.removeAttribute('aria-invalid');
       const ind = document.getElementById('ind-' + id);
       ind.textContent = '✓';
       ind.className   = 'ind ok-ind';

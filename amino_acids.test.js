@@ -25,6 +25,7 @@ function makeElement(tag, attrs = {}) {
     if (k) style[k] = v;
   }
   const classes = el => el.className.split(/\s+/).filter(Boolean);
+  const attributes = { ...attrs };
   let html = '';
   const el = {
     tag, id: attrs.id, className: attrs.class ?? '', value: '', textContent: '', disabled: false,
@@ -37,6 +38,9 @@ function makeElement(tag, attrs = {}) {
       toggle: (c, on) => { if (on) el.classList.add(c); else el.classList.remove(c); },
       contains: c => classes(el).includes(c),
     },
+    setAttribute(name, value) { attributes[name] = String(value); },
+    getAttribute: name => attributes[name] ?? null,
+    removeAttribute(name) { delete attributes[name]; },
     appendChild(child) { el.children.push(child); return child; },
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
     fire(type, props = {}) {
@@ -61,8 +65,9 @@ function fakeRDKit(log) {
   return {
     get_mol: smiles => ({
       is_valid: () => smiles !== 'invalid',
-      get_svg_with_highlights: () => {
+      get_svg_with_highlights: options => {
         if (log.failHighlights) throw new Error('not supported');
+        log.options = JSON.parse(options);
         return `<svg data-smiles="${smiles}"><rect style="fill:#FFFFFF;"></rect></svg>`;
       },
       get_svg: () => `<svg data-smiles="${smiles}" data-plain="1"></svg>`,
@@ -118,6 +123,7 @@ const scoreboard = page => ['s-total', 's-correct', 's-partial', 's-pct'].map(id
 const setRandom = (page, value) => page.run(`Math.random = () => ${value}`);
 const boxHTML = page => page.el('struct-box').innerHTML;
 const cells = page => page.qa('.identify-cell');
+const cellHTML = cell => cell.children[0].innerHTML;
 const optionIndex = (page, isCorrect) => page.json('current.identifyOptions').findIndex(o => o.isCorrect === isCorrect);
 const clickCorrect = page => cells(page)[optionIndex(page, true)].onclick();
 const clickWrong = page => cells(page)[optionIndex(page, false)].onclick();
@@ -225,15 +231,34 @@ test('every structure has natural L stereochemistry', () => {
 });
 
 // ── Question generation ────────────────────────────────────────
-test('nextQuestion can reach both ends of the database and all three pH values', () => {
+test('nextQuestion can reach all three pH values', () => {
   const page = loadPage();
-  const cases = [[0, 'Glycine', 2], [0.5, null, 7], [0.999, 'Histidine', 13]];
-  for (const [r, name, ph] of cases) {
+  for (const [r, ph] of [[0, 2], [0.5, 7], [0.999, 13]]) {
     setRandom(page, r);
     page.run('nextQuestion()');
-    if (name) assert.equal(page.run('current.aa.name'), name);
     assert.equal(page.run('current.ph'), ph);
   }
+});
+
+test('every amino acid comes up once per round, never twice in a row', () => {
+  const page = loadPage();
+  const seen = [page.run('current.aa.code1')];
+  for (let i = 1; i < 200; i++) {
+    page.run('nextQuestion()');
+    seen.push(page.run('current.aa.code1'));
+  }
+  for (let start = 0; start < 200; start += 20) {
+    assert.equal(new Set(seen.slice(start, start + 20)).size, 20, `round starting at question ${start}`);
+  }
+  seen.forEach((code, i) => assert.notEqual(code, seen[i - 1], `questions ${i - 1} and ${i}`));
+});
+
+test('a new round cannot start with the amino acid that ended the last one', () => {
+  const page = loadPage();
+  // With random fixed at 0.999, shuffle keeps database order, so pop() deals AA[19] first
+  setRandom(page, 0.999);
+  page.run('questionBag = []; current = { aa: AA[19], ph: 7 }; nextQuestion()');
+  assert.notEqual(page.run('current.aa.code1'), 'H');
 });
 
 test('shuffle returns a permutation and leaves its input alone', () => {
@@ -299,6 +324,41 @@ test('text answers ignore case and surrounding spaces', () => {
     answer(page, 'name', name);
     assert.deepEqual(scoreboard(page), ['1', '1', '0', '100%'], `${c1}/${c3}/${name}`);
   }
+});
+
+test('Aspartic acid and Glutamic acid are accepted as full names', () => {
+  for (const [code, code3, names] of [['D', 'Asp', ['Aspartate', 'aspartic acid', ' Aspartic  Acid ']], ['E', 'Glu', ['Glutamate', 'glutamic acid']]]) {
+    for (const name of names) {
+      const page = loadPage();
+      ask(page, code, 7);
+      answer(page, 'name', name);
+      assert.equal(page.el('inp-name').className, 'field-input ok', name);
+      answer(page, 'c3', code3);
+      assert.equal(page.el('inp-c3').className, 'field-input ok');
+    }
+  }
+  const page = loadPage();
+  ask(page, 'D', 7);
+  answer(page, 'name', 'Glutamic acid');
+  assert.equal(page.el('inp-name').className, 'field-input bad', "Glu's name is not accepted for Asp");
+  ask(page, 'A', 7);
+  answer(page, 'name', 'Aspartic acid');
+  assert.equal(page.el('inp-name').className, 'field-input bad');
+});
+
+test('wrong answers are exposed to assistive technology and clear when fixed', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  answer(page, 'c1', 'G');
+  assert.equal(page.el('inp-c1').getAttribute('aria-invalid'), 'true');
+  answer(page, 'c1', '');
+  assert.equal(page.el('inp-c1').getAttribute('aria-invalid'), null);
+  answer(page, 'c1', 'G');
+  answer(page, 'c1', 'A');
+  assert.equal(page.el('inp-c1').getAttribute('aria-invalid'), null);
+  answer(page, 'c3', 'Gly');
+  page.run('showAnswers()');
+  assert.equal(page.el('inp-c3').getAttribute('aria-invalid'), null);
 });
 
 test('a correct field locks with a check mark', () => {
@@ -454,6 +514,61 @@ test('a finished question cannot be scored twice', () => {
   page.run('showAnswers()');
   page.run(`gradeField('c1')`);
   assert.equal(page.el('s-total').textContent, 1);
+});
+
+test('reopening a finished question by changing settings does not score it again', () => {
+  const reopen = [
+    `toggleQuestionType('properties')`,
+    `toggleNameHide('c1')`,
+    `setDisplayMode('name')`,
+    `setDisplayMode('identify')`,
+  ];
+  for (const action of reopen) {
+    const page = loadPage();
+    ask(page, 'A', 7);
+    page.run('showAnswers()');
+    assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
+
+    page.run(action);
+    assert.equal(page.run('answered'), false, action);
+    if (page.run('displayMode') === 'identify') clickCorrect(page);
+    else {
+      const fields = page.json('getActiveFields()');
+      const answers = { c1: 'A', c3: 'Ala', name: 'Alanine', type: 'nonpolar', ph: '7' };
+      for (const id of fields) answer(page, id, answers[id]);
+    }
+    assert.equal(page.run('answered'), true, action);
+    assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%'], action);
+    assert.match(page.el('feedback').innerHTML, /already scored/, action);
+  }
+});
+
+test('a new question is scored normally after a reopened one', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  page.run('showAnswers()');
+  page.run(`toggleNameHide('c1')`);
+  ask(page, 'G', 7);
+  answer(page, 'c3', 'Gly');
+  answer(page, 'name', 'Glycine');
+  assert.equal(page.el('s-total').textContent, 2);
+  assert.doesNotMatch(page.el('feedback').innerHTML, /already scored/);
+});
+
+test('the teaching note appears only once the question is finished', () => {
+  const page = loadPage();
+  ask(page, 'W', 7);
+  const note = page.run('current.aa.note');
+  answer(page, 'c1', 'A');
+  assert.ok(!page.el('feedback').innerHTML.includes(note));
+  page.run('showAnswers()');
+  assert.ok(page.el('feedback').innerHTML.includes(note));
+
+  startIdentify(page, 'W', 7);
+  clickWrong(page);
+  assert.ok(!page.el('feedback').innerHTML.includes(note), 'not after a wrong pick');
+  clickCorrect(page);
+  assert.ok(page.el('feedback').innerHTML.includes(note));
 });
 
 test('the score percentage is weighted by points across questions', () => {
@@ -672,8 +787,28 @@ test('the question names the amino acid and draws a structure in each of 8 cells
   const options = page.json('current.identifyOptions');
   assert.equal(cells(page).length, 8);
   cells(page).forEach((cell, i) => {
-    assert.ok(cell.innerHTML.includes(`data-smiles="${options[i].aa.smiles[options[i].ph]}"`), `cell ${i}`);
+    assert.ok(cellHTML(cell).includes(`data-smiles="${options[i].aa.smiles[options[i].ph]}"`), `cell ${i}`);
   });
+});
+
+test('structure options are real buttons with labels that do not give away the answer', () => {
+  const page = loadPage();
+  startIdentify(page, 'A', 7);
+  cells(page).forEach((cell, i) => {
+    assert.equal(cell.tag, 'button');
+    assert.equal(cell.type, 'button');
+    assert.equal(cell.getAttribute('aria-label'), `Structure option ${i + 1}`);
+  });
+
+  const wrong = page.json('current.identifyOptions')[optionIndex(page, false)];
+  clickWrong(page);
+  const wrongCell = cells(page)[optionIndex(page, false)];
+  assert.equal(wrongCell.getAttribute('aria-disabled'), 'true');
+  assert.match(wrongCell.getAttribute('aria-label'), new RegExp(`incorrect, ${wrong.aa.code3} at pH ${wrong.ph}`));
+
+  clickCorrect(page);
+  assert.match(cells(page)[optionIndex(page, true)].getAttribute('aria-label'), /: correct$/);
+  assert.equal(wrongCell.getAttribute('aria-disabled'), null, 'it can be explored again');
 });
 
 test('name style options set how the amino acid is named, and one always stays on', () => {
@@ -709,12 +844,12 @@ test('a wrong pick is labeled, then the eventual correct pick earns nothing', ()
   clickWrong(page);
   const cell = cells(page)[optionIndex(page, false)];
   assert.ok(cell.classList.contains('wrong') && cell.classList.contains('locked'));
-  assert.deepEqual(cell.children.map(c => c.textContent), ['✗', `${wrong.aa.code3} pH ${wrong.ph}`]);
+  assert.deepEqual(cell.children.slice(1).map(c => c.textContent), ['✗', `${wrong.aa.code3} pH ${wrong.ph}`]);
   assert.equal(page.el('feedback').className, 'feedback show wrong');
   assert.equal(page.el('s-total').textContent, '', 'not scored until the question ends');
 
   clickWrong(page);
-  assert.equal(cell.children.length, 2, 'clicking an eliminated cell again does nothing');
+  assert.equal(cell.children.length, 3, 'clicking an eliminated cell again does nothing');
 
   clickCorrect(page);
   assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
@@ -753,13 +888,22 @@ test('a new identify question clears the penalty and rebuilds the grid', () => {
   startIdentify(page);
   clickWrong(page);
   page.run('nextQuestion()');
-  assert.equal(page.run('identifyHadWrong'), false);
+  assert.equal(page.run('!!current.hadWrong'), false);
   assert.equal(page.el('identify-btn-show').disabled, false);
   assert.equal(page.el('feedback').className, 'feedback');
   assert.equal(cells(page).length, 8);
   assert.ok(cells(page).every(c => c.className === 'identify-cell'));
   clickCorrect(page);
   assert.equal(page.el('s-correct').textContent, 1);
+});
+
+test('leaving identify mode and coming back does not clear the penalty for a wrong pick', () => {
+  const page = loadPage();
+  startIdentify(page);
+  clickWrong(page);
+  page.run(`setDisplayMode('structure'); setDisplayMode('identify')`);
+  clickCorrect(page);
+  assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
 });
 
 // ── Structure rendering and RDKit ──────────────────────────────
@@ -838,14 +982,123 @@ test('a structure toggled back off in name mode before RDKit loads is not drawn'
 test('RDKit arriving in identify mode redraws the placeholder cells', () => {
   const page = loadPage({ rdkit: false });
   startIdentify(page);
-  assert.ok(cells(page).every(c => /Loading/.test(c.innerHTML)));
+  assert.ok(cells(page).every(c => /Loading/.test(cellHTML(c))));
   page.loader.load();
   assert.equal(cells(page).length, 8);
-  assert.ok(cells(page).every(c => c.innerHTML.includes('<svg')));
+  assert.ok(cells(page).every(c => cellHTML(c).includes('<svg')));
+});
+
+test('RDKit arriving in identify mode keeps the options, the picks and the penalty', () => {
+  const page = loadPage({ rdkit: false });
+  startIdentify(page);
+  const options = JSON.stringify(page.json('current.identifyOptions'));
+  clickWrong(page);
+  const wrongCell = cells(page)[optionIndex(page, false)];
+  page.loader.load();
+
+  assert.equal(JSON.stringify(page.json('current.identifyOptions')), options);
+  assert.equal(cells(page)[optionIndex(page, false)], wrongCell);
+  assert.ok(wrongCell.classList.contains('wrong'));
+  assert.equal(wrongCell.children.at(-2).textContent, '✗');
+  assert.ok(cellHTML(wrongCell).includes('<svg'));
+  clickCorrect(page);
+  assert.deepEqual(scoreboard(page), ['1', '0', '0', '0%']);
+});
+
+test('RDKit arriving after Show Answer does not reopen the question', () => {
+  const page = loadPage({ rdkit: false });
+  startIdentify(page);
+  page.run('showAnswers()');
+  page.loader.load();
+  assert.equal(page.run('answered'), true);
+  assert.ok(cells(page)[optionIndex(page, true)].classList.contains('revealed'));
+  assert.equal(page.el('s-total').textContent, 1);
 });
 
 test('a failed RDKit load says so', () => {
   const page = loadPage({ rdkit: false });
   page.loader.fail();
   assert.match(boxHTML(page), /failed to load/);
+});
+
+test('RDKit is pinned to one exact version for both the script and its wasm', () => {
+  const urls = [...HTML.matchAll(/https:\/\/unpkg\.com\/@rdkit\/rdkit([^/]*)\/dist\//g)].map(m => m[1]);
+  assert.equal(urls.length, 2);
+  for (const version of urls) assert.match(version, /^@\d+\.\d+\.\d+$/);
+  assert.equal(urls[0], urls[1]);
+});
+
+// ── Accessibility and design standards ─────────────────────────
+test('every answer field has a real label', () => {
+  for (const id of FIELDS) assert.match(MARKUP, new RegExp(`<label [^>]*for="inp-${id}"`), id);
+});
+
+test('toggle buttons report their state, in the markup and after every change', () => {
+  const inSync = page => {
+    for (const selector of ['.mode-btn', '.qtype-btn', '.name-hide-btn', '.name-ph-btn']) {
+      for (const b of page.qa(selector)) {
+        assert.equal(b.getAttribute('aria-pressed'), String(b.classList.contains('active')), `${selector} ${b.id ?? JSON.stringify(b.dataset)}`);
+      }
+    }
+  };
+  const page = loadPage();
+  inSync(page);
+  for (const action of [
+    `toggleQuestionType('ph')`, `toggleNameHide('c1')`, `toggleNameHide('c1')`, `setDisplayMode('name')`,
+    'toggleNameRandom()', 'toggleNameStructure()', 'setNameStructPH(13)', 'nextQuestion()',
+    `setDisplayMode('identify')`, `toggleIdentifyNameStyle('c1')`, `setDisplayMode('structure')`,
+  ]) {
+    page.run(action);
+    inSync(page);
+  }
+});
+
+test('every click target in the markup can take keyboard focus', () => {
+  for (const m of MARKUP.matchAll(/<(\w+)[^>]*\bonclick=/g)) assert.equal(m[1], 'button');
+});
+
+test('feedback and option groups are announced', () => {
+  assert.match(MARKUP, /id="feedback"[^>]*aria-live="polite"/);
+  for (const id of ['qtype-bar', 'name-toggles', 'identify-name-toggles', 'identify-grid']) {
+    assert.match(MARKUP, new RegExp(`id="${id}"[^>]*role="group"[^>]*aria-label=`), id);
+  }
+});
+
+test('the drawing has a label that never names the amino acid', () => {
+  const page = loadPage();
+  ask(page, 'A', 7);
+  const box = page.el('struct-box');
+  assert.equal(box.getAttribute('role'), 'img');
+  assert.equal(box.getAttribute('aria-label'), 'Amino acid structure');
+  page.run(`drawStructure('invalid')`);
+  assert.equal(box.getAttribute('role'), null, 'a failure message must stay readable');
+  page.run(`setDisplayMode('name')`);
+  assert.equal(box.getAttribute('role'), null, 'names are read as text');
+});
+
+test('focus stays visible on every control', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.doesNotMatch(css, /outline:\s*(none|0)/);
+  assert.match(css, /button:focus-visible, input:focus-visible, select:focus-visible\s*{\s*outline: 3px solid/);
+});
+
+test('the styles use only the University of Tampa palette', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const palette = ['#D0012B', '#000000', '#FFFFFF', '#E6E0CC', '#282828', '#404040', '#828282', '#BFBFBF', '#F0F0F0'];
+  for (const [color] of css.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) assert.ok(palette.includes(color.toUpperCase()), color);
+  for (const [, rgb] of css.matchAll(/rgba?\((\d+,\d+,\d+)/g)) assert.ok(['0,0,0', '208,1,43'].includes(rgb), rgb);
+});
+
+test('sulfur is drawn dark enough to read against the structure backgrounds', () => {
+  const page = loadPage();
+  ask(page, 'M', 7);
+  const srgb = page.log.options.atomColourPalette[16];
+  const lum = c => { const [r, g, b] = c.map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  // #E6E0CC is the darker of the two backgrounds a structure can sit on
+  const ratio = (lum([0xE6 / 255, 0xE0 / 255, 0xCC / 255]) + 0.05) / (lum(srgb) + 0.05);
+  assert.ok(ratio >= 4.5, `contrast is ${ratio.toFixed(2)}:1`);
+});
+
+test('the pH 2 simplification is stated on the page', () => {
+  assert.match(MARKUP, /class="page-note"[\s\S]*pH 2[\s\S]*pKa is about 2/);
 });
