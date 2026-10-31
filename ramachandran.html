@@ -132,9 +132,6 @@
     .reg-allowed    { background: #F5E6FF; color: #000000; border-color: #685C53; }
     .reg-disallowed { background: #FFEBEE; color: #000000; border-color: #C8102E; }
 
-    #clash-display { font-size: 0.88em; text-align: center; color: #000000; }
-    #clash-display.has-clash { font-weight: 600; color: #C8102E; }
-
     .legend {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -409,14 +406,13 @@
       </div>
 
       <div id="region-display" class="reg-favored" aria-live="polite">Favored — alpha-helix</div>
-      <div id="clash-display" aria-live="polite"></div>
   </div>
 
   <!-- Dipeptide 3D viewer -->
     <div id="dipeptide-section">
   <div id="dipeptide-header">
     <span id="dipeptide-title">Peptide Backbone</span>
-    <span id="dipeptide-hint">Drag or arrow keys to rotate &nbsp;|&nbsp; <span style="color:#B45309;">&#9135; ϕ bond</span> &nbsp; <span style="color:#0E7490;">&#9135; ψ bond</span></span>
+    <span id="dipeptide-hint">Drag to rotate &nbsp;|&nbsp; <span style="color:#B45309;">&#9135; ϕ bond</span> &nbsp; <span style="color:#0E7490;">&#9135; ψ bond</span></span>
   </div>
   <div id="dipeptide-btns">
     <button id="nterm-toggle" onclick="toggleNterm()">Add N-terminal AA</button>
@@ -429,7 +425,7 @@
     <button id="extra4-toggle" onclick="toggleExtra4()">Add 4 Additional AAs</button>
   </div>
   <div id="dipeptide-wrapper">
-    <canvas id="dipeptide" width="500" height="290" tabindex="0" role="application" aria-label="3D peptide backbone viewer. Drag or use the arrow keys to rotate."></canvas>
+    <canvas id="dipeptide" width="500" height="290" tabindex="0" role="application"></canvas>
     <div id="zoom-btns">
       <button class="rot-btn zoom-btn" id="zbtn-in"  title="Zoom in">+</button>
       <button class="rot-btn zoom-btn" id="zbtn-out" title="Zoom out">−</button>
@@ -466,16 +462,17 @@
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ef5350;"></div>O (oxygen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#BDBDBD;"></div>H (hydrogen)</div>
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R (side chain)</div>
+    <div class="dp-legend-item"><b style="color:#C8102E;">)(</b>&nbsp;Steric clash</div>
   </div>
   <div id="structure-presets">
     <div class="panel-section-title">Go to Structure</div>
     <div id="preset-row">
       <button class="preset-btn" onclick="goToStructure('alpha')">α-helix</button>
-      <button class="preset-btn" onclick="goToStructure('helix310')">3₁₀ helix</button>
-      <button class="preset-btn" onclick="goToStructure('leftHelix')">Left-handed helix</button>
       <button class="preset-btn" onclick="goToStructure('antiparallel')">Antiparallel β</button>
       <button class="preset-btn" onclick="goToStructure('parallel')">Parallel β</button>
       <button class="preset-btn" onclick="goToStructure('ppII')">PPII</button>
+      <button class="preset-btn" onclick="goToStructure('leftHelix')">Left-handed helix</button>
+      <button class="preset-btn" onclick="goToStructure('helix310')">3₁₀ helix</button>
     </div>
   </div>
     </div><!-- end #dipeptide-section -->
@@ -487,7 +484,7 @@
       <button class="residue-btn" id="residue-pro" aria-pressed="false" onclick="setResidueType('pro')">Proline</button>
     </div>
     <p class="plot-hint" id="residue-note">General residues: every amino acid except glycine and proline.</p>
-    <p class="plot-hint"><b>Click or drag</b> on the plot, or focus it and use the <b>arrow keys</b> (Shift for 10°).</p>
+    <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
     <canvas id="plot" width="520" height="520" tabindex="0" role="application"></canvas>
     <div class="legend">
       <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Favored</div>
@@ -515,18 +512,18 @@ const REGIONS = [
 // Glycine has no side chain, so its regions are symmetric about the origin. Entries past ±180
 // stand in for wrap-around, because these Gaussians don't wrap at the plot's edges.
 const GLY_REGIONS = [
-  { phi0: -60,  psi0: -45,  sP: 24, sQ: 22, w: 0.90, name: 'alpha-helix'     },
-  { phi0:  60,  psi0:  45,  sP: 24, sQ: 22, w: 0.90, name: 'left-hand helix' },
-  { phi0: -85,  psi0:   0,  sP: 18, sQ: 20, w: 0.70, name: 'alpha-helix'     },
-  { phi0:  85,  psi0:   0,  sP: 18, sQ: 20, w: 0.70, name: 'left-hand helix' },
-  { phi0: -75,  psi0: 165,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
-  { phi0:  75,  psi0:-165,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
-  { phi0: -75,  psi0:-195,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
-  { phi0:  75,  psi0: 195,  sP: 20, sQ: 24, w: 0.65, name: 'extended'        },
-  { phi0:-180,  psi0: 180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
-  { phi0: 180,  psi0:-180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
-  { phi0: 180,  psi0: 180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
-  { phi0:-180,  psi0:-180,  sP: 34, sQ: 30, w: 0.80, name: 'extended'        },
+  { phi0: -70,  psi0: -30,  sP: 26, sQ: 28, w: 0.95, name: 'alpha-helix'     },
+  { phi0:  70,  psi0:  30,  sP: 26, sQ: 28, w: 0.95, name: 'left-hand helix' },
+  { phi0:-100,  psi0:   0,  sP: 24, sQ: 24, w: 0.70, name: 'alpha-helix'     },
+  { phi0: 100,  psi0:   0,  sP: 24, sQ: 24, w: 0.70, name: 'left-hand helix' },
+  { phi0:-110,  psi0: 150,  sP: 46, sQ: 42, w: 1.00, name: 'beta-sheet'      },
+  { phi0: 110,  psi0:-150,  sP: 46, sQ: 42, w: 1.00, name: 'extended'        },
+  { phi0:-110,  psi0:-210,  sP: 46, sQ: 42, w: 1.00, name: 'beta-sheet'      },
+  { phi0: 110,  psi0: 210,  sP: 46, sQ: 42, w: 1.00, name: 'extended'        },
+  { phi0:-180,  psi0: 180,  sP: 40, sQ: 36, w: 0.80, name: 'extended'        },
+  { phi0: 180,  psi0:-180,  sP: 40, sQ: 36, w: 0.80, name: 'extended'        },
+  { phi0: 180,  psi0: 180,  sP: 40, sQ: 36, w: 0.80, name: 'extended'        },
+  { phi0:-180,  psi0:-180,  sP: 40, sQ: 36, w: 0.80, name: 'extended'        },
 ];
 // Proline's ring holds ϕ near −65°
 const PRO_REGIONS = [
@@ -536,15 +533,16 @@ const PRO_REGIONS = [
 const REGION_SETS = { general: REGIONS, gly: GLY_REGIONS, pro: PRO_REGIONS };
 const PLOT_LABELS = {
   general: [{phi:-60,psi:-45,t:'α'},{phi:-120,psi:130,t:'β'},{phi:60,psi:45,t:'αL'}],
-  gly:     [{phi:-60,psi:-45,t:'α'},{phi:60,psi:45,t:'αL'}],
+  gly:     [{phi:-70,psi:-30,t:'α'},{phi:-110,psi:150,t:'β'},{phi:70,psi:30,t:'αL'}],
   pro:     [{phi:-65,psi:-35,t:'α'},{phi:-65,psi:145,t:'PPII'}],
 };
 const RESIDUE_NOTES = {
   general: 'General residues: every amino acid except glycine and proline.',
-  gly:     'Glycine: its side chain is only H, so far more of the plot opens up.',
+  gly:     'Glycine: its side chain is only H, so far more of the plot opens up, especially around β.',
   pro:     'Proline: its ring locks ϕ near −65°. The viewer still shows a generic residue, with no ring.',
 };
 let residueType = 'general';   // the whole chain is treated as this residue type
+let activeStructure = null;    // key of STRUCTURES while its preset's angles are in place
 const FAVORED_THRESH = 0.38, ALLOWED_THRESH = 0.055;
 
 let phi = -60, psi = -45;
@@ -682,8 +680,9 @@ function updateUI() {
   document.getElementById('phi-input').value  = rp;
   document.getElementById('psi-input').value  = rq;
   const reg=getRegion(phi,psi), rd=document.getElementById('region-display');
-  if (reg.level==='favored')    { rd.className='reg-favored';    rd.textContent=`Favored — ${reg.name}`; }
-  else if (reg.level==='allowed') { rd.className='reg-allowed';  rd.textContent=`Allowed — ${reg.name||'transition zone'}`; }
+  const regName = activeStructure ? STRUCTURES[activeStructure].label : reg.name;
+  if (reg.level==='favored')    { rd.className='reg-favored';    rd.textContent=`Favored — ${regName}`; }
+  else if (reg.level==='allowed') { rd.className='reg-allowed';  rd.textContent=`Allowed — ${regName||'transition zone'}`; }
   else                            { rd.className='reg-disallowed'; rd.textContent='Disallowed region'; }
   plotCanvas.setAttribute('aria-label',
     `Ramachandran plot. ϕ ${rp}°, ψ ${rq}°. ${rd.textContent}. Arrow keys move the point; hold Shift for 10° steps.`);
@@ -695,6 +694,7 @@ function updateUI() {
 }
 
 function setAngles(p, q) {
+  activeStructure = null;
   phi = Math.max(-180, Math.min(180, p));
   psi = Math.max(-180, Math.min(180, q));
   if (betaTurnMode !== null) {
@@ -761,19 +761,25 @@ const ribbonCanvas = document.getElementById('ribbon');
 const rc = ribbonCanvas.getContext('2d');
 const RW = 456, RH = 176;
 const RIBBON_CAPTIONS = {
-  helix:     'α-helix (right-handed)',
-  leftHelix: 'Left-handed helix',
-  sheet:     'β-sheet / extended strand',
-  none:      'No regular secondary structure at these angles',
+  helix:        'α-helix (right-handed)',
+  leftHelix:    'Left-handed helix',
+  helix310:     '3₁₀ helix (right-handed)',
+  ppII:         'Polyproline II helix (left-handed, extended)',
+  sheet:        'β-sheet / extended strand',
+  antiparallel: 'Antiparallel β-sheet',
+  parallel:     'Parallel β-sheet',
+  none:         'No regular secondary structure at these angles',
 };
 let ribbonShown = null;
 
 function ribbonStructure(p, q) {
+  if (activeStructure) return STRUCTURES[activeStructure].ribbon;
   const { level, name } = getRegion(p, q);
   if (level === 'disallowed') return 'none';
   if (name === 'alpha-helix') return 'helix';
   if (name === 'left-hand helix') return 'leftHelix';
-  if (name === 'beta-sheet' || name === 'PPII / beta' || name === 'extended') return 'sheet';
+  if (name === 'PPII / beta') return 'ppII';
+  if (name === 'beta-sheet' || name === 'extended') return 'sheet';
   return 'none';
 }
 
@@ -783,9 +789,8 @@ function renderRibbon() {
   if (kind === ribbonShown) return;
   ribbonShown = kind;
   rc.clearRect(0, 0, RW, RH);
-  if (kind === 'helix') drawHelixRibbon(1, '#C8102E');
-  else if (kind === 'leftHelix') drawHelixRibbon(-1, '#C8102E');
-  else if (kind === 'sheet') drawSheetRibbon('#6A0DAD');
+  if (HELIX_SHAPES[kind]) drawHelixRibbon(HELIX_SHAPES[kind], '#C8102E');
+  else if (SHEET_DIRECTIONS[kind]) drawSheetRibbon(SHEET_DIRECTIONS[kind], '#6A0DAD');
   document.getElementById('ribbon-caption').textContent = RIBBON_CAPTIONS[kind];
   ribbonCanvas.setAttribute('aria-label', `Ribbon diagram: ${RIBBON_CAPTIONS[kind]}`);
 }
@@ -817,54 +822,91 @@ function paintRibbonQuads(quads, color) {
   }
 }
 
-// A point on a tape wound around the screen's x axis, turned a little so its length and depth
-// both show. t runs 0–1 along the tape, s runs -1–1 across it. hand is 1 for right-handed,
-// -1 for the mirror image. The tape leans off the cylinder so its outline stays round.
-function helixRibbonPoint(t, s, hand) {
-  const TURNS = 3.6, R = 54, PITCH = 88, HALF_WIDTH = 18, LEAN = 30 * Math.PI / 180;
-  const th = t * TURNS * 2 * Math.PI;
-  const radial = v3(0, Math.cos(th), hand * Math.sin(th));
-  const tangent = norm3(v3(PITCH, -R * 2 * Math.PI * radial.z * hand, hand * R * 2 * Math.PI * radial.y));
-  const across = add3(sc3(Math.cos(LEAN), cross3(tangent, radial)), sc3(hand * Math.sin(LEAN), radial));
-  const center = v3((t - 0.5) * TURNS * PITCH, R * radial.y, R * radial.z);
-  return mApply(mRotY(-18 * Math.PI / 180), add3(center, sc3(s * HALF_WIDTH, across)));
+// Proportions follow the real helices. Each ends a quarter turn past a whole turn, so the
+// arrowhead lands on the front of the helix where it can be seen.
+const HELIX_SHAPES = {
+  helix:     { hand:  1, turns: 3.25, r: 54, pitch:  88, halfWidth: 16 },
+  leftHelix: { hand: -1, turns: 3.25, r: 54, pitch:  88, halfWidth: 16 },
+  helix310:  { hand:  1, turns: 3.25, r: 42, pitch:  98, halfWidth: 14 },
+  ppII:      { hand: -1, turns: 2.25, r: 24, pitch: 150, halfWidth: 12 },
+};
+const HELIX_HEAD = 0.07;   // share of the tape taken by the arrowhead
+
+// A point on a tape wound around the screen's x axis from the N end to the C end, turned a little
+// so its length and depth both show. t runs 0–1 along the tape, s runs -1–1 across it. The hand is
+// set by mirroring y, which keeps the arrowhead in front. The tape leans off the cylinder so its
+// outline stays round.
+function helixRibbonPoint(t, s, shape) {
+  const { hand, turns, r, pitch, halfWidth } = shape, LEAN = 30 * Math.PI / 180;
+  const th = t * turns * 2 * Math.PI;
+  const radial = v3(0, hand * Math.cos(th), Math.sin(th));
+  const tangent = norm3(v3(pitch, -hand * r * 2 * Math.PI * Math.sin(th), r * 2 * Math.PI * Math.cos(th)));
+  const across = add3(sc3(Math.cos(LEAN), cross3(tangent, radial)), sc3(Math.sin(LEAN), radial));
+  const center = v3((t - 0.5) * turns * pitch, r * radial.y, r * radial.z);
+  const width = t > 1 - HELIX_HEAD ? halfWidth * 2.2 * (1 - t) / HELIX_HEAD : halfWidth;
+  return mApply(mRotY(-18 * Math.PI / 180), add3(center, sc3(s * width, across)));
 }
 
-function drawHelixRibbon(hand, color) {
-  const STEPS = 240, quads = [];
-  const at = (t, s) => helixRibbonPoint(t, s, hand);
+function drawHelixRibbon(shape, color) {
+  const STEPS = 300, quads = [];
+  const at = (t, s) => helixRibbonPoint(t, s, shape);
   for (let i = 0; i < STEPS; i++) {
     const t0 = i / STEPS, t1 = (i + 1) / STEPS;
     quads.push(ribbonQuad(at(t0, -1), at(t0, 1), at(t1, 1), at(t1, -1)));
   }
   paintRibbonQuads(quads, color);
+
+  // Name the two ends so the arrow reads as N→C
+  rc.fillStyle = '#000000';
+  rc.font = 'bold 13px "Segoe UI",Arial';
+  rc.textAlign = 'center'; rc.textBaseline = 'middle';
+  const start = at(0, 0), end = at(1, 0);
+  rc.fillText('N', RW/2 + start.x - 14, RH/2 - start.y);
+  rc.fillText('C', RW/2 + end.x + 14, RH/2 - end.y);
 }
 
-// Three pleated antiparallel strands with arrowheads, joined by hairpin loops
-function drawSheetRibbon(color) {
+// Direction of each strand: 1 runs left to right
+const SHEET_DIRECTIONS = {
+  sheet:        [1, -1, 1],
+  antiparallel: [1, -1, 1],
+  parallel:     [1, 1, 1],
+};
+
+// Three pleated strands with arrowheads. Antiparallel neighbors join by short hairpins;
+// parallel neighbors need a long crossover back along the sheet.
+function drawSheetRibbon(directions, color) {
   const HALF_LEN = 185, HALF_WIDTH = 15, HEAD = 40, GAP = 54, PLEAT = 6, STEPS = 120;
   const view = mRotX(-28 * Math.PI / 180);
   const strandYs = [GAP, 0, -GAP];
   const place = (x, y, z) => mApply(view, v3(x, y, z));
   const pleatZ = x => PLEAT * Math.cos(x * Math.PI / 22);
+  const onCanvas = p => [RW/2 + p.x, RH/2 - p.y];
 
   rc.lineWidth = 5;
   rc.lineCap = 'round';
   rc.strokeStyle = '#685C53';
   strandYs.slice(0, -1).forEach((y, i) => {
-    const side = i % 2 === 0 ? 1 : -1;
     rc.beginPath();
-    for (let k = 0; k <= 24; k++) {
-      const a = -Math.PI / 2 + k / 24 * Math.PI;
-      const p = place(side * (HALF_LEN + 14 * Math.cos(a)), y - GAP / 2 - GAP / 2 * Math.sin(a), pleatZ(side * HALF_LEN));
-      if (k === 0) rc.moveTo(RW/2 + p.x, RH/2 - p.y); else rc.lineTo(RW/2 + p.x, RH/2 - p.y);
+    if (directions[i] === directions[i + 1]) {
+      const [x0, y0] = onCanvas(place(HALF_LEN, y, 0));
+      const [x1, y1] = onCanvas(place(-HALF_LEN, y - GAP, 0));
+      const [, midY] = onCanvas(place(0, y - GAP / 2, 0));
+      rc.moveTo(x0, y0);
+      rc.bezierCurveTo(x0 + 26, midY, x1 - 26, midY, x1, y1);
+    } else {
+      const side = directions[i];
+      for (let k = 0; k <= 24; k++) {
+        const a = -Math.PI / 2 + k / 24 * Math.PI;
+        const [px, py] = onCanvas(place(side * (HALF_LEN + 14 * Math.cos(a)), y - GAP / 2 - GAP / 2 * Math.sin(a), pleatZ(side * HALF_LEN)));
+        if (k === 0) rc.moveTo(px, py); else rc.lineTo(px, py);
+      }
     }
     rc.stroke();
   });
 
   const quads = [];
   strandYs.forEach((y, i) => {
-    const dir = i % 2 === 0 ? 1 : -1;
+    const dir = directions[i];
     const widthAt = along => along < 2 * HALF_LEN - HEAD
       ? HALF_WIDTH
       : HALF_WIDTH * 2 * (2 * HALF_LEN - along) / HEAD;
@@ -1344,6 +1386,21 @@ function drawAngleArc(pivot2, fromVec2, toVec2, radius, color, labelText) {
 
 const ARC_MIN_SCALE = 34, ANGLE_CORNER_X = 12;
 
+function shownAtomStyle() {
+  const atomStyle = { ...ATOM_STYLE };
+  if (showNterm)  Object.assign(atomStyle, NTERM_ATOM_STYLE);
+  if (showCterm)  Object.assign(atomStyle, CTERM_ATOM_STYLE);
+  if (showExtra2) Object.assign(atomStyle, EXTRA2_ATOM_STYLE);
+  if (showExtra4) Object.assign(atomStyle, EXTRA4_ATOM_STYLE);
+  // Glycine's "side chain" is a second Hα
+  if (residueType === 'gly') {
+    for (const k of Object.keys(atomStyle)) {
+      if (k.startsWith('Cb')) atomStyle[k] = { fill:'#BDBDBD', stroke:'#757575', r:4, label:'Hα' };
+    }
+  }
+  return atomStyle;
+}
+
 // ── Steric clashes ─────────────────────────────────────────────
 // Closest allowed contacts between non-bonded atoms (Å): Ramachandran's outer limits
 const CONTACT_LIMITS = { CC:2.9, CH:2.2, CN:2.8, CO:2.7, HH:1.9, HN:2.2, HO:2.2, NN:2.6, NO:2.6, OO:2.6 };
@@ -1389,33 +1446,37 @@ function findClashes(atoms, shownKeys) {
   return clashes.sort((x, y) => x.d - y.d);
 }
 
-function describeClashes(clashes, atomStyle) {
-  if (clashes.length === 0) return 'No steric clashes among the atoms shown';
-  const { a, b, d } = clashes[0];
-  const pair = `${atomStyle[a].label}···${atomStyle[b].label} ${d.toFixed(2)} Å`;
-  return clashes.length === 1 ? `⚠ 1 steric clash: ${pair}` : `⚠ ${clashes.length} steric clashes, closest ${pair}`;
+// The chemical group an atom belongs to, e.g. C5 and O5 are both carbonyl 5
+function atomGroup(key) {
+  const n = key.match(/\d+$/)[0];
+  if (key.startsWith('Cb')) return `R${n}`;
+  if (key.startsWith('Ca') || key.startsWith('Ha')) return `CA${n}`;
+  if (key.startsWith('C') || key.startsWith('O')) return `CO${n}`;
+  return `NH${n}`;
 }
 
-// A zigzag between the two atoms and a ring on each, so a clash doesn't rely on color alone
+// One entry per pair of clashing groups, at the pair's closest atoms (clashes come closest first)
+function groupClashes(clashes) {
+  const seen = new Set();
+  return clashes.filter(({ a, b }) => {
+    const pair = [atomGroup(a), atomGroup(b)].sort().join();
+    if (seen.has(pair)) return false;
+    seen.add(pair);
+    return true;
+  });
+}
+
+// The usual cartoon of steric hindrance: an arc on each group, facing the other
 function drawClash(pa, pb, ra, rb) {
-  const dx = pb.x - pa.x, dy = pb.y - pa.y, len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len, uy = dy / len, TEETH = 6, AMP = 3;
+  const toB = Math.atan2(pb.y - pa.y, pb.x - pa.x), SPREAD = 0.95, GAP = 4;
   dc.save();
   dc.globalAlpha = 1;
   dc.strokeStyle = '#C8102E';
-  dc.lineWidth = 1.5;
+  dc.lineWidth = 2.5;
+  dc.lineCap = 'round';
   dc.setLineDash([]);
-  dc.beginPath();
-  dc.moveTo(pa.x, pa.y);
-  for (let k = 1; k < TEETH; k++) {
-    const side = k % 2 ? AMP : -AMP;
-    dc.lineTo(pa.x + dx * k / TEETH - uy * side, pa.y + dy * k / TEETH + ux * side);
-  }
-  dc.lineTo(pb.x, pb.y);
-  dc.stroke();
-  for (const [p, r] of [[pa, ra], [pb, rb]]) {
-    dc.beginPath(); dc.arc(p.x, p.y, r + 2, 0, Math.PI * 2); dc.stroke();
-  }
+  dc.beginPath(); dc.arc(pa.x, pa.y, ra + GAP, toB - SPREAD, toB + SPREAD); dc.stroke();
+  dc.beginPath(); dc.arc(pb.x, pb.y, rb + GAP, toB + Math.PI - SPREAD, toB + Math.PI + SPREAD); dc.stroke();
   dc.restore();
 }
 
@@ -1434,15 +1495,12 @@ function renderDipeptide() {
   const mid = atoms.Ca5;
 
   // Build per-frame atom style and bond defs (merge in extras when active)
-  const atomStyle = { ...ATOM_STYLE };
+  const atomStyle = shownAtomStyle();
   const bondDefs  = [...BOND_DEFS];
-  if (showNterm) {
-    Object.assign(atomStyle, NTERM_ATOM_STYLE);
-    bondDefs.push(...NTERM_BOND_DEFS);
-  }
-  if (showCterm)  { Object.assign(atomStyle, CTERM_ATOM_STYLE);  bondDefs.push(...CTERM_BOND_DEFS);  }
-  if (showExtra2) { Object.assign(atomStyle, EXTRA2_ATOM_STYLE); bondDefs.push(...EXTRA2_BOND_DEFS); }
-  if (showExtra4) { Object.assign(atomStyle, EXTRA4_ATOM_STYLE); bondDefs.push(...EXTRA4_BOND_DEFS); }
+  if (showNterm)  bondDefs.push(...NTERM_BOND_DEFS);
+  if (showCterm)  bondDefs.push(...CTERM_BOND_DEFS);
+  if (showExtra2) bondDefs.push(...EXTRA2_BOND_DEFS);
+  if (showExtra4) bondDefs.push(...EXTRA4_BOND_DEFS);
 
   // H-bond logic
   {
@@ -1471,13 +1529,6 @@ function renderDipeptide() {
       for (const [a, b] of [['O1', 'HN8'], ['HN1', 'O8']]) {
         if (len3(sub3(atoms[a], atoms[b])) < HBOND_MAX_DIST) bondDefs.push([a, b, 'bturn_hbond']);
       }
-    }
-  }
-
-  // Glycine's "side chain" is a second Hα
-  if (residueType === 'gly') {
-    for (const k of Object.keys(atomStyle)) {
-      if (k.startsWith('Cb')) atomStyle[k] = { fill:'#BDBDBD', stroke:'#757575', r:4, label:'Hα' };
     }
   }
 
@@ -1543,13 +1594,14 @@ function renderDipeptide() {
   }
 
   // ── Steric clashes ─────────────────────────────────────────────
-  const clashes = findClashes(atoms, Object.keys(atomStyle).filter(k => residueType !== 'gly' || !k.startsWith('Cb')));
+  // Not marked in a β-turn preset, which is a model of a real turn rather than a free conformation
+  const clashes = betaTurnMode ? [] : groupClashes(
+    findClashes(atoms, Object.keys(atomStyle).filter(k => residueType !== 'gly' || !k.startsWith('Cb'))));
   for (const { a, b } of clashes.slice(0, MAX_CLASHES_DRAWN)) {
     drawClash(proj[a], proj[b], scaledAtomStyle[a].r, scaledAtomStyle[b].r);
   }
-  const clashText = document.getElementById('clash-display');
-  clashText.textContent = describeClashes(clashes, atomStyle);
-  clashText.className = clashes.length ? 'has-clash' : '';
+  dp.setAttribute('aria-label', `3D peptide backbone viewer. Drag or use the arrow keys to rotate. ${
+    clashes.length ? `${clashes.length} steric clashes between groups, marked with arcs.` : 'No steric clashes.'}`);
 
   // ── Labels (drawn on top of everything) ───────────────────────
   dc.globalAlpha = 1;
@@ -1804,6 +1856,7 @@ function toggleNterm() {
   btn.textContent = showNterm ? 'Remove N-terminal AA' : 'Add N-terminal AA';
   btn.classList.toggle('active', showNterm);
   syncExtraRow();
+  fitToCanvas(buildChain());
   renderDipeptide();
 }
 
@@ -1813,6 +1866,7 @@ function toggleCterm() {
   btn.textContent = showCterm ? 'Remove C-terminal AA' : 'Add C-terminal AA';
   btn.classList.toggle('active', showCterm);
   syncExtraRow();
+  fitToCanvas(buildChain());
   renderDipeptide();
 }
 
@@ -1837,6 +1891,7 @@ function toggleExtra2() {
   showExtra2 = !showExtra2;
   if (!showExtra2 && showExtra4) { showExtra4 = false; }
   updateExtraBtn();
+  fitToCanvas(buildChain());
   renderDipeptide();
 }
 
@@ -1844,6 +1899,7 @@ function toggleExtra4() {
   if (!showExtra2) toggleExtra2();  // auto-enables Nterm/Cterm via toggleExtra2
   showExtra4 = !showExtra4;
   updateExtraBtn();
+  fitToCanvas(buildChain());
   renderDipeptide();
 }
 
@@ -1872,11 +1928,14 @@ function viewFromAxes(right, upHint) {
   viewMatrix = [[right.x,right.y,right.z],[up.x,up.y,up.z],[toward.x,toward.y,toward.z]];
 }
 
-// Zooms so every atom fits in the current view and pans so the peptide is centered on the canvas
+// Zooms so every shown atom fits in the current view and pans so the peptide is centered on the
+// canvas. The zoom never goes past the default, so a short peptide doesn't balloon.
 function fitToCanvas(atoms) {
+  const anchor = (showNterm || showCterm) ? null : caAnchorRotation(atoms);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const pos of Object.values(atoms)) {
-    const p = rotateView(sub3(pos, atoms.Ca5));
+  for (const key of Object.keys(shownAtomStyle())) {
+    const centered = sub3(atoms[key], atoms.Ca5);
+    const p = rotateView(anchor ? mApply(anchor, centered) : centered);
     minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
     minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
   }
@@ -1903,24 +1962,27 @@ function frameStructure() {
 }
 
 const STRUCTURES = {
-  alpha:        [-57, -47],
-  helix310:     [-49, -26],
-  leftHelix:    [57, 47],
-  antiparallel: [-139, 135],
-  parallel:     [-119, 113],
-  ppII:         [-75, 145],
+  alpha:        { angles: [-57, -47],  label: 'α-helix',             ribbon: 'helix' },
+  antiparallel: { angles: [-139, 135], label: 'antiparallel β-sheet', ribbon: 'antiparallel' },
+  parallel:     { angles: [-119, 113], label: 'parallel β-sheet',     ribbon: 'parallel' },
+  ppII:         { angles: [-75, 145],  label: 'polyproline II helix', ribbon: 'ppII' },
+  leftHelix:    { angles: [57, 47],    label: 'left-handed helix',    ribbon: 'leftHelix' },
+  helix310:     { angles: [-49, -26],  label: '3₁₀ helix',            ribbon: 'helix310' },
 };
 
 function goToStructure(name) {
   betaTurnMode = null;
   showFullChain();
-  setAngles(...STRUCTURES[name]);
+  setAngles(...STRUCTURES[name].angles);
+  activeStructure = name;
   frameStructure();
+  updateUI();
   renderDipeptide();
 }
 
 function setResidueType(type) {
   residueType = type;
+  activeStructure = null;
   bgCache = null;
   for (const t of Object.keys(REGION_SETS)) {
     const btn = document.getElementById(`residue-${t}`);
@@ -1934,6 +1996,7 @@ function setResidueType(type) {
 function setBetaTurnTypeI() {
   if (betaTurnMode === 'typeI') { betaTurnMode = null; setAngles(phi, psi); return; }
   showFullChain();
+  activeStructure = null;
   betaTurnMode = 'typeI';
   phi = -114; psi = 102;          // average of aa1, aa2, aa7 and aa8, shown on the plot
   // Each strand residue has its own angles so both sheet pairs close.
@@ -1954,6 +2017,7 @@ function setBetaTurnTypeI() {
 function setBetaTurnTypeII() {
   if (betaTurnMode === 'typeII') { betaTurnMode = null; setAngles(phi, psi); return; }
   showFullChain();
+  activeStructure = null;
   betaTurnMode = 'typeII';
   phi = -95; psi = 100;           // flanks tuned so the AA1 ↔ AA8 pair closes
   for (const key of Object.keys(residueAngles)) {

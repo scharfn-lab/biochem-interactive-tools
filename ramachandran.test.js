@@ -734,7 +734,7 @@ test('the anchored residue still responds to the user rotating the view', () => 
 test('the default conformation looks the same whether or not it is anchored', () => {
   const page = loadPage();
   const anchored = projected(page);
-  page.run('toggleNterm()');
+  page.run('toggleNterm(); dipScale = 44; dipOffX = 0; dipOffY = 0');
   const free = projected(page);
   for (const key of RIGID) assertClose(anchored[key].x, free[key].x, 1e-6, key);
 });
@@ -899,7 +899,8 @@ const RIBBONS = [
   [-60, -45, 'helix', 'α-helix (right-handed)'],
   [60, 45, 'leftHelix', 'Left-handed helix'],
   [-120, 130, 'sheet', 'β-sheet / extended strand'],
-  [-75, 148, 'sheet', 'β-sheet / extended strand'],
+  [-120, 150, 'sheet', 'β-sheet / extended strand'],
+  [-75, 148, 'ppII', 'Polyproline II helix (left-handed, extended)'],
   [80, -60, 'none', 'No regular secondary structure at these angles'],
   [0, 0, 'none', 'No regular secondary structure at these angles'],
 ];
@@ -932,27 +933,55 @@ test('the ribbon stays static until the structure changes', () => {
 });
 
 // Sign of the curve's torsion: positive for a right-handed helix in a right-handed frame
-const helixTwist = (page, hand) => {
-  const at = t => page.run(`helixRibbonPoint(${t}, 0, ${hand})`);
+const helixTwist = (page, kind) => {
+  const at = t => page.run(`helixRibbonPoint(${t}, 0, HELIX_SHAPES.${kind})`);
   const [a, b, c, d] = [0.30, 0.31, 0.32, 0.33].map(at);
   return dot(cross(sub(b, a), sub(c, b)), sub(d, c));
 };
-test('the helix ribbon is right-handed and its mirror image left-handed', () => {
+test('each helix ribbon has the right handedness', () => {
   const page = loadPage();
-  assert.ok(helixTwist(page, 1) > 0, 'right-handed');
-  assert.ok(helixTwist(page, -1) < 0, 'left-handed');
+  for (const kind of ['helix', 'helix310']) assert.ok(helixTwist(page, kind) > 0, `${kind} is right-handed`);
+  for (const kind of ['leftHelix', 'ppII']) assert.ok(helixTwist(page, kind) < 0, `${kind} is left-handed`);
 });
 
-test('both helix hands stay on the ribbon canvas', () => {
+test('every helix ribbon stays on the canvas, arrowhead included', () => {
   const page = loadPage();
-  for (const hand of [1, -1]) {
-    for (let t = 0; t <= 1; t += 0.01) {
+  for (const kind of Object.keys(page.run('HELIX_SHAPES'))) {
+    for (let t = 0; t <= 1.0001; t += 0.01) {
       for (const s of [-1, 1]) {
-        const p = page.run(`helixRibbonPoint(${t}, ${s}, ${hand})`);
-        assert.ok(Math.abs(p.x) <= 228 && Math.abs(p.y) <= 88, `t=${t} s=${s}: ${p.x}, ${p.y}`);
+        const p = page.run(`helixRibbonPoint(${Math.min(t, 1)}, ${s}, HELIX_SHAPES.${kind})`);
+        assert.ok(Math.abs(p.x) <= 228 && Math.abs(p.y) <= 88, `${kind} t=${t} s=${s}: ${p.x}, ${p.y}`);
       }
     }
   }
+});
+
+test('every helix ribbon ends in an arrowhead on the front, labeled N to C', () => {
+  const page = loadPage();
+  for (const kind of Object.keys(page.run('HELIX_SHAPES'))) {
+    const width = t => dist(page.run(`helixRibbonPoint(${t}, -1, HELIX_SHAPES.${kind})`), page.run(`helixRibbonPoint(${t}, 1, HELIX_SHAPES.${kind})`));
+    assert.ok(width(0.94) > width(0.5) * 1.5, `${kind}: the head flares out`);
+    assertClose(width(1), 0, 1e-9, `${kind}: the head comes to a point`);
+    assert.ok(page.run(`helixRibbonPoint(1, 0, HELIX_SHAPES.${kind})`).z > 0, `${kind}: the tip is in front`);
+    const start = page.run(`helixRibbonPoint(0, 0, HELIX_SHAPES.${kind})`);
+    assert.ok(start.x < page.run(`helixRibbonPoint(1, 0, HELIX_SHAPES.${kind})`).x, `${kind}: runs left to right`);
+  }
+  page.run('setAngles(-60, -45)');
+  const text = page.el('ribbon').context.calls.filter(c => c.fn === 'fillText').map(c => c.args[0]);
+  assert.deepEqual(text, ['N', 'C']);
+});
+
+test('sheet ribbons draw the strand directions of their structure', () => {
+  const page = loadPage();
+  assert.deepEqual([...page.run('SHEET_DIRECTIONS.parallel')], [1, 1, 1]);
+  assert.deepEqual([...page.run('SHEET_DIRECTIONS.antiparallel')], [1, -1, 1]);
+  const lines = kind => {
+    page.el('ribbon').context.calls.length = 0;
+    page.run(`rc.clearRect(0, 0, RW, RH); drawSheetRibbon(SHEET_DIRECTIONS.${kind}, '#6A0DAD')`);
+    return page.el('ribbon').context.calls.filter(c => c.fn === 'bezierCurveTo').length;
+  };
+  assert.equal(lines('parallel'), 2, 'parallel strands join by crossovers');
+  assert.equal(lines('antiparallel'), 0, 'antiparallel strands join by hairpins');
 });
 
 // ── Accessibility ──────────────────────────────────────────────
@@ -998,8 +1027,8 @@ test('the plot and viewer can take focus and describe themselves', () => {
   for (const id of ['plot', 'dipeptide']) {
     assert.match(HTML, new RegExp(`<canvas id="${id}"[^>]*tabindex="0"`), id);
   }
-  assert.match(HTML, /<canvas id="dipeptide"[^>]*aria-label="/);
   assert.match(HTML, /id="region-display"[^>]*aria-live="polite"/);
+  assert.ok(loadPage().el('dipeptide').attrs['aria-label'].startsWith('3D peptide backbone viewer'));
   const page = loadPage();
   page.run('setAngles(-60, -45)');
   const label = page.el('plot').attrs['aria-label'];
@@ -1028,11 +1057,11 @@ test('the legend makes no statistical claim', () => {
 // ── Structure presets ──────────────────────────────────────────
 const STRUCTURE_PRESETS = [
   ['alpha', -57, -47, 'helix', 'O1-HN5,O2-HN6,O3-HN7,O4-HN8,O5-HN9'],
-  ['helix310', -49, -26, 'helix', 'O1-HN4,O2-HN5,O3-HN6,O4-HN7,O5-HN8,O6-HN9'],
+  ['antiparallel', -139, 135, 'antiparallel', ''],
+  ['parallel', -119, 113, 'parallel', ''],
+  ['ppII', -75, 145, 'ppII', ''],
   ['leftHelix', 57, 47, 'leftHelix', 'O1-HN5,O2-HN6,O3-HN7,O4-HN8,O5-HN9'],
-  ['antiparallel', -139, 135, 'sheet', ''],
-  ['parallel', -119, 113, 'sheet', ''],
-  ['ppII', -75, 145, 'sheet', ''],
+  ['helix310', -49, -26, 'helix310', 'O1-HN4,O2-HN5,O3-HN6,O4-HN7,O5-HN8,O6-HN9'],
 ];
 for (const [name, p, q, ribbon, hbonds] of STRUCTURE_PRESETS) {
   test(`the ${name} preset sets the angles, ribbon and H-bonds of the whole chain`, () => {
@@ -1069,9 +1098,9 @@ for (const [name, p, q, ribbon, hbonds] of STRUCTURE_PRESETS) {
 
 test('a preset button exists for every structure and the turn button resets its label', () => {
   const page = loadPage();
-  for (const name of Object.keys(page.run('STRUCTURES'))) {
-    assert.ok(HTML.includes(`onclick="goToStructure('${name}')"`), name);
-  }
+  const buttons = [...HTML.matchAll(/onclick="goToStructure\('(\w+)'\)"/g)].map(m => m[1]);
+  assert.deepEqual(buttons, ['alpha', 'antiparallel', 'parallel', 'ppII', 'leftHelix', 'helix310'], 'button order');
+  assert.deepEqual([...Object.keys(page.run('STRUCTURES'))].sort(), [...buttons].sort());
   page.run("setBetaTurnTypeI(); goToStructure('alpha')");
   assert.equal(page.el('bturn-type1').textContent, 'Show β turn (Type I)');
 });
@@ -1120,15 +1149,14 @@ for (const name of ['alpha', 'helix310', 'antiparallel', 'parallel', 'ppII']) {
   test(`the ${name} preset has no steric clashes`, () => {
     const page = loadPage();
     page.run(`goToStructure('${name}')`);
-    assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
-    assert.equal(page.el('clash-display').className, '');
     assert.equal(shownClashes(page), 0);
+    assert.ok(page.el('dipeptide').attrs['aria-label'].includes('No steric clashes'));
   });
 }
 
 test('the default conformation has no steric clashes', () => {
   const page = loadPage();
-  assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
+  assert.equal(shownClashes(page), 0);
 });
 
 test('the left-handed helix clashes only through Cβ···O of the same residue', () => {
@@ -1137,9 +1165,10 @@ test('the left-handed helix clashes only through Cβ···O of the same residue'
   const clashes = clashesFor(page);
   assert.ok(clashes.length > 0);
   for (const { a, b } of clashes) assert.match(`${a}-${b}`, /^(Cb(\d)-O\2|O(\d)-Cb\3)$/);
+  assert.ok(shownClashes(page) > 0);
 });
 
-test('ϕ = ψ = 0 clashes and the readout reports the closest pair', () => {
+test('clashes are closest first and their distances are right', () => {
   const page = loadPage();
   page.run('setAngles(0, 0)');
   const clashes = page.run("findClashes(buildChain(), Object.keys({ ...ATOM_STYLE }))");
@@ -1149,10 +1178,6 @@ test('ϕ = ψ = 0 clashes and the readout reports the closest pair', () => {
     assertClose(clashes[i].d, dist(atoms[clashes[i].a], atoms[clashes[i].b]), 1e-9, `${clashes[i].a}-${clashes[i].b}`);
     if (i) assert.ok(clashes[i].d >= clashes[i - 1].d, 'closest first');
   }
-  const text = page.el('clash-display').textContent;
-  assert.ok(text.includes(clashes[0].d.toFixed(2)), text);
-  assert.ok(text.includes('steric clash'), text);
-  assert.equal(page.el('clash-display').className, 'has-clash');
 });
 
 test('directly bonded and 1–3 pairs never count, but 1–4 pairs can', () => {
@@ -1164,26 +1189,59 @@ test('directly bonded and 1–3 pairs never count, but 1–4 pairs can', () => {
   assert.ok(clashes.some(c => [c.a, c.b].sort().join() === 'C4,C5'), 'C4···C5 at ϕ = 0');
 });
 
+test('clashes are marked once per pair of groups, however many atoms touch', () => {
+  const page = loadPage();
+  page.run('setAngles(0, 0)');
+  const atoms = page.run("findClashes(buildChain(), Object.keys({ ...ATOM_STYLE }))");
+  const groups = page.run("groupClashes(findClashes(buildChain(), Object.keys({ ...ATOM_STYLE })))");
+  assert.ok(groups.length > 0 && groups.length < atoms.length, `${groups.length} groups from ${atoms.length} atoms`);
+  assert.equal(page.run("atomGroup('O5')"), page.run("atomGroup('C5')"));
+  assert.equal(page.run("atomGroup('HN5')"), page.run("atomGroup('N5')"));
+  assert.equal(page.run("atomGroup('Ha5')"), page.run("atomGroup('Ca5')"));
+  assert.notEqual(page.run("atomGroup('Cb5')"), page.run("atomGroup('Ca5')"));
+  assert.notEqual(page.run("atomGroup('C5')"), page.run("atomGroup('C6')"));
+  assert.equal(new Set(groups.map(g => [page.run(`atomGroup('${g.a}')`), page.run(`atomGroup('${g.b}')`)].sort().join())).size, groups.length);
+  assert.equal(shownClashes(page), groups.length);
+});
+
+test('a clash is drawn as two arcs facing each other, not a line between the atoms', () => {
+  const page = loadPage();
+  page.dipeptide.calls.length = 0;
+  page.run('drawClash({ x: 100, y: 50 }, { x: 200, y: 50 }, 10, 20)');
+  const arcs = page.dipeptide.calls.filter(c => c.fn === 'arc');
+  assert.equal(arcs.length, 2);
+  assert.deepEqual(arcs.map(c => c.args.slice(0, 3)), [[100, 50, 14], [200, 50, 24]]);
+  assertClose((arcs[0].args[3] + arcs[0].args[4]) / 2, 0, 1e-9, 'first arc faces the second');
+  assertClose((arcs[1].args[3] + arcs[1].args[4]) / 2, Math.PI, 1e-9, 'second arc faces the first');
+  assert.equal(page.dipeptide.calls.filter(c => c.fn === 'lineTo').length, 0, 'no line joins them');
+});
+
 test('only atoms on screen can clash', () => {
   const page = loadPage();
   page.run('setAngles(0, 0)');
-  const bare = page.el('clash-display').textContent;
+  const bare = shownClashes(page);
   page.run('toggleExtra4()');
-  const full = page.el('clash-display').textContent;
-  assert.notEqual(bare, full);
+  assert.ok(shownClashes(page) > bare, 'more residues, more clashes');
   const shown = Object.keys(page.run('({ ...ATOM_STYLE })'));
   for (const { a, b } of page.run(`findClashes(buildChain(), ${JSON.stringify(shown)})`)) {
     assert.ok(shown.includes(a) && shown.includes(b), `${a}-${b}`);
   }
 });
 
-test('the viewer marks at most MAX_CLASHES_DRAWN pairs but the readout counts them all', () => {
+test('the viewer marks at most MAX_CLASHES_DRAWN pairs of groups', () => {
   const page = loadPage();
   page.run('toggleExtra4(); setAngles(180, 0)');
-  const total = clashesFor(page).length;
-  assert.ok(total > page.run('MAX_CLASHES_DRAWN'));
+  assert.ok(page.run('groupClashes(findClashes(buildChain(), Object.keys(buildChain()))).length') > page.run('MAX_CLASHES_DRAWN'));
   assert.equal(shownClashes(page), page.run('MAX_CLASHES_DRAWN'));
-  assert.ok(page.el('clash-display').textContent.includes(`${total} steric clashes`));
+});
+
+test('no clash readout is listed on the page', () => {
+  assert.ok(!IDS.includes('clash-display'));
+  const page = loadPage();
+  page.run('setAngles(0, 0)');
+  assert.equal(page.el('region-display').textContent, 'Disallowed region');
+  assert.match(page.el('dipeptide').attrs['aria-label'], /steric clashes between groups/);
+  assert.match(HTML, /\)\(<\/b>&nbsp;Steric clash/, 'the viewer legend explains the arcs');
 });
 
 test('the amide N···H contact at ψ = 0 is not a clash', () => {
@@ -1194,14 +1252,17 @@ test('the amide N···H contact at ψ = 0 is not a clash', () => {
   assert.equal(clashesFor(page).filter(c => [c.a, c.b].sort().join() === 'HN6,N5').length, 0);
 });
 
-test('β-turn presets flag only their strained side-chain contacts', () => {
-  const page = loadPage();
-  const pairs = () => clashesFor(page).map(c => [c.a, c.b].sort().join('-')).sort().join();
-  page.run('setBetaTurnTypeI()');
-  assert.equal(pairs(), 'Cb7-O7');
-  page.run('setBetaTurnTypeI(); setBetaTurnTypeII()');
-  assert.equal(pairs(), 'C4-Cb5,Cb5-O4', 'the i+2 Cβ at positive ϕ: why Type II favors glycine there');
-});
+for (const fn of ['setBetaTurnTypeI', 'setBetaTurnTypeII']) {
+  test(`${fn} marks no clashes, and they return once the turn is off`, () => {
+    const page = loadPage();
+    page.run(`${fn}()`);
+    assert.equal(shownClashes(page), 0);
+    page.run('setAngles(-110, 110)');
+    assert.equal(shownClashes(page), 0, 'still none while the sliders move the flanks');
+    page.run(`${fn}(); setAngles(0, 0)`);
+    assert.ok(shownClashes(page) > 0);
+  });
+}
 
 // ── Glycine and proline ────────────────────────────────────────
 test('the general plot is the default and matches REGIONS', () => {
@@ -1240,12 +1301,30 @@ test('the glycine plot is symmetric about the origin and wider than the general 
   })()`);
   const general = allowedShare();
   page.run("setResidueType('gly')");
-  assert.ok(allowedShare() > general * 1.2, 'more of the plot opens up');
+  assert.ok(allowedShare() > general * 1.5, 'more of the plot opens up');
   for (const [p, q] of [[-60, -45], [85, 0], [-75, 165], [170, 170], [30, -120]]) {
     assertClose(page.run(`computeScore(${p}, ${q}).total`), page.run(`computeScore(${-p}, ${-q}).total`), 1e-12, `(${p}, ${q})`);
   }
   assert.equal(page.run('getRegion(60, 45).level'), 'favored');
   assert.equal(page.run('getRegion(0, 0).level'), 'disallowed');
+});
+
+test('the glycine plot has a broad β basin and keeps everything favored in the general plot', () => {
+  const page = loadPage();
+  const favoredInGeneral = page.run(`(() => {
+    const out = [];
+    for (let p = -175; p < 180; p += 10) for (let q = -175; q < 180; q += 10) {
+      if (getRegion(p, q).level === 'favored') out.push([p, q]);
+    }
+    return out;
+  })()`);
+  page.run("setResidueType('gly')");
+  for (const [p, q] of [[-120, 130], [-150, 150], [-70, 150], [-100, 170], [120, -130], [150, -150]]) {
+    assert.equal(page.run(`getRegion(${p}, ${q}).level`), 'favored', `(${p}, ${q})`);
+  }
+  for (const [p, q] of favoredInGeneral) {
+    assert.notEqual(page.run(`getRegion(${p}, ${q}).level`), 'disallowed', `(${p}, ${q})`);
+  }
 });
 
 test('the proline plot locks ϕ near −65°', () => {
@@ -1270,15 +1349,15 @@ test('general scores do not change after visiting another plot', () => {
 test('in glycine the side chains become H and their clashes go away', () => {
   const page = loadPage();
   page.run("goToStructure('leftHelix')");
-  assert.ok(page.el('clash-display').textContent.includes('8 steric clashes'));
+  assert.ok(shownClashes(page) > 0);
   page.run("setResidueType('gly')");
-  assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
+  assert.equal(shownClashes(page), 0);
   const atoms = page.run('buildChain()');
   assertClose(dist(atoms.Ca5, atoms.Cb5), 1.09, 1e-9, 'Cα–H length');
   page.run("setResidueType('general')");
   const back = page.run('buildChain()');
   assertClose(dist(back.Ca5, back.Cb5), 1.521, 1e-9, 'Cα–Cβ length');
-  assert.ok(page.el('clash-display').textContent.includes('8 steric clashes'));
+  assert.ok(shownClashes(page) > 0);
 });
 
 test('the viewer draws H, not R, in glycine', () => {
@@ -1288,12 +1367,6 @@ test('the viewer draws H, not R, in glycine', () => {
   page.run("setResidueType('gly')");
   redraw(page);
   assert.ok(!labels(page).some(l => l.startsWith('R')), 'no R in glycine');
-});
-
-test('a Type II turn with glycine has no clashes', () => {
-  const page = loadPage();
-  page.run("setBetaTurnTypeII(); setResidueType('gly')");
-  assert.equal(page.el('clash-display').textContent, 'No steric clashes among the atoms shown');
 });
 
 test('Reset to 1 AA returns to the general plot', () => {
@@ -1311,4 +1384,129 @@ test('the ribbon follows the active plot', () => {
   assert.equal(page.run('ribbonShown'), 'none', 'β angles are disallowed for proline');
   page.run("setResidueType('gly'); setAngles(170, 170)");
   assert.equal(page.run('ribbonShown'), 'sheet', 'extended glycine');
+});
+
+// ── Plot, ribbon and readout agree ─────────────────────────────
+// What each preset is called must match everywhere it appears
+const PRESET_NAMES = [
+  ['alpha', 'α-helix', 'α-helix', 'α-helix'],
+  ['antiparallel', 'Antiparallel β', 'Antiparallel β-sheet', 'antiparallel β-sheet'],
+  ['parallel', 'Parallel β', 'Parallel β-sheet', 'parallel β-sheet'],
+  ['ppII', 'PPII', 'Polyproline II helix', 'polyproline II helix'],
+  ['leftHelix', 'Left-handed helix', 'Left-handed helix', 'left-handed helix'],
+  ['helix310', '3₁₀ helix', '3₁₀ helix', '3₁₀ helix'],
+];
+for (const [name, button, caption, region] of PRESET_NAMES) {
+  test(`the ${name} preset's button, ribbon and region readout all name the same structure`, () => {
+    assert.ok(HTML.includes(`onclick="goToStructure('${name}')">${button}</button>`), 'button');
+    const page = loadPage();
+    page.run(`goToStructure('${name}')`);
+    assert.ok(page.el('ribbon-caption').textContent.startsWith(caption), page.el('ribbon-caption').textContent);
+    assert.ok(page.el('ribbon').attrs['aria-label'].includes(caption), 'ribbon label');
+    assert.ok(page.el('region-display').textContent.endsWith(`— ${region}`), page.el('region-display').textContent);
+    assert.equal(page.run('ribbonShown'), page.run(`STRUCTURES.${name}.ribbon`));
+    assert.notEqual(page.run(`getRegion(${page.run(`STRUCTURES.${name}.angles[0]`)}, ${page.run(`STRUCTURES.${name}.angles[1]`)}).level`), 'disallowed', 'preset sits in an open region');
+  });
+}
+
+test('every point on every plot shows a ribbon matching its region', () => {
+  const page = loadPage();
+  const EXPECTED = {
+    'alpha-helix': 'helix', 'left-hand helix': 'leftHelix', 'PPII / beta': 'ppII',
+    'beta-sheet': 'sheet', extended: 'sheet', 'gamma-turn': 'none', '': 'none',
+  };
+  for (const type of ['general', 'gly', 'pro']) {
+    page.run(`setResidueType('${type}')`);
+    const seen = new Set();
+    const pairs = page.run(`(() => {
+      const out = [];
+      for (let p = -180; p <= 180; p += 15) for (let q = -180; q <= 180; q += 15) {
+        out.push([getRegion(p, q).name, ribbonStructure(p, q), p, q]);
+      }
+      return out;
+    })()`);
+    for (const [region, ribbon, p, q] of pairs) {
+      seen.add(region);
+      assert.ok(region in EXPECTED, `unmapped region "${region}"`);
+      assert.equal(ribbon, EXPECTED[region], `${type} (${p}, ${q}) "${region}"`);
+    }
+    assert.ok(seen.size > 1, type);
+  }
+});
+
+test('moving the angles off a preset returns the ribbon and readout to the plot region', () => {
+  const page = loadPage();
+  page.run("goToStructure('parallel'); setAngles(-120, 130)");
+  assert.equal(page.run('activeStructure'), null);
+  assert.equal(page.run('ribbonShown'), 'sheet');
+  assert.equal(page.el('region-display').textContent, 'Favored — beta-sheet');
+  page.run("goToStructure('helix310'); setResidueType('gly')");
+  assert.equal(page.run('activeStructure'), null, 'a new plot drops the preset');
+  page.run("setResidueType('general'); goToStructure('parallel'); setBetaTurnTypeI()");
+  assert.equal(page.run('activeStructure'), null, 'a β-turn drops the preset');
+  assert.equal(page.run('ribbonShown'), 'sheet');
+  page.run("setBetaTurnTypeI(); goToStructure('helix310'); resetToOneAA()");
+  assert.equal(page.run('activeStructure'), null, 'Reset drops the preset');
+});
+
+test('the plot hint no longer advertises the arrow keys', () => {
+  for (const m of HTML.matchAll(/class="plot-hint"[^>]*>(.*?)<\/p>/g)) assert.doesNotMatch(m[1], /arrow key/i);
+  assert.doesNotMatch(HTML.match(/id="dipeptide-hint">(.*?)<\/span>/)[1], /arrow key/i);
+});
+
+// ── Recentering when residues change ───────────────────────────
+const shownBox = page => page.run(`(() => {
+  const atoms = buildChain();
+  const anchor = (showNterm || showCterm) ? null : caAnchorRotation(atoms);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const key of Object.keys(shownAtomStyle())) {
+    const c = sub3(atoms[key], atoms.Ca5);
+    const p = project(rotateView(anchor ? mApply(anchor, c) : c), dipScale, DW*0.48 + dipOffX, DH*0.52 + dipOffY);
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+  }
+  return { minX, maxX, minY, maxY };
+})()`);
+function assertCentered(page, label) {
+  const b = shownBox(page);
+  assertClose((b.minX + b.maxX) / 2, 250, 1e-6, `${label}: x center`);
+  assertClose((b.minY + b.maxY) / 2, 145, 1e-6, `${label}: y center`);
+  assert.ok(b.minX >= 0 && b.maxX <= 500 && b.minY >= 0 && b.maxY <= 290, `${label}: on the canvas`);
+}
+
+const RESIDUE_BUTTONS = ['toggleNterm', 'toggleCterm', 'toggleExtra2', 'toggleExtra4'];
+for (const fn of RESIDUE_BUTTONS) {
+  test(`${fn} recenters and fits the peptide, adding and removing`, () => {
+    const page = loadPage();
+    page.run('applyRotStep(4, 7); applyZoom(60); applyPan(-120, 90)');
+    const view = JSON.stringify(page.run('viewMatrix'));
+    page.run(`${fn}()`);
+    assertCentered(page, 'added');
+    assert.equal(JSON.stringify(page.run('viewMatrix')), view, 'keeps the rotation');
+    page.run('applyZoom(60); applyPan(70, -40)');
+    page.run(`${fn}()`);
+    assertCentered(page, 'removed');
+  });
+}
+
+test('adding residues zooms out and removing them zooms back in, to the default at most', () => {
+  const page = loadPage();
+  const scales = [page.run('dipScale')];
+  for (const step of ['toggleNterm()', 'toggleCterm()', 'toggleExtra2()', 'toggleExtra4()']) {
+    page.run(step);
+    scales.push(page.run('dipScale'));
+    assertCentered(page, step);
+  }
+  assert.ok(scales.at(-1) < scales[0], 'the full chain is zoomed out');
+  for (let i = 1; i < scales.length; i++) assert.ok(scales[i] <= scales[i - 1] + 1e-9, `${scales}`);
+  page.run('toggleExtra4(); toggleExtra2(); toggleCterm(); toggleNterm()');
+  assert.equal(page.run('dipScale'), scales[0], 'back at the starting zoom');
+  assertCentered(page, 'back to one residue');
+});
+
+test('removing a terminal residue that drops the extras still fits what is left', () => {
+  const page = loadPage();
+  page.run('toggleExtra4(); toggleNterm()');
+  assert.equal(page.run('showExtra2 || showExtra4'), false);
+  assertCentered(page, 'after dropping the extras');
 });
