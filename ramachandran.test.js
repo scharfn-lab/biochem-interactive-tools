@@ -509,6 +509,23 @@ test('α-helix H-bonds are drawn only as the residues they join are shown', () =
   assert.equal(drawnHBonds(page), '', 'no helix bonds outside the helix region');
 });
 
+test('a 3₁₀ helix bonds i→i+3 and an α-helix i→i+4', () => {
+  const page = loadPage();
+  page.run('toggleExtra4(); setAngles(-49, -26)');
+  assert.equal(drawnHBonds(page), 'O1-HN4,O2-HN5,O3-HN6,O4-HN7,O5-HN8,O6-HN9');
+  assertHBondDistances(page);
+  page.run('setAngles(-57, -47)');
+  assert.equal(drawnHBonds(page), 'O1-HN5,O2-HN6,O3-HN7,O4-HN8,O5-HN9');
+  assertHBondDistances(page);
+});
+
+test('helix H-bonds need the atoms in range, not just a helix-region point', () => {
+  const page = loadPage();
+  page.run('toggleExtra4(); setAngles(-85, -25)');
+  assert.equal(page.run('getRegion(-85, -25).name'), 'alpha-helix', 'a helix-region point');
+  assert.equal(drawnHBonds(page), '');
+});
+
 // ── β-turn presets ─────────────────────────────────────────────
 const TURNS = [
   { fn: 'setBetaTurnTypeI', mode: 'typeI', button: 'bturn-type1', flank: [-114, 102], aa3: [-153, 155], aa4: [-60, -30], aa5: [-90, 0], aa6: [-159, 92],
@@ -936,4 +953,74 @@ test('both helix hands stay on the ribbon canvas', () => {
       }
     }
   }
+});
+
+// ── Accessibility ──────────────────────────────────────────────
+test('arrow keys move the plot point, 1° at a time or 10° with Shift', () => {
+  const page = loadPage();
+  const plot = page.el('plot');
+  plot.fire('keydown', { key: 'ArrowRight' });
+  assert.deepEqual([page.run('phi'), page.run('psi')], [-119, 130]);
+  plot.fire('keydown', { key: 'ArrowDown' });
+  assert.deepEqual([page.run('phi'), page.run('psi')], [-119, 129]);
+  plot.fire('keydown', { key: 'ArrowUp', shiftKey: true });
+  assert.deepEqual([page.run('phi'), page.run('psi')], [-119, 139]);
+  plot.fire('keydown', { key: 'ArrowLeft', shiftKey: true });
+  assert.deepEqual([page.run('phi'), page.run('psi')], [-129, 139]);
+  plot.fire('keydown', { key: 'a' });
+  assert.deepEqual([page.run('phi'), page.run('psi')], [-129, 139], 'other keys do nothing');
+});
+
+test('arrow keys rotate the viewer', () => {
+  const page = loadPage();
+  const before = JSON.stringify(page.run('viewMatrix'));
+  page.el('dipeptide').fire('keydown', { key: 'ArrowLeft' });
+  assert.notEqual(JSON.stringify(page.run('viewMatrix')), before);
+  const after = JSON.stringify(page.run('viewMatrix'));
+  page.el('dipeptide').fire('keydown', { key: 'x' });
+  assert.equal(JSON.stringify(page.run('viewMatrix')), after, 'other keys do nothing');
+});
+
+test('Enter or Space on a viewer button takes one step; a mouse click adds none', () => {
+  const page = loadPage();
+  const state = () => JSON.stringify([page.run('viewMatrix'), page.run('dipScale'), page.run('dipOffX'), page.run('dipOffY')]);
+  for (const id of ['rbtn-up', 'rbtn-down', 'rbtn-left', 'rbtn-right', 'zbtn-in', 'zbtn-out', 'pbtn-up', 'pbtn-down', 'pbtn-left', 'pbtn-right']) {
+    const before = state();
+    page.el(id).fire('click', { detail: 1 });
+    assert.equal(state(), before, `${id}: mouse click is already handled by mousedown`);
+    page.el(id).fire('click', { detail: 0 });
+    assert.notEqual(state(), before, `${id}: keyboard activation`);
+    assert.equal(page.intervals.size, 0, `${id}: no repeat timer left running`);
+  }
+});
+
+test('the plot and viewer can take focus and describe themselves', () => {
+  for (const id of ['plot', 'dipeptide']) {
+    assert.match(HTML, new RegExp(`<canvas id="${id}"[^>]*tabindex="0"`), id);
+  }
+  assert.match(HTML, /<canvas id="dipeptide"[^>]*aria-label="/);
+  assert.match(HTML, /id="region-display"[^>]*aria-live="polite"/);
+  const page = loadPage();
+  page.run('setAngles(-60, -45)');
+  const label = page.el('plot').attrs['aria-label'];
+  for (const text of ['-60°', '-45°', 'Favored — alpha-helix']) assert.ok(label.includes(text), label);
+});
+
+test('ϕ and ψ colors meet 4.5:1 on white', () => {
+  const luminance = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const phiColor = HTML.match(/style="color:(#[0-9A-Fa-f]{6});">ϕ/)[1];
+  const psiColor = HTML.match(/style="color:(#[0-9A-Fa-f]{6});">ψ/)[1];
+  for (const color of [phiColor, psiColor]) {
+    assert.ok(1.05 / (luminance(color) + 0.05) >= 4.5, color);
+  }
+  assert.doesNotMatch(HTML, /#ffa726|#26c6da/i, 'old low-contrast colors are gone');
+});
+
+test('the legend makes no statistical claim', () => {
+  assert.doesNotMatch(HTML, /98%/);
+  assert.match(HTML, /approximate/);
 });

@@ -281,7 +281,7 @@
     #angle-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
     #angle-toggle:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
 
-    #nterm-extra-toggle, #cterm-extra-toggle {
+    #extra2-toggle, #reset-one, #extra4-toggle {
       padding: 5px 14px;
       border-radius: 6px;
       border: 1px solid #685C53;
@@ -291,8 +291,8 @@
       cursor: pointer;
       transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
-    #nterm-extra-toggle:hover, #cterm-extra-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
-    #nterm-extra-toggle.active, #cterm-extra-toggle.active { background: #FFCDD2; border-color: #C8102E; color: #000000; }
+    #extra2-toggle:hover, #reset-one:hover, #extra4-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
+    #extra2-toggle.active, #extra4-toggle.active { background: #FFCDD2; border-color: #C8102E; color: #000000; }
 
     #bturn-type1, #bturn-type2 {
       padding: 5px 14px;
@@ -348,7 +348,7 @@
 <div id="main-layout">
   <div id="ribbon-section">
     <div class="panel-section-title">Typical Structure at These Angles</div>
-    <canvas id="ribbon" width="456" height="176"></canvas>
+    <canvas id="ribbon" width="456" height="176" role="img"></canvas>
     <div id="ribbon-caption"></div>
   </div>
 
@@ -358,7 +358,7 @@
         <div class="angle-block">
           <div>
             <div class="angle-row">
-              <span class="angle-name" style="color:#ffa726;">ϕ &nbsp;(Phi)</span>
+              <span class="angle-name" style="color:#B45309;">ϕ &nbsp;(Phi)</span>
               <span class="angle-value" id="phi-display">-120°</span>
             </div>
             <input type="range" id="phi-slider" min="-180" max="180" value="-120" step="1">
@@ -366,7 +366,7 @@
           </div>
           <div>
             <div class="angle-row">
-              <span class="angle-name" style="color:#26c6da;">ψ &nbsp;(Psi)</span>
+              <span class="angle-name" style="color:#0E7490;">ψ &nbsp;(Psi)</span>
               <span class="angle-value" id="psi-display">130°</span>
             </div>
             <input type="range" id="psi-slider" min="-180" max="180" value="130" step="1">
@@ -376,27 +376,27 @@
         <div class="slider-hint">Use <b>sliders</b> or <b>number fields</b> to set dihedral angles.</div>
       </div>
 
-      <div id="region-display" class="reg-favored">Favored — alpha-helix</div>
+      <div id="region-display" class="reg-favored" aria-live="polite">Favored — alpha-helix</div>
   </div>
 
   <!-- Dipeptide 3D viewer -->
     <div id="dipeptide-section">
   <div id="dipeptide-header">
-    <span id="dipeptide-title">Dipeptide Backbone</span>
-    <span id="dipeptide-hint">Drag to rotate &nbsp;|&nbsp; <span style="color:#ffa726;">&#9135; ϕ bond</span> &nbsp; <span style="color:#26c6da;">&#9135; ψ bond</span></span>
+    <span id="dipeptide-title">Peptide Backbone</span>
+    <span id="dipeptide-hint">Drag or arrow keys to rotate &nbsp;|&nbsp; <span style="color:#B45309;">&#9135; ϕ bond</span> &nbsp; <span style="color:#0E7490;">&#9135; ψ bond</span></span>
   </div>
   <div id="dipeptide-btns">
     <button id="nterm-toggle" onclick="toggleNterm()">Add N-terminal AA</button>
     <button id="plane-toggle" onclick="togglePlanes()">Show Peptide Planes</button>
     <button id="cterm-toggle" onclick="toggleCterm()">Add C-terminal AA</button>
   </div>
-  <div id="extra-row" style="text-align:center; margin-top:4px;">
+  <div id="extra-row" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
     <button id="extra2-toggle" onclick="toggleExtra2()">Add 2 Additional AAs</button>
     <button id="reset-one" onclick="resetToOneAA()">Reset to 1 AA</button>
     <button id="extra4-toggle" onclick="toggleExtra4()">Add 4 Additional AAs</button>
   </div>
   <div id="dipeptide-wrapper">
-    <canvas id="dipeptide" width="500" height="290"></canvas>
+    <canvas id="dipeptide" width="500" height="290" tabindex="0" role="application" aria-label="3D peptide backbone viewer. Drag or use the arrow keys to rotate."></canvas>
     <div id="zoom-btns">
       <button class="rot-btn zoom-btn" id="zbtn-in"  title="Zoom in">+</button>
       <button class="rot-btn zoom-btn" id="zbtn-out" title="Zoom out">−</button>
@@ -436,14 +436,15 @@
   </div>
     </div><!-- end #dipeptide-section -->
   <div id="plot-wrapper">
-    <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
-    <canvas id="plot" width="520" height="520"></canvas>
+    <p class="plot-hint"><b>Click or drag</b> on the plot, or focus it and use the <b>arrow keys</b> (Shift for 10°).</p>
+    <canvas id="plot" width="520" height="520" tabindex="0" role="application"></canvas>
     <div class="legend">
-      <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Core favored (&ge;98%)</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#AB47BC;"></div>Additionally allowed</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#F3E5F5; border:1px solid #685C53;"></div>Disallowed region</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Favored</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#AB47BC;"></div>Allowed</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#F3E5F5; border:1px solid #685C53;"></div>Disallowed</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#C8102E; border:2px solid #685C53;"></div>Current angles</div>
     </div>
+    <p class="plot-hint">Regions are approximate teaching models, not survey statistics.</p>
   </div><!-- end #plot-wrapper -->
 </div><!-- end #main-layout -->
 
@@ -556,10 +557,10 @@ function drawAxes() {
     ctx.fillText(a+'°', M-6, M+(180-a)/360*PW);
   }
   ctx.font='bold 13px "Segoe UI",Arial';
-  ctx.fillStyle='#ffa726'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillStyle='#B45309'; ctx.textAlign='center'; ctx.textBaseline='bottom';
   ctx.fillText('ϕ   (Phi)', W/2, H-2);
   ctx.save(); ctx.translate(13,H/2); ctx.rotate(-Math.PI/2);
-  ctx.fillStyle='#26c6da'; ctx.textBaseline='top'; ctx.fillText('ψ   (Psi)', 0, 0); ctx.restore();
+  ctx.fillStyle='#0E7490'; ctx.textBaseline='top'; ctx.fillText('ψ   (Psi)', 0, 0); ctx.restore();
 
   ctx.font='italic bold 11px "Segoe UI",Arial';
   ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -600,6 +601,8 @@ function updateUI() {
   if (reg.level==='favored')    { rd.className='reg-favored';    rd.textContent=`Favored — ${reg.name}`; }
   else if (reg.level==='allowed') { rd.className='reg-allowed';  rd.textContent=`Allowed — ${reg.name||'transition zone'}`; }
   else                            { rd.className='reg-disallowed'; rd.textContent='Disallowed region'; }
+  plotCanvas.setAttribute('aria-label',
+    `Ramachandran plot. ϕ ${rp}°, ψ ${rq}°. ${rd.textContent}. Arrow keys move the point; hold Shift for 10° steps.`);
   document.getElementById('bturn-type1').textContent =
     betaTurnMode === 'typeI'  ? 'Remove β turn (Type I)'  : 'Show β turn (Type I)';
   document.getElementById('bturn-type2').textContent =
@@ -650,6 +653,14 @@ document.addEventListener('mouseup',  ()=>isDragging=false);
 plotCanvas.addEventListener('touchstart', e=>{ isDragging=true;  handlePointer(e); },{passive:false});
 plotCanvas.addEventListener('touchmove',  e=>{ if(isDragging) handlePointer(e); },{passive:false});
 document.addEventListener('touchend', ()=>isDragging=false);
+
+plotCanvas.addEventListener('keydown', e => {
+  const step = e.shiftKey ? 10 : 1;
+  const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[e.key];
+  if (!move) return;
+  e.preventDefault();
+  setAngles(phi + move[0], psi + move[1]);
+});
 
 document.getElementById('phi-slider').addEventListener('input', e=>setAngles(+e.target.value,psi));
 document.getElementById('psi-slider').addEventListener('input', e=>setAngles(phi,+e.target.value));
@@ -1144,8 +1155,8 @@ const BOND_COLOR = {
   hbond:        { color:'#757575', width:2 },
   helix_hbond:  { color:'#66BB6A', width:1.5 },
   bturn_hbond:  { color:'#29B6F6', width:1.5 },   // cyan dashed — β-turn i→i+3 H-bond
-  phi:          { color:'#ffa726', width:5 },
-  psi:     { color:'#26c6da', width:5 },
+  phi:          { color:'#B45309', width:5 },
+  psi:     { color:'#0E7490', width:5 },
   stub:    { color:'#37474F', width:2.5 },
 };
 
@@ -1274,15 +1285,18 @@ function renderDipeptide() {
 
   // H-bond logic
   {
-    const reg = getRegion(phi, psi);
-    // α-helix H-bonds (i→i+4); suppressed while a β-turn preset is active
-    if (!betaTurnMode && reg.level === 'favored' &&
-        (reg.name === 'alpha-helix' || reg.name === 'left-hand helix')) {
-      if (showExtra4)             bondDefs.push(['O1', 'HN5', 'helix_hbond']);
-      if (showExtra2)             bondDefs.push(['O2', 'HN6', 'helix_hbond']);
-      if (showNterm && showCterm) bondDefs.push(['O3', 'HN7', 'helix_hbond']);
-      if (showExtra2)             bondDefs.push(['O4', 'HN8', 'helix_hbond']);
-      if (showExtra4)             bondDefs.push(['O5', 'HN9', 'helix_hbond']);
+    // Helical H-bonds O(i)···HN(i+k), k = 4 in an α-helix and 3 in a 3₁₀ helix.
+    // Distance decides, so bonds appear only where the atoms are really in range.
+    // Suppressed while a β-turn preset is active.
+    if (!betaTurnMode) {
+      for (const k of [3, 4]) {
+        for (let i = 1; i + k <= 9; i++) {
+          const a = `O${i}`, b = `HN${i + k}`;
+          if (atomStyle[a] && atomStyle[b] && len3(sub3(atoms[a], atoms[b])) < HBOND_MAX_DIST) {
+            bondDefs.push([a, b, 'helix_hbond']);
+          }
+        }
+      }
     }
     // β-turn H-bond (i→i+3) + flanking antiparallel β-sheet H-bonds
     if (betaTurnMode !== null && showNterm) {
@@ -1381,7 +1395,7 @@ function renderDipeptide() {
       const fromV = { x: pC4.x - pCa.x, y: pC4.y - pCa.y };
       const toV   = { x: pC.x  - pCa.x, y: pC.y  - pCa.y };
       const r = ATOM_STYLE['Ca5'].r + 16;
-      drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#ffa726', `ϕ=${Math.round(residueAngles.aa5.phi)}°`);
+      drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#B45309', `ϕ=${Math.round(residueAngles.aa5.phi)}°`);
     }
 
     // ── Psi angle arc ────────────────────────────────────────────
@@ -1393,12 +1407,12 @@ function renderDipeptide() {
       const fromV = { x: pCa.x - pC.x,  y: pCa.y - pC.y  };
       const toV   = { x: pN6.x - pC.x,  y: pN6.y - pC.y  };
       const r = ATOM_STYLE['C5'].r + 16;
-      drawAngleArc(pC, norm2(fromV), norm2(toV), r, '#26c6da', `ψ=${Math.round(residueAngles.aa5.psi)}°`);
+      drawAngleArc(pC, norm2(fromV), norm2(toV), r, '#0E7490', `ψ=${Math.round(residueAngles.aa5.psi)}°`);
     }
 
     // ── Bond axis highlight (capsule glow on phi/psi bonds) ──────
-    drawBondGlow(proj['N5'],  proj['Ca5'], '#ffa726');
-    drawBondGlow(proj['Ca5'], proj['C5'],  '#26c6da');
+    drawBondGlow(proj['N5'],  proj['Ca5'], '#B45309');
+    drawBondGlow(proj['Ca5'], proj['C5'],  '#0E7490');
   }
 
 }
@@ -1520,6 +1534,19 @@ dp.addEventListener('touchmove', e => {
 }, {passive:false});
 dp.addEventListener('touchend', ()=>dpDrag=false);
 
+dp.addEventListener('keydown', e => {
+  const step = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  applyRotStep(step[0], step[1]);
+});
+
+// Mouse and touch use the press-and-hold handlers; Enter and Space arrive as a click with detail 0
+function onKeyboardClick(id, step) {
+  document.getElementById(id).addEventListener('click', e => { if (e.detail === 0) step(); });
+}
+for (const [id, dRy, dRx] of rotDefs) onKeyboardClick(id, () => applyRotStep(dRy, dRx));
+
 // ── Peptide plane toggle (yellow = inactive/hidden, normal = active/shown) ──
 let showPlanes = false;
 function togglePlanes() {
@@ -1576,6 +1603,13 @@ document.getElementById('pbtn-left').addEventListener('mousedown', () => {
 document.getElementById('pbtn-right').addEventListener('mousedown', () => {
   applyPan(PAN_STEP, 0); panInterval = setInterval(() => applyPan(PAN_STEP, 0), 80);
 });
+
+onKeyboardClick('zbtn-in',  () => applyZoom(4));
+onKeyboardClick('zbtn-out', () => applyZoom(-4));
+onKeyboardClick('pbtn-up',    () => applyPan(0, -PAN_STEP));
+onKeyboardClick('pbtn-down',  () => applyPan(0, PAN_STEP));
+onKeyboardClick('pbtn-left',  () => applyPan(-PAN_STEP, 0));
+onKeyboardClick('pbtn-right', () => applyPan(PAN_STEP, 0));
 
 // ── N/C-terminal AA toggles ────────────────────────────────────
 function toggleNterm() {
