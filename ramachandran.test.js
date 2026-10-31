@@ -514,8 +514,10 @@ test('α-helix H-bonds are drawn only as the residues they join are shown', () =
 
 // ── β-turn presets ─────────────────────────────────────────────
 const TURNS = [
-  { fn: 'setBetaTurnTypeI', mode: 'typeI', button: 'bturn-type1', aa4: [-60, -30], aa5: [-90, 0], hbonds: 'HN3-O6,O3-HN6' },
-  { fn: 'setBetaTurnTypeII', mode: 'typeII', button: 'bturn-type2', aa4: [-60, 120], aa5: [80, 0], hbonds: 'HN1-O8,HN3-O6,O1-HN8,O3-HN6' },
+  { fn: 'setBetaTurnTypeI', mode: 'typeI', button: 'bturn-type1', flank: [-120, 130], aa3: [-145, 160], aa4: [-60, -30], aa5: [-90, 0], aa6: [-150, 100],
+    hbonds: 'HN3-O6,O3-HN6', arcs: ['ϕ=-90°', 'ψ=0°'] },
+  { fn: 'setBetaTurnTypeII', mode: 'typeII', button: 'bturn-type2', flank: [-95, 100], aa3: [-130, 155], aa4: [-60, 120], aa5: [80, 0], aa6: [-140, 95],
+    hbonds: 'HN1-O8,HN3-O6,O1-HN8,O3-HN6', arcs: ['ϕ=80°', 'ψ=0°'] },
 ];
 
 for (const t of TURNS) {
@@ -537,12 +539,12 @@ for (const t of TURNS) {
     assert.deepEqual([page.run('residueAngles.aa4.phi'), page.run('residueAngles.aa4.psi')], t.aa4);
     assert.deepEqual([page.run('residueAngles.aa5.phi'), page.run('residueAngles.aa5.psi')], t.aa5);
     for (const key of ['aa3', 'aa6']) {
-      assert.deepEqual([page.run(`residueAngles.${key}.phi`), page.run(`residueAngles.${key}.psi`)], [-139, 135], key);
+      assert.deepEqual([page.run(`residueAngles.${key}.phi`), page.run(`residueAngles.${key}.psi`)], t[key], key);
     }
     for (const key of ['aa1', 'aa2', 'aa7', 'aa8', 'aa9']) {
       assert.deepEqual([page.run(`residueAngles.${key}.phi`), page.run(`residueAngles.${key}.psi`)], [-60, -45], key);
     }
-    assert.equal(drawnHBonds(page), t.hbonds, 'helix H-bonds stay suppressed');
+    assert.equal(drawnHBonds(page), 'HN3-O6,O3-HN6', 'the locked pair stays; helix and out-of-range bonds are not drawn');
   });
 
   test(`${t.fn} toggles off and returns the chain to uniform angles`, () => {
@@ -552,8 +554,8 @@ for (const t of TURNS) {
     assert.equal(page.run('betaTurnMode'), null);
     assert.ok(page.el(t.button).textContent.startsWith('Show'));
     for (let n = 1; n <= 9; n++) {
-      assert.equal(page.run(`residueAngles.aa${n}.phi`), -120);
-      assert.equal(page.run(`residueAngles.aa${n}.psi`), 130);
+      assert.equal(page.run(`residueAngles.aa${n}.phi`), t.flank[0]);
+      assert.equal(page.run(`residueAngles.aa${n}.psi`), t.flank[1]);
     }
   });
 
@@ -563,10 +565,30 @@ for (const t of TURNS) {
     assertHBondDistances(page, ['O3-HN6']);
   });
 
-  test(`${t.fn} draws its flanking H-bonds at a hydrogen-bonding distance`, { todo: 'flanking sheet H-bonds are too long' }, () => {
+  test(`${t.fn} draws its flanking H-bonds at a hydrogen-bonding distance`, () => {
     const page = loadPage();
     page.run(`${t.fn}()`);
     assertHBondDistances(page);
+  });
+
+  test(`${t.fn} keeps residues in the favored regions it shows on the plot`, () => {
+    const page = loadPage();
+    page.run(`${t.fn}()`);
+    assert.deepEqual([page.run('phi'), page.run('psi')], t.flank);
+    for (const key of ['aa3', 'aa6']) {
+      assert.equal(page.run(`getRegion(residueAngles.${key}.phi, residueAngles.${key}.psi).level`), 'favored', key);
+    }
+    assert.equal(page.run('getRegion(phi, psi).level'), 'favored', 'flanks');
+  });
+
+  test(`${t.fn} labels the arcs with the angles of aa5`, () => {
+    const page = loadPage();
+    page.run(`${t.fn}()`);
+    redraw(page);
+    assert.deepEqual(labels(page).filter(l => /^[ϕψ]=/.test(l)), t.arcs);
+    page.run('setAngles(-60, -45)');
+    redraw(page);
+    assert.deepEqual(labels(page).filter(l => /^[ϕψ]=/.test(l)), t.arcs, 'still aa5 after moving the flanks');
   });
 }
 
@@ -591,9 +613,98 @@ test('the ϕ/ψ arcs label the angles of the residue they are drawn on', () => {
   assert.ok(!labels(page).some(l => l.startsWith('ϕ=')), 'arcs hide with the toggle');
 });
 
-test('in a β-turn the arcs on aa5 show the angles of aa5', { todo: 'arcs are labeled with the global ϕ/ψ, not aa5' }, () => {
+// ── Single-residue view ────────────────────────────────────────
+// Renders once and returns each atom's canvas position
+const projected = page => page.run(`(() => {
+  const keys = Object.keys(buildChain()), out = {};
+  let i = 0;
+  const original = project;
+  project = (...args) => { const q = original(...args); out[keys[i++]] = q; return q; };
+  renderDipeptide();
+  project = original;
+  return out;
+})()`);
+const RIGID = ['Ca5', 'Cb5', 'Ha5', 'N5', 'C5'];
+
+test('with one residue shown, its Cα, R group and H stay put as ϕ and ψ change', () => {
   const page = loadPage();
-  page.run('setBetaTurnTypeI()');
-  redraw(page);
-  assert.ok(labels(page).includes('ϕ=-90°'), `labels: ${labels(page).filter(l => /[ϕψ]=/.test(l))}`);
+  const start = projected(page);
+  for (const [p, q] of CONFORMATIONS) {
+    page.run(`setAngles(${p}, ${q})`);
+    const now = projected(page);
+    for (const key of RIGID) {
+      for (const axis of ['x', 'y', 'z']) {
+        assertClose(now[key][axis], start[key][axis], 1e-6, `${key}.${axis} at (${p},${q})`);
+      }
+    }
+  }
+});
+
+test('with one residue shown, ϕ swings only the N-side plane and ψ only the C-side plane', () => {
+  const page = loadPage();
+  const moved = (a, b, key) => Math.hypot(a[key].x - b[key].x, a[key].y - b[key].y, a[key].z - b[key].z) > 0.1;
+  const start = projected(page);
+
+  page.run('setAngles(-60, 130)');
+  const afterPhi = projected(page);
+  for (const key of ['C4', 'O4', 'HN5', 'Ca4']) assert.ok(moved(start, afterPhi, key), `${key} follows ϕ`);
+  for (const key of ['O5', 'N6', 'HN6', 'Ca6']) assert.ok(!moved(start, afterPhi, key), `${key} ignores ϕ`);
+
+  page.run('setAngles(-60, -45)');
+  const afterPsi = projected(page);
+  for (const key of ['O5', 'N6', 'HN6', 'Ca6']) assert.ok(moved(afterPhi, afterPsi, key), `${key} follows ψ`);
+  for (const key of ['C4', 'O4', 'HN5', 'Ca4']) assert.ok(!moved(afterPhi, afterPsi, key), `${key} ignores ψ`);
+});
+
+test('the anchored view is a true rotation: the drawn ϕ and ψ stay correct', () => {
+  const page = loadPage();
+  page.run('viewMatrix = mOrtho(viewMatrix)');  // the default is only rounded to orthonormal
+  for (const [p, q] of CONFORMATIONS) {
+    page.run(`setAngles(${p}, ${q})`);
+    const raw = projected(page);
+    const a = {};  // back to a right-handed frame: canvas y points down
+    for (const key of Object.keys(raw)) a[key] = { x: raw[key].x / 44, y: -raw[key].y / 44, z: raw[key].z };
+    assertAngle(dihedral(a.C4, a.N5, a.Ca5, a.C5), p, 'ϕ');
+    assertAngle(dihedral(a.N5, a.Ca5, a.C5, a.N6), q, 'ψ');
+    assertClose(dist(a.N5, a.Ca5), 1.458, 1e-9, 'N–Cα');
+  }
+});
+
+test('the anchored residue still responds to the user rotating the view', () => {
+  const page = loadPage();
+  const start = projected(page);
+  page.run('applyRotStep(1, 0)');
+  const rotated = projected(page);
+  assert.ok(Math.abs(rotated.Cb5.x - start.Cb5.x) > 0.1 || Math.abs(rotated.Cb5.z - start.Cb5.z) > 0.1, 'view rotation moves it');
+  page.run('setAngles(-60, -45)');
+  assertClose(projected(page).Cb5.x, rotated.Cb5.x, 1e-6, 'stays put in the rotated view');
+});
+
+test('the default conformation looks the same whether or not it is anchored', () => {
+  const page = loadPage();
+  const anchored = projected(page);
+  page.run('toggleNterm()');
+  const free = projected(page);
+  for (const key of RIGID) assertClose(anchored[key].x, free[key].x, 1e-6, key);
+});
+
+test('anchoring applies only while a single residue is shown', () => {
+  for (const toggle of ['toggleNterm', 'toggleCterm']) {
+    const page = loadPage();
+    page.run(`${toggle}()`);
+    const start = projected(page);
+    page.run('setAngles(-60, -45)');
+    const now = projected(page);
+    assert.ok(Math.hypot(now.Cb5.x - start.Cb5.x, now.Cb5.y - start.Cb5.y) > 0.1, toggle);
+  }
+});
+
+test('Type II sheet bonds are drawn only while the flanks keep them in range', () => {
+  const page = loadPage();
+  page.run('setBetaTurnTypeII()');
+  assert.equal(drawnHBonds(page), 'HN1-O8,HN3-O6,O1-HN8,O3-HN6');
+  page.run('setAngles(-60, -45)');
+  assert.equal(drawnHBonds(page), 'HN3-O6,O3-HN6');
+  page.run('setAngles(-95, 100)');
+  assert.equal(drawnHBonds(page), 'HN1-O8,HN3-O6,O1-HN8,O3-HN6');
 });

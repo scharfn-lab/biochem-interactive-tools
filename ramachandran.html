@@ -801,6 +801,25 @@ let showExtra2   = false;   // adds AA2 + AA8
 let showExtra4   = false;   // adds AA1 + AA9
 let betaTurnMode = null;    // 'typeI', 'typeII', or null
 
+// ── Single-residue anchoring ────────────────────────────────────
+// N, Cα, C, Cβ and Hα of a residue form a rigid group, so holding it still makes
+// ϕ and ψ visibly rotate only the peptide planes on either side of it.
+// Rows of the returned matrix are the group's local axes in chain coordinates.
+function caFrame(atoms) {
+  const e1 = norm3(sub3(atoms.C5, atoms.Ca5));
+  const toN = sub3(atoms.N5, atoms.Ca5);
+  const e2 = norm3(sub3(toN, sc3(dot3(toN,e1), e1)));
+  const e3 = cross3(e1, e2);
+  return [[e1.x,e1.y,e1.z],[e2.x,e2.y,e2.z],[e3.x,e3.y,e3.z]];
+}
+// Captured while residueAngles still hold the default conformation
+const CA_REF_FRAME = caFrame(buildChain());
+// Rotation that returns AA5's rigid group to its default-conformation orientation
+function caAnchorRotation(atoms) {
+  const [a,b,c] = CA_REF_FRAME;
+  return mMul([[a[0],b[0],c[0]],[a[1],b[1],c[1]],[a[2],b[2],c[2]]], caFrame(atoms));
+}
+
 
 // ── Extra residue atom styles ───────────────────────────────────
 const NTERM_ATOM_STYLE = {
@@ -973,6 +992,8 @@ const BOND_DEFS = [
   ['N6',  'Ca6', 'stub'],
 ];
 
+const HBOND_MAX_DIST = 2.6;  // Å, H···O
+
 const BOND_COLOR = {
   single:  { color:'#455A64', width:3 },
   double:  { color:'#ef5350', width:3 },
@@ -1128,8 +1149,10 @@ function renderDipeptide() {
       bondDefs.push(['HN3', 'O6', 'bturn_hbond']);           // sheet: N-H of AA3 → C=O of AA6
     }
     if (betaTurnMode === 'typeII' && showExtra4 && showExtra2) {
-      bondDefs.push(['O1', 'HN8', 'bturn_hbond']);           // sheet: C=O of AA1 → N-H of AA8
-      bondDefs.push(['HN1', 'O8', 'bturn_hbond']);           // sheet: N-H of AA1 → C=O of AA8
+      // sheet: AA1 ↔ AA8. The flanks follow the sliders, so draw these only while in range.
+      for (const [a, b] of [['O1', 'HN8'], ['HN1', 'O8']]) {
+        if (len3(sub3(atoms[a], atoms[b])) < HBOND_MAX_DIST) bondDefs.push([a, b, 'bturn_hbond']);
+      }
     }
   }
 
@@ -1147,9 +1170,10 @@ function renderDipeptide() {
 
   // Project all atoms into 2D
   const proj = {};
+  const anchor = (showNterm || showCterm) ? null : caAnchorRotation(atoms);
   for (const [key, pos] of Object.entries(atoms)) {
     const centered = sub3(pos, mid);
-    const rotated  = rotateView(centered);
+    const rotated  = rotateView(anchor ? mApply(anchor, centered) : centered);
     proj[key] = project(rotated, SCALE, CX, CY);
   }
 
@@ -1214,7 +1238,7 @@ function renderDipeptide() {
       const fromV = { x: pC4.x - pCa.x, y: pC4.y - pCa.y };
       const toV   = { x: pC.x  - pCa.x, y: pC.y  - pCa.y };
       const r = ATOM_STYLE['Ca5'].r + 16;
-      drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#ffa726', `ϕ=${Math.round(phi)}°`);
+      drawAngleArc(pCa, norm2(fromV), norm2(toV), r, '#ffa726', `ϕ=${Math.round(residueAngles.aa5.phi)}°`);
     }
 
     // ── Psi angle arc ────────────────────────────────────────────
@@ -1226,7 +1250,7 @@ function renderDipeptide() {
       const fromV = { x: pCa.x - pC.x,  y: pCa.y - pC.y  };
       const toV   = { x: pN6.x - pC.x,  y: pN6.y - pC.y  };
       const r = ATOM_STYLE['C5'].r + 16;
-      drawAngleArc(pC, norm2(fromV), norm2(toV), r, '#26c6da', `ψ=${Math.round(psi)}°`);
+      drawAngleArc(pC, norm2(fromV), norm2(toV), r, '#26c6da', `ψ=${Math.round(residueAngles.aa5.psi)}°`);
     }
 
     // ── Bond axis highlight (capsule glow on phi/psi bonds) ──────
@@ -1474,10 +1498,11 @@ function setBetaTurnTypeI() {
   for (const key of Object.keys(residueAngles)) {
     residueAngles[key].phi = -120; residueAngles[key].psi = 130;
   }
-  residueAngles.aa3.phi = -139; residueAngles.aa3.psi = 135;
+  // aa3/aa6 close the AA3 ↔ AA6 sheet pair: HN3···O6 2.15 Å, O3···HN6 1.92 Å
+  residueAngles.aa3.phi = -145; residueAngles.aa3.psi = 160;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = -30;
   residueAngles.aa5.phi = -90;  residueAngles.aa5.psi = 0;
-  residueAngles.aa6.phi = -139; residueAngles.aa6.psi = 135;
+  residueAngles.aa6.phi = -150; residueAngles.aa6.psi = 100;
   renderPlot(); updateUI(); renderDipeptide();
 }
 
@@ -1488,15 +1513,16 @@ function setBetaTurnTypeII() {
   if (!showExtra2) toggleExtra2();
   if (!showExtra4) toggleExtra4();
   betaTurnMode = 'typeII';
-  phi = -120; psi = 130;
+  phi = -95; psi = 100;           // flanks tuned so the AA1 ↔ AA8 pair closes
   dipOffX = 0; dipOffY = 0;
   for (const key of Object.keys(residueAngles)) {
-    residueAngles[key].phi = -120; residueAngles[key].psi = 130;
+    residueAngles[key].phi = -95; residueAngles[key].psi = 100;
   }
-  residueAngles.aa3.phi = -139; residueAngles.aa3.psi = 135;
+  // H···O: O3–HN6 1.89 Å, HN3–O6 1.97 Å, O1–HN8 1.87 Å, HN1–O8 2.10 Å
+  residueAngles.aa3.phi = -130; residueAngles.aa3.psi = 155;
   residueAngles.aa4.phi = -60;  residueAngles.aa4.psi = 120;
   residueAngles.aa5.phi = 80;   residueAngles.aa5.psi = 0;
-  residueAngles.aa6.phi = -139; residueAngles.aa6.psi = 135;
+  residueAngles.aa6.phi = -140; residueAngles.aa6.psi = 95;
   renderPlot(); updateUI(); renderDipeptide();
 }
 
