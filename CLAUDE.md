@@ -17,7 +17,7 @@ A collection of standalone, single-file interactive educational web tools for ch
 - **enzyme_kinetics.html** — Measuring Rates, Kinetics and Inhibition tabs: product vs. time, Michaelis–Menten and Lineweaver–Burk plots, with a quiz mode (offline, no libraries)
 - **oxygen_binding.html** — Hemoglobin and myoglobin O₂ saturation curves with pH, 2,3-BPG, CO₂, fetal Hb and carbon monoxide, concerted and sequential views, and a quiz mode (offline, no libraries)
 - **buffers.html** — Buffer visualizer: set the pH and temperature and add strong acid or base to see how a buffer responds, with a quiz mode (offline, no libraries)
-- **enzyme_energy.html** — Reaction coordinate diagram comparing uncatalyzed and enzyme-catalyzed paths, with an EP intermediate, a transition-state analog, enzyme presets, and temperature and pH activity plots (offline, no libraries; not yet linked from index.html)
+- **enzyme_energy.html** — Reaction coordinate diagram comparing uncatalyzed and enzyme-catalyzed paths through an EP intermediate, with temperature and pH activity plots (offline, no libraries; not yet linked from index.html)
 
 Tests live beside the pages as `*.test.js` and run with `node --test` (no dependencies).
 
@@ -92,9 +92,9 @@ For the quiz, `QUIZ_BUILDERS` and `createQuizDeck()` in section 2 produce plain-
 
 ## Architecture: enzyme_energy.html
 
-`ENZYME_PRESETS` (section 1) is the table of literature rate enhancements to check and edit. Section 2 touches no DOM, and the test file runs it in a vm. `render()` is the hub: `buildModel(state)` works out every number once, then `syncControls()`, `renderResults()` and `drawAll()` read from it, so a later quiz mode has one place to hide or test values. The Quiz Mode button is disabled and has no code yet.
+Section 1 of the script touches no DOM, and the test file runs it in a vm. `render()` is the hub: `buildModel(state)` works out every number once, then `syncControls()`, `renderNotes()` and `drawAll()` read from it, so a later quiz mode has one place to hide or test values. The Quiz Mode button is disabled and has no code yet. `DEFAULTS` holds the optimal settings: weak binding and strong transition-state stabilization. Reset returns to them, and "Show ground-state trap" applies `SETTINGS_TRAP`. ΔH of unfolding is the fixed `DH_UNFOLD`.
 
-Energies are kept in kJ/mol, with S and E + S at zero, and only the number boxes and labels convert to kcal/mol. `catalyzedPath()` holds each transition state at least `MIN_TS_GAP` above its neighbors and reports each limit in `clamps`, which becomes the page's note. `barriersOf()` measures each barrier from the lowest state before it, and the largest is rate-limiting. Two different quantities are named on purpose: `ddG` is barrier to barrier and sets the rate enhancement, while `tsGap` is transition state to transition state and is the diagram's bracket. They differ by the substrate binding energy. `analogModel()` carries the thermodynamic cycle in its comment: with TS stabilization defined as how far ES‡ sits below the uncatalyzed TS, TS binding is simply −(TS stabilization). A preset works out the stabilization with `stabilizationFor()`. OMP decarboxylase is the only preset with its own energies, because 10¹⁷ at 25 °C needs more than the generic 90 kJ/mol barrier.
+Energies are kept in kJ/mol, with S and E + S at zero, and only the number boxes and labels convert to kcal/mol. `catalyzedPath()` holds each transition state at least `MIN_TS_GAP` above its neighbors and reports each limit in `clamps`, which becomes the page's note. `barriersOf()` measures each barrier from the lowest state before it, and the largest is rate-limiting. The diagram's bracket is `tsGap`, transition state to transition state, which is not the same as the difference between the barriers.
 
 ## Git Workflow
 

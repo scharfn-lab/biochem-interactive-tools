@@ -28,7 +28,7 @@
 
     :focus-visible { outline: 3px solid var(--ut-crimson); outline-offset: 2px; }
 
-    #page { max-width: 1240px; margin: 0 auto; }
+    #page { max-width: 1120px; margin: 0 auto; }
 
     header { position: relative; text-align: center; margin-bottom: 14px; padding: 0 130px; }
     h1 { color: var(--ut-crimson); font-size: 1.7em; font-weight: 600; margin-bottom: 4px; }
@@ -49,9 +49,8 @@
       color: var(--ut-crimson);
       margin-bottom: 8px;
     }
-    .panel-section-title sub { text-transform: none; }
 
-    button, select { font-family: inherit; font-size: 0.88em; }
+    button { font-family: inherit; font-size: 0.88em; }
     button {
       padding: 6px 12px;
       border-radius: 6px;
@@ -63,19 +62,10 @@
     }
     button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
     button.active { background: #FFCDD2; border-color: var(--ut-crimson); color: #000000; font-weight: 600; }
-    button:disabled, select:disabled, input:disabled {
+    button:disabled, input:disabled {
       background: #E4E4E4; border-color: #BFBFBF; color: #404040; cursor: not-allowed;
     }
     #quiz-mode { pointer-events: none; }
-
-    select {
-      padding: 6px 8px;
-      border: 1px solid var(--ut-taupe);
-      border-radius: 6px;
-      background: #FFFFFF;
-      color: #000000;
-      max-width: 100%;
-    }
 
     /* ── Controls ── */
     #controls { margin-bottom: 14px; }
@@ -87,18 +77,15 @@
     .segmented button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
     .segmented button:last-child { border-radius: 0 6px 6px 0; }
 
-    #slider-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-      gap: 10px 22px;
-    }
+    #slider-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 20px; }
+    .slider-column { display: flex; flex-direction: column; gap: 10px; }
     .field label { display: block; font-size: 0.82em; font-weight: 600; margin-bottom: 3px; }
     .field-range { color: var(--ut-taupe); font-weight: 400; }
-    .field-row { display: flex; align-items: center; gap: 8px; }
+    .field-row { display: flex; align-items: center; gap: 6px; }
     .field input[type=range] { flex: 1; min-width: 0; accent-color: var(--ut-crimson); cursor: pointer; }
     .field input[type=range]:disabled { accent-color: #828282; background: none; }
     .field input[type=number] {
-      width: 76px;
+      width: 62px;
       padding: 4px 6px;
       border: 1px solid var(--ut-taupe);
       border-radius: 6px;
@@ -108,65 +95,41 @@
     }
     .field input[type=number]:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; }
     .field.off label { color: #404040; }
-    .field-unit { font-size: 0.78em; color: var(--ut-taupe); min-width: 42px; }
+    .field-unit { font-size: 0.78em; color: var(--ut-taupe); min-width: 18px; }
     .field.off .field-unit, .field.off .field-range { color: #404040; }
 
-    #toggle-row { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; align-items: center; }
     .check { display: inline-flex; align-items: center; gap: 5px; font-size: 0.86em; cursor: pointer; }
     .check input { accent-color: var(--ut-crimson); width: 16px; height: 16px; }
-    .check.off { color: #404040; cursor: not-allowed; }
-    .note { font-size: 0.82em; color: #000000; margin-top: 8px; }
-    #clamp-note { border-left: 3px solid var(--ut-crimson); padding-left: 8px; }
+    #clamp-note { font-size: 0.82em; margin-top: 8px; border-left: 3px solid var(--ut-crimson); padding-left: 8px; }
 
-    /* ── Main row ── */
-    #main-row { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 14px; margin-bottom: 14px; align-items: start; }
+    /* ── Diagram, with the activity plots to its right ── */
+    #main-row { display: grid; grid-template-columns: minmax(0, 617fr) minmax(0, 489fr); gap: 14px; align-items: start; }
+    #diagram-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 4px 14px; margin-bottom: 6px; }
+    #diagram-head .panel-section-title { margin-bottom: 0; }
+    #annotations { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; }
     #legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.82em; margin-bottom: 6px; }
     .swatch { display: inline-block; width: 30px; height: 0; margin-right: 6px; vertical-align: middle; }
     .swatch.uncat { border-top: 3px dashed var(--ut-taupe); }
     .swatch.cat { border-top: 3px solid var(--ut-crimson); }
     canvas { display: block; width: 100%; border-radius: 8px; background: #FFFFFF; }
-    #diagram { height: 480px; touch-action: pan-y; }
-
-    #scrubber { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 10px; }
-    #schematic { height: 96px; border: 1px solid #BFBFBF; }
-    #scrub-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
-    #scrub-row input { flex: 1; min-width: 0; accent-color: var(--ut-crimson); }
-    #scrub-state { font-size: 0.95em; font-weight: 600; }
-    #scrub-detail { font-size: 0.84em; }
-    #path-choice { font-size: 0.82em; }
-
-    /* ── Results ── */
-    #results dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; font-size: 0.88em; }
-    #results dt { color: #000000; }
-    #results dd { font-weight: 600; text-align: right; white-space: nowrap; }
-    #results .small { font-size: 0.8em; font-weight: 400; color: var(--ut-taupe); display: block; }
-    .why { grid-column: 1 / -1; font-size: 0.92em; color: #000000; margin-top: -2px; }
-    #status { margin-top: 10px; padding: 8px 10px; background: #FFFFFF; border: 1px solid var(--ut-taupe); border-radius: 8px; font-size: 0.88em; }
+    #diagram { height: 336px; touch-action: pan-y; }
     .callout { margin-top: 10px; padding: 8px 10px; background: var(--ut-lavender); border: 1px solid var(--lavender-edge); border-radius: 8px; font-size: 0.88em; }
-    #analog-card h3 { font-size: 0.86em; font-weight: 600; margin: 12px 0 6px; }
-    .bar-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 2px 8px; align-items: center; font-size: 0.82em; margin-bottom: 6px; }
-    .bar-track { background: #FFFFFF; border: 1px solid #BFBFBF; border-radius: 4px; height: 12px; overflow: hidden; }
-    .bar { height: 100%; }
-    .bar.substrate { background: var(--ut-taupe); }
-    .bar.ts { background: var(--ut-crimson); }
-    .bar.analog { background: var(--ut-lavender); border-right: 2px solid var(--lavender-edge); }
-    .bar-value { grid-column: 2; font-weight: 600; }
 
-    /* ── Activity plots ── */
-    #plot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    #plot-column { display: flex; flex-direction: column; gap: 14px; }
     .plot-canvas { height: 240px; touch-action: pan-y; }
-    .small-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 18px; margin-top: 10px; }
+    .small-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 16px; margin-top: 10px; }
 
     @media (max-width: 1000px) {
+      #slider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       #main-row { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 720px) {
       body { padding: 10px; }
       header { padding: 0; }
       #quiz-wrap { position: static; display: inline-block; margin-top: 8px; }
-      #plot-row { grid-template-columns: minmax(0, 1fr); }
-      #diagram { height: 430px; }
-      #scrubber { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 560px) {
+      #slider-grid { grid-template-columns: minmax(0, 1fr); }
     }
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; }
@@ -182,7 +145,6 @@
     <span id="quiz-wrap" title="Coming soon"><button type="button" id="quiz-mode" disabled>Quiz Mode</button></span>
   </header>
 
-  <!-- 1. Controls -->
   <section class="panel" id="controls" aria-labelledby="controls-title">
     <h2 class="panel-section-title" id="controls-title">Controls</h2>
     <div id="top-row">
@@ -195,10 +157,6 @@
         </div>
       </div>
       <div class="top-group">
-        <label class="group-label" for="preset">Enzyme</label>
-        <select id="preset"></select>
-      </div>
-      <div class="top-group">
         <span class="group-label" id="units-label">Units</span>
         <div class="segmented" role="group" aria-labelledby="units-label">
           <button type="button" data-unit="kJ">kJ/mol</button>
@@ -206,113 +164,73 @@
         </div>
       </div>
       <button type="button" id="reset">Reset to defaults</button>
-    </div>
-
-    <div id="slider-grid"></div>
-
-    <div id="toggle-row">
-      <label class="check"><input type="checkbox" id="show-barriers"> ΔG‡ arrows</label>
-      <label class="check"><input type="checkbox" id="show-dg"> ΔG arrow</label>
-      <label class="check" id="ep-toggle-label"><input type="checkbox" id="include-ep"> Include EP intermediate</label>
-      <label class="check" id="analog-toggle-label"><input type="checkbox" id="show-analog"> Show transition-state analog</label>
       <button type="button" id="preset-trap">Show ground-state trap</button>
-      <button type="button" id="preset-optimal">Optimal catalysis</button>
     </div>
 
-    <p class="note" id="preset-note" hidden>Rate enhancement from literature; other energy values are illustrative.</p>
-    <p class="note" id="clamp-note" role="status" hidden></p>
+    <div id="slider-grid">
+      <div class="slider-column" id="column-overall"></div>
+      <div class="slider-column" id="column-enzyme"></div>
+      <div class="slider-column" id="column-intermediate"></div>
+      <div class="slider-column" id="column-conditions"></div>
+    </div>
+
+    <p id="clamp-note" role="status" hidden></p>
   </section>
 
-  <!-- 2 and 3. Diagram and results -->
   <div id="main-row">
     <section class="panel" aria-labelledby="diagram-title">
-      <h2 class="panel-section-title" id="diagram-title">Reaction coordinate diagram</h2>
+      <div id="diagram-head">
+        <h2 class="panel-section-title" id="diagram-title">Reaction coordinate diagram</h2>
+        <div id="annotations">
+          <label class="check"><input type="checkbox" id="show-barriers"> ΔG‡ arrows</label>
+          <label class="check"><input type="checkbox" id="show-dg"> ΔG arrow</label>
+        </div>
+      </div>
       <div id="legend">
         <span id="legend-uncat"><span class="swatch uncat"></span>Uncatalyzed</span>
         <span id="legend-cat"><span class="swatch cat"></span>Catalyzed</span>
       </div>
       <canvas id="diagram" role="img"></canvas>
-      <div id="scrubber">
-        <canvas id="schematic" role="img"></canvas>
-        <div>
-          <div id="path-choice" role="group" aria-label="Pathway for the progress dot">
-            <label class="check"><input type="radio" name="scrub-path" value="cat"> Catalyzed</label>
-            <label class="check"><input type="radio" name="scrub-path" value="uncat"> Uncatalyzed</label>
-          </div>
-          <div id="scrub-row">
-            <button type="button" id="play">Play</button>
-            <input type="range" id="progress" min="0" max="1" step="0.005" value="0" aria-label="Reaction progress">
-          </div>
-          <div id="scrub-state" aria-live="polite"></div>
-          <div id="scrub-detail"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" id="results" aria-labelledby="results-title">
-      <h2 class="panel-section-title" id="results-title">Results</h2>
-      <dl id="results-list"></dl>
-      <p id="status"></p>
       <p class="callout" id="trap-callout" hidden></p>
-      <div id="analog-card" hidden></div>
     </section>
-  </div>
 
-  <!-- 4. Activity plots -->
-  <div id="plot-row">
-    <section class="panel" aria-labelledby="temp-title">
-      <h2 class="panel-section-title" id="temp-title">Temperature</h2>
-      <canvas class="plot-canvas" id="temp-plot" role="img"></canvas>
-      <div class="small-fields" id="temp-fields"></div>
-    </section>
-    <section class="panel" aria-labelledby="ph-title">
-      <h2 class="panel-section-title" id="ph-title">pH</h2>
-      <canvas class="plot-canvas" id="ph-plot" role="img"></canvas>
-      <div class="small-fields" id="ph-fields"></div>
-    </section>
+    <div id="plot-column">
+      <section class="panel" aria-labelledby="temp-title">
+        <h2 class="panel-section-title" id="temp-title">Temperature</h2>
+        <canvas class="plot-canvas" id="temp-plot" role="img"></canvas>
+        <div class="small-fields" id="temp-fields"></div>
+      </section>
+      <section class="panel" aria-labelledby="ph-title">
+        <h2 class="panel-section-title" id="ph-title">pH</h2>
+        <canvas class="plot-canvas" id="ph-plot" role="img"></canvas>
+        <div class="small-fields" id="ph-fields"></div>
+      </section>
+    </div>
   </div>
 </div>
 
 <script>
 'use strict';
 
-// ═══ 1. ENZYME PRESETS: CHECK AND EDIT THESE ══════════════════
-
-// Rate enhancements are approximate literature values, as commonly tabulated in biochemistry texts.
-// Each preset sets T = 25 °C and works out the TS stabilization that gives this enhancement.
-//
-// "energies" overrides the generic default energies for that enzyme only. OMP decarboxylase needs it:
-// 10¹⁷ at 25 °C is ΔΔG‡ = 97 kJ/mol, which is more than the generic 90 kJ/mol uncatalyzed barrier, so
-// the catalyzed barrier would be negative. Its uncatalyzed barrier is 160 kJ/mol, close to the measured
-// half-life of about 78 million years, and its binding is −10 so the stabilization fits its 0–110 slider.
-const ENZYME_PRESETS = [
-  { id: 'cyclophilin', name: 'Cyclophilin',                 enhancement: 1e5 },
-  { id: 'ca',          name: 'Carbonic anhydrase',          enhancement: 1e7 },
-  { id: 'tim',         name: 'Triose phosphate isomerase',  enhancement: 1e9 },
-  { id: 'cpa',         name: 'Carboxypeptidase A',          enhancement: 1e11 },
-  { id: 'urease',      name: 'Urease',                      enhancement: 1e14 },
-  { id: 'ompdc',       name: 'OMP decarboxylase',           enhancement: 1e17, energies: { dGu: 160, binding: -10 } },
-];
-
-
-// ═══ 2. MODEL: NO DOM IN THIS SECTION ═════════════════════════
+// ═══ 1. MODEL: NO DOM IN THIS SECTION ═════════════════════════
 
 const R_KJ = 8.314462618e-3;          // kJ/(mol·K)
 const KB_OVER_H = 2.083661912e10;     // Boltzmann constant / Planck constant, in 1/(K·s)
 const KJ_PER_KCAL = 4.184;
 const MIN_TS_GAP = 1;                 // kJ/mol: how far a transition state must stay above its neighbors
-const PRESET_TEMP_C = 25;
+const DH_UNFOLD = 400;                // kJ/mol: the enthalpy of unfolding, fixed
 
+// The defaults show optimal catalysis: weak substrate binding and strong transition-state stabilization.
 const DEFAULTS = Object.freeze({
-  view: 'both', preset: 'generic', unit: 'kJ',
-  dGu: 90, dG: -20, binding: -15, tsStab: 50,
+  view: 'both', unit: 'kJ',
+  dGu: 90, dG: -20, binding: -10, tsStab: 80,
+  epG: -30, ts2Height: 35,
   tempC: 37, pH: 7,
   showBarriers: true, showDG: true,
-  includeEP: false, epG: -30, ts2Height: 35,
-  showAnalog: false, analogPct: 70,
-  Tm: 55, dHunf: 400, pKa1: 6, pKa2: 8.5,
-  scrubPath: 'cat', progress: 0,
+  Tm: 55, pKa1: 6, pKa2: 8.5,
 });
+
+const SETTINGS_TRAP = { dGu: 90, dG: -20, binding: -40, tsStab: 50, view: 'both' };
 
 const toKelvin = c => c + 273.15;
 const toDisplayEnergy = (kJ, unit) => (unit === 'kcal' ? kJ / KJ_PER_KCAL : kJ);
@@ -323,11 +241,8 @@ function eyring(barrier, T) {
   return KB_OVER_H * T * Math.exp(-barrier / (R_KJ * T));
 }
 
-const equilibrium = (dG, T) => Math.exp(-dG / (R_KJ * T));
-const dissociation = (dGbind, T) => Math.exp(dGbind / (R_KJ * T));
-
 // Fraction folded = 1/(1 + e^(−ΔG_unf/RT)), with ΔG_unf = ΔH_unf·(1 − T/Tm). T and Tm in kelvin.
-function fractionFolded(T, TmK, dHunf) {
+function fractionFolded(T, TmK, dHunf = DH_UNFOLD) {
   const dGunf = dHunf * (1 - T / TmK);
   return 1 / (1 + Math.exp(-dGunf / (R_KJ * T)));
 }
@@ -346,8 +261,8 @@ function uncatalyzedStates(s) {
   ];
 }
 
-// The catalyzed path, with each transition state held above the states on either side of it.
-// Returns the states and whichever limits had to be applied.
+// The catalyzed path, E + S → ES → TS1 → EP → TS2 → E + P, with each transition state held above the
+// states on either side of it. Returns the states and whichever limits had to be applied.
 function catalyzedPath(s) {
   const clamps = [];
   const above = (wanted, name, neighbors) => {
@@ -356,18 +271,13 @@ function catalyzedPath(s) {
     clamps.push({ ts: name, below: neighbors.reduce((a, b) => (b.g > a.g ? b : a)).name, gap: MIN_TS_GAP });
     return floor;
   };
-  const ES = { id: 'ES', name: 'ES', kind: 'ES', role: 'min', g: s.binding };
-  const P = { id: 'E+P', name: 'E + P', kind: 'E+P', role: 'min', u: 1, g: s.dG };
   const start = { id: 'E+S', name: 'E + S', kind: 'E+S', role: 'min', u: 0, g: 0 };
-  const wantedTS = s.dGu - s.tsStab;
-  if (!s.includeEP) {
-    const ts = { id: 'ES‡', name: 'ES‡', kind: 'ES‡', role: 'ts', u: 0.5, g: above(wantedTS, 'ES‡', [ES, P]) };
-    return { states: [start, { ...ES, u: 0.2 }, ts, P], clamps };
-  }
+  const ES = { id: 'ES', name: 'ES', kind: 'ES', role: 'min', u: 0.15, g: s.binding };
   const EP = { id: 'EP', name: 'EP', kind: 'EP', role: 'min', u: 0.56, g: s.epG };
-  const ts1 = { id: 'TS1', name: 'TS1', kind: 'ES‡', role: 'ts', u: 0.34, g: above(wantedTS, 'TS1', [ES, EP]) };
-  const ts2 = { id: 'TS2', name: 'TS2', kind: 'TS2', role: 'ts', u: 0.77, g: above(s.epG + s.ts2Height, 'TS2', [EP, P]) };
-  return { states: [start, { ...ES, u: 0.15 }, ts1, EP, ts2, P], clamps };
+  const end = { id: 'E+P', name: 'E + P', kind: 'E+P', role: 'min', u: 1, g: s.dG };
+  const ts1 = { id: 'TS1', name: 'TS1', kind: 'ES‡', role: 'ts', u: 0.34, g: above(s.dGu - s.tsStab, 'TS1', [ES, EP]) };
+  const ts2 = { id: 'TS2', name: 'TS2', kind: 'TS2', role: 'ts', u: 0.77, g: above(s.epG + s.ts2Height, 'TS2', [EP, end]) };
+  return { states: [start, ES, ts1, EP, ts2, end], clamps };
 }
 
 // Each barrier runs from the lowest state before its transition state. The largest is rate-limiting;
@@ -397,10 +307,6 @@ function pathValue(states, u) {
   return states[states.length - 1].g;
 }
 
-function nearestState(states, u) {
-  return states.reduce((a, b) => (Math.abs(b.u - u) < Math.abs(a.u - u) ? b : a));
-}
-
 // Tighter binding than the default raises the barrier measured from ES above the barrier that the
 // same transition state would have with default binding: the ground-state trap.
 function isGroundStateTrap(tsG, esG, defaultBinding = DEFAULTS.binding) {
@@ -409,44 +315,18 @@ function isGroundStateTrap(tsG, esG, defaultBinding = DEFAULTS.binding) {
   return fromES > fromDefault;
 }
 
-// The transition-state analog, from the thermodynamic cycle
-//     E + S ──ΔG‡uncat──▶ E + S‡
-//       │ ΔG_bind(S)         │ ΔG_bind(TS)
-//       ▼                    ▼
-//      ES ───ΔG‡from ES──▶ ES‡
-// Going around both ways, ΔG_bind(TS) = ΔG_bind(S) + ΔG‡from ES − ΔG‡uncat = G(ES‡) − ΔG‡uncat.
-// With TS stabilization defined as how far ES‡ sits below the uncatalyzed TS, that is simply
-//     ΔG_bind(TS) = −(TS stabilization).
-// This is the same thing as −(ΔΔG‡ + |ΔG_bind(S)|), because ΔΔG‡ from ES = stabilization − |binding|.
-// On the diagram, E·TS sits at ΔG‡uncat + ΔG_bind(TS), which is the level of ES‡ itself.
-// The analog captures a share of that: ΔG_bind(I) = share × ΔG_bind(TS).
-// Dividing the two binding constants gives K_TS = K_S × (k_uncat/k_cat), with k_cat for the ES → ES‡ step.
-function analogModel(s, tsG, T) {
-  const bindTS = tsG - s.dGu;
-  const bindI = (s.analogPct / 100) * bindTS;
-  return {
-    bindS: s.binding, bindTS, bindI,
-    levelTS: s.dGu + bindTS,
-    levelI: s.dGu + bindI,
-    Ks: dissociation(s.binding, T),
-    Kts: dissociation(bindTS, T),
-    Ki: dissociation(bindI, T),
-    relation: dissociation(s.binding, T) * eyring(s.dGu, T) / eyring(tsG - s.binding, T),
-  };
-}
-
 const TEMP_MIN = 0, TEMP_MAX = 80, PH_MIN = 4, PH_MAX = 10;
 
-function temperatureCurve(barrier, TmC, dHunf) {
+function temperatureCurve(barrier, TmC) {
   const TmK = toKelvin(TmC);
   const pts = [];
   for (let c = TEMP_MIN; c <= TEMP_MAX + 1e-9; c += 0.25) {
     const T = toKelvin(c);
-    pts.push({ x: c, raw: eyring(barrier, T) * fractionFolded(T, TmK, dHunf) });
+    pts.push({ x: c, raw: eyring(barrier, T) * fractionFolded(T, TmK) });
   }
   const top = pts.reduce((a, b) => (b.raw > a.raw ? b : a));
   pts.forEach(p => { p.y = p.raw / top.raw; });
-  return { pts, optimum: top.x, top: top.raw };
+  return { pts, optimum: top.x };
 }
 
 function phCurve(pKa1, pKa2) {
@@ -457,69 +337,22 @@ function phCurve(pKa1, pKa2) {
 
 // Every number on the page comes from here, so a later quiz mode can hide or test any of them.
 function buildModel(s) {
-  const T = toKelvin(s.tempC);
   const uncat = uncatalyzedStates(s);
   const { states: cat, clamps } = catalyzedPath(s);
   const { barriers, limiting } = barriersOf(cat);
-  const kUncat = eyring(s.dGu, T);
-  const kCat = eyring(limiting.barrier, T);
-  const firstTS = cat.find(st => st.role === 'ts');
-  const folded = fractionFolded(T, toKelvin(s.Tm), s.dHunf);
-  const phFraction = phActivity(s.pH, s.pKa1, s.pKa2);
+  const ts1 = cat.find(st => st.id === 'TS1');
   return {
-    T, uncat, cat, clamps, barriers, limiting,
-    kUncat, kCat,
-    enhancement: kCat / kUncat,
-    ddG: s.dGu - limiting.barrier,                    // barrier to barrier
+    uncat, cat, clamps, barriers, limiting, ts1,
     tsGap: s.dGu - limiting.ts.g,                     // transition state to transition state
     dG: s.dG,
-    keq: equilibrium(s.dG, T),
-    folded, phFraction,
-    observed: kCat * folded * phFraction,
-    trap: isGroundStateTrap(firstTS.g, s.binding),
-    analog: analogModel(s, firstTS.g, T),
-    temp: temperatureCurve(limiting.barrier, s.Tm, s.dHunf),
+    trap: isGroundStateTrap(ts1.g, s.binding),
+    temp: temperatureCurve(limiting.barrier, s.Tm),
     ph: phCurve(s.pKa1, s.pKa2),
   };
 }
 
-// The TS stabilization that gives this enhancement at this temperature, with the barrier from ES:
-// ΔΔG‡ = RT·ln(enhancement) = stabilization − |binding|. Rounded to the slider's 0.1 step.
-function stabilizationFor(enhancement, tempC, binding) {
-  const stabilization = R_KJ * toKelvin(tempC) * Math.log(enhancement) - binding;
-  return Math.round(stabilization * 10) / 10;
-}
-
-function presetSettings(preset) {
-  const energies = { dGu: DEFAULTS.dGu, dG: DEFAULTS.dG, binding: DEFAULTS.binding, ...preset.energies };
-  return {
-    ...energies,
-    tempC: PRESET_TEMP_C,
-    includeEP: false,
-    view: 'both',
-    tsStab: stabilizationFor(preset.enhancement, PRESET_TEMP_C, energies.binding),
-    preset: preset.id,
-  };
-}
-
-const SETTINGS_TRAP = { dGu: 90, dG: -20, binding: -40, tsStab: 50, includeEP: false, view: 'both' };
-const SETTINGS_OPTIMAL = { dGu: 90, dG: -20, binding: -10, tsStab: 80, includeEP: false, view: 'both' };
-
 // ── Formatting ──
-const SUPERSCRIPT = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
-const superscript = n => String(n).split('').map(ch => SUPERSCRIPT[ch]).join('');
-
-function fmtSci(x, digits = 1) {
-  if (!Number.isFinite(x)) return '—';
-  if (x === 0) return '0';
-  let exponent = Math.floor(Math.log10(Math.abs(x)));
-  let mantissa = x / Math.pow(10, exponent);
-  if (Math.abs(Number(mantissa.toFixed(digits))) >= 10) { mantissa /= 10; exponent += 1; }
-  return `${mantissa.toFixed(digits)} × 10${superscript(exponent)}`;
-}
-
 const withMinus = text => text.replace('-', '−');
-const fmtPercent = fraction => `${(fraction * 100).toFixed(fraction >= 0.1 ? 0 : 1)}%`;
 const unitLabel = unit => (unit === 'kcal' ? 'kcal/mol' : 'kJ/mol');
 
 function fmtEnergy(kJ, unit) {
@@ -529,30 +362,28 @@ function fmtEnergy(kJ, unit) {
 }
 
 
-// ═══ 3. PAGE STATE AND CONTROLS ═══════════════════════════════
+// ═══ 2. PAGE STATE AND CONTROLS ═══════════════════════════════
 
 const $ = id => document.getElementById(id);
 let state = { ...DEFAULTS };
 let hover = null;
-let playing = null;
+let currentModel = null;
 
 const CRIMSON = '#C8102E', TAUPE = '#685C53', LAVENDER = '#FFCDFF', LAVENDER_EDGE = '#7A3E7A', FONT = "'Segoe UI', Arial, sans-serif";
 
 // Every slider and its paired box. energy: true converts the box to the chosen unit.
 const CONTROLS = [
-  { key: 'dGu',       label: 'ΔG‡ (uncatalyzed)',      min: 40,  max: 160, step: 1,   energy: true, box: 'slider-grid' },
-  { key: 'dG',        label: 'ΔG° (overall, S → P)',   min: -40, max: 20,  step: 1,   energy: true, box: 'slider-grid' },
-  { key: 'binding',   label: 'ES binding energy',      min: -40, max: 0,   step: 1,   energy: true, enzyme: true, box: 'slider-grid' },
-  { key: 'tsStab',    label: 'TS stabilization',       min: 0,   max: 110, step: 0.1, energy: true, enzyme: true, box: 'slider-grid' },
-  { key: 'tempC',     label: 'Temperature',            min: 0,   max: 80,  step: 1,   unit: '°C', box: 'slider-grid' },
-  { key: 'pH',        label: 'pH',                     min: 4,   max: 10,  step: 0.1, unit: '', enzyme: true, box: 'slider-grid' },
-  { key: 'epG',       label: 'EP energy (relative to S)', min: -60, max: 10, step: 1, energy: true, enzyme: true, box: 'slider-grid', when: s => s.includeEP },
-  { key: 'ts2Height', label: 'TS2 height above EP',    min: 5,   max: 80,  step: 1,   energy: true, enzyme: true, box: 'slider-grid', when: s => s.includeEP },
-  { key: 'analogPct', label: 'Analog captures X% of TS binding energy', min: 50, max: 100, step: 1, unit: '%', enzyme: true, box: 'slider-grid', when: s => s.showAnalog },
-  { key: 'Tm',        label: 'T<sub>m</sub>',          min: 35,  max: 90,  step: 1,   unit: '°C', enzyme: true, box: 'temp-fields' },
-  { key: 'dHunf',     label: 'ΔH<sub>unf</sub>',       min: 200, max: 800, step: 10,  energy: true, enzyme: true, box: 'temp-fields' },
-  { key: 'pKa1',      label: 'pK<sub>a1</sub> (general base)', min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
-  { key: 'pKa2',      label: 'pK<sub>a2</sub> (general acid)', min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
+  { key: 'dGu',       label: 'ΔG‡ (uncatalyzed)',    min: 40,  max: 160, step: 1,   energy: true, box: 'column-overall' },
+  { key: 'dG',        label: 'ΔG° (overall, S → P)', min: -40, max: 20,  step: 1,   energy: true, box: 'column-overall' },
+  { key: 'binding',   label: 'ES binding energy',    min: -40, max: 0,   step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
+  { key: 'tsStab',    label: 'TS stabilization',     min: 0,   max: 110, step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
+  { key: 'epG',       label: 'EP energy (relative to S)', min: -60, max: 10, step: 1, energy: true, enzyme: true, box: 'column-intermediate' },
+  { key: 'ts2Height', label: 'TS2 height above EP',  min: 5,   max: 80,  step: 1,   energy: true, enzyme: true, box: 'column-intermediate' },
+  { key: 'tempC',     label: 'Temperature',          min: 0,   max: 80,  step: 1,   unit: '°C', box: 'column-conditions' },
+  { key: 'pH',        label: 'pH',                   min: 4,   max: 10,  step: 0.1, unit: '', enzyme: true, box: 'column-conditions' },
+  { key: 'Tm',        label: 'T<sub>m</sub>',        min: 35,  max: 90,  step: 1,   unit: '°C', enzyme: true, box: 'temp-fields' },
+  { key: 'pKa1',      label: 'pK<sub>a1</sub>',      min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
+  { key: 'pKa2',      label: 'pK<sub>a2</sub>',      min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
 ];
 const PKA_GAP = 0.1;
 
@@ -575,58 +406,23 @@ function buildControls() {
       setValue(c, c.energy ? fromDisplayEnergy(typed, state.unit) : typed);
     });
   });
-  const select = $('preset');
-  const option = (value, text, disabled) => {
-    const o = document.createElement('option');
-    o.value = value;
-    o.textContent = text;
-    o.disabled = !!disabled;
-    select.appendChild(o);
-  };
-  option('generic', 'Generic');
-  ENZYME_PRESETS.forEach(p => option(p.id, `${p.name} (~10${superscript(Math.log10(p.enhancement))})`));
-  option('custom', 'Custom', true);
 }
 
-// Moving any setting that changes the energies or rates leaves the preset behind.
 function setValue(control, value) {
   let v = Math.min(control.max, Math.max(control.min, value));
   if (control.key === 'pKa1') v = Math.min(v, state.pKa2 - PKA_GAP);
   if (control.key === 'pKa2') v = Math.max(v, state.pKa1 + PKA_GAP);
   state[control.key] = v;
-  state.preset = 'custom';
   render();
-}
-
-function applySettings(settings, preset = 'custom') {
-  state = { ...state, ...settings, preset };
-  render();
-}
-
-function choosePreset(id) {
-  if (id === 'generic') {
-    const { dGu, dG, binding, tsStab, tempC, includeEP } = DEFAULTS;
-    applySettings({ dGu, dG, binding, tsStab, tempC, includeEP, view: 'both' }, 'generic');
-    return;
-  }
-  const preset = ENZYME_PRESETS.find(p => p.id === id);
-  applySettings(presetSettings(preset), id);
 }
 
 function wireControls() {
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { state.view = b.dataset.view; render(); }));
   document.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => { state.unit = b.dataset.unit; render(); }));
-  $('preset').addEventListener('change', e => choosePreset(e.target.value));
-  $('reset').addEventListener('click', () => { stopPlaying(); state = { ...DEFAULTS }; render(); });
-  $('preset-trap').addEventListener('click', () => applySettings(SETTINGS_TRAP));
-  $('preset-optimal').addEventListener('click', () => applySettings(SETTINGS_OPTIMAL));
+  $('reset').addEventListener('click', () => { state = { ...DEFAULTS }; render(); });
+  $('preset-trap').addEventListener('click', () => { state = { ...state, ...SETTINGS_TRAP }; render(); });
   $('show-barriers').addEventListener('change', e => { state.showBarriers = e.target.checked; render(); });
   $('show-dg').addEventListener('change', e => { state.showDG = e.target.checked; render(); });
-  $('include-ep').addEventListener('change', e => { state.includeEP = e.target.checked; state.preset = 'custom'; render(); });
-  $('show-analog').addEventListener('change', e => { state.showAnalog = e.target.checked; render(); });
-  document.querySelectorAll('input[name=scrub-path]').forEach(r => r.addEventListener('change', e => { state.scrubPath = e.target.value; render(); }));
-  $('progress').addEventListener('input', e => { stopPlaying(); state.progress = Number(e.target.value); render(); });
-  $('play').addEventListener('click', togglePlay);
 
   const diagram = $('diagram');
   const track = e => {
@@ -645,7 +441,6 @@ function syncControls() {
   const unit = state.unit;
   CONTROLS.forEach(c => {
     const field = $(`field-${c.key}`);
-    field.hidden = c.when ? !c.when(state) : false;
     const off = uncatOnly && !!c.enzyme;
     field.classList.toggle('off', off);
     const slider = $(`slider-${c.key}`), box = $(`box-${c.key}`);
@@ -681,109 +476,31 @@ function syncControls() {
     b.setAttribute('aria-pressed', on);
   });
 
-  $('preset').value = state.preset;
-  $('preset').disabled = uncatOnly;
-  $('preset-note').hidden = uncatOnly || !ENZYME_PRESETS.some(p => p.id === state.preset);
+  $('preset-trap').disabled = uncatOnly;
   $('show-barriers').checked = state.showBarriers;
   $('show-dg').checked = state.showDG;
-  $('include-ep').checked = state.includeEP;
-  $('show-analog').checked = state.showAnalog;
-  ['include-ep', 'show-analog', 'preset-trap', 'preset-optimal'].forEach(id => { $(id).disabled = uncatOnly; });
-  $('ep-toggle-label').classList.toggle('off', uncatOnly);
-  $('analog-toggle-label').classList.toggle('off', uncatOnly);
-
   $('legend-uncat').hidden = state.view === 'cat';
   $('legend-cat').hidden = uncatOnly;
-  $('path-choice').hidden = state.view !== 'both';
-  document.querySelectorAll('input[name=scrub-path]').forEach(r => { r.checked = r.value === state.scrubPath; });
-  $('progress').value = state.progress;
 }
 
-
-// ═══ 4. RESULTS ═══════════════════════════════════════════════
-
-function clampNoteText(m) {
-  return m.clamps
-    .map(c => `${c.ts} is held ${fmtEnergy(c.gap, state.unit)} above ${c.below}, because the sliders would put it below.`)
-    .join(' ');
-}
-
-function limitingName(m) {
-  const id = m.limiting.ts.id;
-  return id === 'TS2' ? 'TS2 (product release)' : id === 'TS1' ? 'TS1 (chemical step)' : 'ES‡';
-}
-
-function statusText(m) {
-  if (state.view === 'uncat') {
-    return `Without an enzyme, S crosses a barrier of ${fmtEnergy(state.dGu, state.unit)}, with k = ${fmtSci(m.kUncat)} s⁻¹.`;
-  }
-  const fold = fmtSci(m.enhancement);
-  if (m.enhancement <= 1 + 1e-9) {
-    return `This enzyme gives no rate gain (${fold}-fold): the barrier from ${m.limiting.from.name} is not below the uncatalyzed barrier. ΔG and K<sub>eq</sub> are unchanged.`;
-  }
-  const limiting = state.includeEP ? ` ${limitingName(m)} sets the overall rate.` : '';
-  return `The enzyme speeds the reaction ${fold}-fold by lowering the barrier, and ΔG and K<sub>eq</sub> stay the same.${limiting}`;
-}
-
-// The single place that writes results to the page.
-function renderResults(m) {
-  const u = state.unit;
+// The notes that go with the diagram
+function renderNotes(m) {
   const uncatOnly = state.view === 'uncat';
-  const row = (label, value, note) => `<dt>${label}${note ? `<span class="small">${note}</span>` : ''}</dt><dd>${value}</dd>`;
-  const rows = [row('k<sub>uncat</sub>', `${fmtSci(m.kUncat)} s⁻¹`)];
-  if (uncatOnly) {
-    rows.push(row('ΔG‡', fmtEnergy(state.dGu, u)));
-    rows.push(row('ΔG', fmtEnergy(m.dG, u)));
-    rows.push(row('K<sub>eq</sub>', fmtSci(m.keq)));
-  } else {
-    rows.push(row('k<sub>cat</sub> (intrinsic)', `${fmtSci(m.kCat)} s⁻¹`));
-    rows.push(row('Rate enhancement', fmtSci(m.enhancement), 'k<sub>cat</sub> / k<sub>uncat</sub>'));
-    rows.push(row('ΔΔG‡', fmtEnergy(m.ddG, u), 'uncatalyzed barrier − catalyzed barrier'));
-    rows.push(row('TS to TS', fmtEnergy(m.tsGap, u), m.limiting.from.g < 0
-      ? `the catalyzed barrier starts from ${m.limiting.from.name}, ${fmtEnergy(-m.limiting.from.g, u)} below E + S` : 'the catalyzed barrier starts from E + S'));
-    if (state.includeEP) rows.push(row('Rate-limiting step', limitingName(m)));
-    rows.push(row('Observed catalyzed rate', `${fmtSci(m.observed)} s⁻¹`));
-    const share = m.observed / m.kCat;
-    const shareText = share >= 0.01 ? `${(share * 100).toFixed(0)}%` : fmtSci(share);
-    rows.push(`<p class="why">${fmtPercent(m.folded)} folded × ${fmtPercent(m.phFraction)} active at pH ${state.pH.toFixed(1)} leaves ${shareText} of k<sub>cat</sub>.</p>`);
-    rows.push(row('K<sub>eq</sub>', fmtSci(m.keq), 'identical for both pathways'));
-  }
-  $('results-list').innerHTML = rows.join('');
-  $('status').innerHTML = statusText(m);
-
+  const u = state.unit;
   const trap = !uncatOnly && m.trap;
   $('trap-callout').hidden = !trap;
   if (trap) {
-    const tsG = m.cat.find(s => s.role === 'ts').g;
-    $('trap-callout').textContent = `Ground-state trap: ES is so stable that it sits in a deep well. The barrier from ES is ${fmtEnergy(tsG - state.binding, u)}, higher than the ${fmtEnergy(tsG - DEFAULTS.binding, u)} it would be with default binding. Binding the substrate too tightly slows the enzyme.`;
+    $('trap-callout').textContent = `Ground-state trap: ES is so stable that it sits in a deep well. The barrier from ES is ${fmtEnergy(m.ts1.g - state.binding, u)}, higher than the ${fmtEnergy(m.ts1.g - DEFAULTS.binding, u)} it would be with default binding. Binding the substrate too tightly slows the enzyme.`;
   }
-
-  const showAnalog = !uncatOnly && state.showAnalog;
-  $('analog-card').hidden = !showAnalog;
-  if (showAnalog) renderAnalog(m.analog);
-
-  const note = uncatOnly ? '' : clampNoteText(m);
+  const note = uncatOnly ? '' : m.clamps
+    .map(c => `${c.ts} is held ${fmtEnergy(c.gap, u)} above ${c.below}, because the sliders would put it below.`)
+    .join(' ');
   $('clamp-note').hidden = !note;
   $('clamp-note').textContent = note;
 }
 
-function renderAnalog(a) {
-  const tightness = K => Math.max(0, -Math.log10(K));
-  const widest = Math.max(1, tightness(a.Ks), tightness(a.Kts), tightness(a.Ki));
-  const bar = (label, K, cls) => `<div class="bar-row"><span>${label}</span>
-    <div class="bar-track"><div class="bar ${cls}" style="width:${(tightness(K) / widest * 100).toFixed(1)}%"></div></div>
-    <span class="bar-value">${fmtSci(K)} M</span></div>`;
-  const step = state.includeEP ? ' (k<sub>cat</sub> for the TS1 step)' : '';
-  $('analog-card').innerHTML = `<h3>K<sub>d</sub>: a longer bar binds more tightly</h3>
-    ${bar('Substrate', a.Ks, 'substrate')}
-    ${bar('TS', a.Kts, 'ts')}
-    ${bar('Analog', a.Ki, 'analog')}
-    <p class="note">K<sub>TS</sub> ≈ K<sub>S</sub> × (k<sub>uncat</sub> / k<sub>cat</sub>)${step} = ${fmtSci(a.relation)} M</p>
-    <p class="callout">Enzymes bind the transition state far more tightly than the substrate. Analogs that mimic it are potent inhibitors.</p>`;
-}
 
-
-// ═══ 5. DRAWING ═══════════════════════════════════════════════
+// ═══ 3. DRAWING ═══════════════════════════════════════════════
 
 function fitCanvas(canvas) {
   const dpr = window.devicePixelRatio || 1;
@@ -921,18 +638,15 @@ function shownStates(m) {
 }
 
 function diagramScale(m, W, H) {
-  const narrow = W < 560;
+  const narrow = W < 480;
   const levels = [0, m.dG];
   if (state.view !== 'cat') levels.push(state.dGu);
-  if (state.view !== 'uncat') {
-    m.cat.forEach(s => levels.push(s.g));
-    if (state.showAnalog) levels.push(m.analog.levelTS, m.analog.levelI);
-  }
+  if (state.view !== 'uncat') m.cat.forEach(s => levels.push(s.g));
   // The scale moves in steps, so small slider moves show on the curve and not as a rescale.
   const lo = Math.floor(Math.min(...levels) / 20) * 20;
   const hi = Math.max(lo + 40, Math.ceil(Math.max(...levels) / 20) * 20);
-  const left = narrow ? 46 : 60, right = W - (narrow ? 44 : 104), top = 8, bottom = H - 30;
-  const padTop = narrow ? 58 : 62, padBottom = narrow ? 56 : 60;
+  const left = narrow ? 46 : 56, right = W - (narrow ? 44 : 88), top = 8, bottom = H - 26;
+  const padTop = 32, padBottom = 42;
   const inner = 10;
   return {
     narrow, lo, hi, left, right, top, bottom,
@@ -946,7 +660,7 @@ function drawAxes(ctx, g, H) {
   const loD = toDisplayEnergy(g.lo, unit), hiD = toDisplayEnergy(g.hi, unit);
   const span = hiD - loD;
   const steps = unit === 'kcal' ? [5, 10, 20] : [20, 40, 80];
-  const step = steps.find(s => span / s <= (g.narrow ? 5 : 7)) || steps[steps.length - 1];
+  const step = steps.find(s => span / s <= 7) || steps[steps.length - 1];
   ctx.font = `11px ${FONT}`;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
@@ -973,7 +687,7 @@ function drawAxes(ctx, g, H) {
   ctx.font = `600 12px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('Reaction coordinate', (g.left + g.right) / 2, H - 9);
+  ctx.fillText('Reaction coordinate', (g.left + g.right) / 2, H - 8);
   ctx.save();
   ctx.translate(12, (g.top + g.bottom) / 2);
   ctx.rotate(-Math.PI / 2);
@@ -995,22 +709,6 @@ function drawPath(ctx, g, states, color, width, dash) {
   ctx.setLineDash([]);
 }
 
-function drawLevels(ctx, g, m) {
-  // Just left of the peak, so the levels stay clear of its label and schematic
-  const firstTS = m.cat.find(s => s.role === 'ts');
-  const end = g.x(firstTS.u) - (g.narrow ? 12 : 26);
-  const length = g.narrow ? 36 : 60;
-  [[m.analog.levelTS, 'E·TS'], [m.analog.levelI, `E·I (${state.analogPct}%)`]].forEach(([level, name]) => {
-    const y = g.y(level);
-    ctx.fillStyle = LAVENDER;
-    ctx.strokeStyle = LAVENDER_EDGE;
-    ctx.lineWidth = 1;
-    ctx.fillRect(end - length, y - 3, length, 6);
-    ctx.strokeRect(end - length, y - 3, length, 6);
-    textBox(ctx, name, end - length - 4, y, { align: 'right', font: `600 11px ${FONT}`, color: '#000000' });
-  });
-}
-
 function drawBarrierArrows(ctx, g, m) {
   const unit = state.unit;
   const view = state.view;
@@ -1021,38 +719,37 @@ function drawBarrierArrows(ctx, g, m) {
     const x = peakX - (g.narrow ? 16 : 24);
     guideLine(ctx, g.x(0), g.y(0), x);
     verticalArrow(ctx, x, g.y(0), g.y(state.dGu), TAUPE);
-    const yMid = (g.y(0) + g.y(state.dGu)) / 2;
-    // With EP on, TS1 sits to the left, so the label goes on the other side and higher up.
-    const rightSide = view === 'both' && state.includeEP;
+    // TS1 sits to the left of this arrow, so with both paths shown the label goes on the right and higher up.
+    const rightSide = view === 'both';
     const align = rightSide ? 'left' : 'right';
     const tx = x + (rightSide ? 5 : -5);
-    const ty = rightSide ? g.y(state.dGu) + 16 : yMid;
+    const ty = rightSide ? g.y(state.dGu) + 16 : (g.y(0) + g.y(state.dGu)) / 2;
     textBox(ctx, 'ΔG‡', tx, ty - 7, { align, font: small });
     textBox(ctx, fmtEnergy(state.dGu, unit), tx, ty + 7, { align, font: `10px ${FONT}` });
   }
   if (view === 'uncat') return;
 
-  m.barriers.forEach(b => {
+  m.barriers.forEach((b, i) => {
     const limiting = b === m.limiting;
-    const tsX = g.x(b.ts.u);
-    const isFirst = b === m.barriers[0];
-    const side = isFirst && state.includeEP ? -1 : 1;
-    const x = tsX + side * (g.narrow ? 16 : 24);
+    const side = i === 0 ? -1 : 1;
+    const x = g.x(b.ts.u) + side * (g.narrow ? 16 : 24);
     guideLine(ctx, g.x(b.from.u), g.y(b.from.g), x);
     const color = limiting ? CRIMSON : TAUPE;
     verticalArrow(ctx, x, g.y(b.from.g), g.y(b.ts.g), color, limiting ? 2.5 : 1.5);
-    const yMid = (g.y(b.from.g) + g.y(b.ts.g)) / 2;
-    const align = side < 0 ? 'right' : 'left';
-    const tx = x + side * 5;
-    textBox(ctx, 'ΔG‡', tx, yMid - 7, { align, font: small, color });
-    textBox(ctx, fmtEnergy(b.barrier, unit), tx, yMid + 7, { align, font: `10px ${FONT}`, color });
-    if (limiting && state.includeEP) textBox(ctx, 'Rate-limiting', tx, yMid + 20, { align, font: `600 10px ${FONT}`, color: CRIMSON });
+    // The label reads to the left of the arrow: past TS1 it clears the curve down to EP, and under
+    // TS2 it sits inside the hump. A short arrow has no room beside it, so its label goes below, to the right.
+    const tall = g.y(b.from.g) - g.y(b.ts.g) >= 44;
+    const ty = tall ? (g.y(b.from.g) + g.y(b.ts.g)) / 2 : g.y(b.from.g) + 15;
+    const tx = tall ? x - 5 : x + 5, align = tall ? 'right' : 'left';
+    textBox(ctx, 'ΔG‡', tx, ty - 7, { align, font: small, color });
+    textBox(ctx, fmtEnergy(b.barrier, unit), tx, ty + 7, { align, font: `10px ${FONT}`, color });
+    if (limiting) textBox(ctx, 'Rate-limiting', tx, ty + 20, { align, font: `600 10px ${FONT}`, color: CRIMSON });
   });
 
   if (view === 'both' && m.tsGap !== 0) {
     // The bracket between the transition states, off to the side of the catalyzed arrow
     const ts = m.limiting.ts;
-    const x = Math.max(peakX, g.x(ts.u)) + (g.narrow ? 50 : 76);
+    const x = Math.max(peakX, g.x(ts.u)) + (g.narrow ? 40 : 66);
     const yTop = g.y(state.dGu), yLow = g.y(ts.g);
     guideLine(ctx, peakX, yTop, x);
     guideLine(ctx, g.x(ts.u), yLow, x);
@@ -1074,7 +771,7 @@ function drawBarrierArrows(ctx, g, m) {
 
 function drawOverallArrow(ctx, g, m) {
   const unit = state.unit;
-  const x = g.x(1) + (g.narrow ? 14 : 14);
+  const x = g.x(1) + 14;
   guideLine(ctx, g.x(0), g.y(0), x + 4);
   guideLine(ctx, g.x(1), g.y(m.dG), x + 4);
   const same = state.view !== 'uncat';
@@ -1087,9 +784,11 @@ function drawOverallArrow(ctx, g, m) {
   lines.forEach(([text, font], i) => textBox(ctx, text, tx, yMid + (i - (lines.length - 1) / 2) * 13, { align, font }));
 }
 
-function drawStateLabels(ctx, g, states, m) {
-  const r = g.narrow ? 9 : 11;
-  const uncatPeak = states.find(s => s.id === 'S‡');
+// Each state's name and schematic sit side by side, above a peak and below a valley. The start goes
+// above its point, clear of ES just below it, and the end stacks its two so they stay narrow.
+function drawStateLabels(ctx, g, states) {
+  const r = 9;
+  const font = `600 ${g.narrow ? 11 : 12}px ${FONT}`;
   states.forEach(s => {
     const x = g.x(s.u), y = g.y(s.g);
     ctx.fillStyle = s.path === 'uncat' ? TAUPE : CRIMSON;
@@ -1097,41 +796,20 @@ function drawStateLabels(ctx, g, states, m) {
     ctx.arc(x, y, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
-    let align = 'center', cx = x;
-    if (s.u === 0) { align = 'left'; cx = x - 2; }
-    if (s.u === 1) { align = 'right'; cx = x + 2; }
-    // Two peaks close together put their labels on opposite sides.
-    if (uncatPeak && s.role === 'ts' && Math.abs(s.u - uncatPeak.u) < 0.02 && Math.abs(g.y(s.g) - g.y(uncatPeak.g)) < 60) {
-      align = s === uncatPeak ? 'right' : 'left';
+    ctx.font = font;
+    const textW = ctx.measureText(s.name).width;
+    const half = ['S', 'S‡', 'P'].includes(s.kind) ? r * 0.9 : r * 2.1;
+    if (s.u === 1) {
+      textBox(ctx, s.name, x + 2, y + 13, { align: 'right', font });
+      drawSpecies(ctx, s.kind, x + 2 - half, y + 21 + r, r);
+      return;
     }
-    const font = `600 ${g.narrow ? 11 : 12}px ${FONT}`;
-    const schematicX = align === 'center' ? cx : align === 'left' ? cx + r * 1.2 : cx - r * 1.2;
-    if (s.role === 'ts') {
-      textBox(ctx, s.name, cx, y - 9, { align, font, baseline: 'bottom' });
-      drawSpecies(ctx, s.kind, schematicX, y - 9 - 16 - r, r);
-    } else {
-      textBox(ctx, s.name, cx, y + 10, { align, font, baseline: 'top' });
-      drawSpecies(ctx, s.kind, schematicX, y + 10 + 15 + r, r);
-    }
+    const rowW = textW + 4 + half * 2;
+    const rowLeft = s.u === 0 ? x - 2 : x - rowW / 2;
+    const rowY = s.role === 'ts' || s.u === 0 ? y - 8 - r : y + 8 + r;
+    textBox(ctx, s.name, rowLeft, rowY, { align: 'left', font });
+    drawSpecies(ctx, s.kind, rowLeft + textW + 4 + half, rowY, r);
   });
-}
-
-// The pathway the progress dot follows
-function scrubStates(m) {
-  if (state.view === 'uncat') return m.uncat;
-  return state.view === 'both' && state.scrubPath === 'uncat' ? m.uncat : m.cat;
-}
-
-function drawDot(ctx, g, m) {
-  const states = scrubStates(m);
-  const x = g.x(state.progress), y = g.y(pathValue(states, state.progress));
-  ctx.beginPath();
-  ctx.arc(x, y, 7, 0, Math.PI * 2);
-  ctx.fillStyle = '#000000';
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 2;
-  ctx.fill();
-  ctx.stroke();
 }
 
 function drawHover(ctx, g, states, W) {
@@ -1168,33 +846,19 @@ function drawDiagram(m) {
   const view = state.view;
 
   drawAxes(ctx, g, H);
-  if (view !== 'uncat' && state.showAnalog) drawLevels(ctx, g, m);
   if (view !== 'cat') drawPath(ctx, g, m.uncat, TAUPE, 2.5, [8, 5]);
   if (view !== 'uncat') drawPath(ctx, g, m.cat, CRIMSON, 3, []);
   if (state.showDG) drawOverallArrow(ctx, g, m);
   if (state.showBarriers) drawBarrierArrows(ctx, g, m);
-  drawStateLabels(ctx, g, states, m);
-  drawDot(ctx, g, m);
+  drawStateLabels(ctx, g, states);
   drawHover(ctx, g, states, W);
 
   const u = state.unit;
   const parts = [];
   if (view !== 'cat') parts.push(`Uncatalyzed barrier ${fmtEnergy(state.dGu, u)}.`);
-  if (view !== 'uncat') parts.push(`Catalyzed path through ${m.cat.map(s => `${s.name} at ${fmtEnergy(s.g, u)}`).join(', ')}. Rate-limiting barrier ${fmtEnergy(m.limiting.barrier, u)}.`);
+  if (view !== 'uncat') parts.push(`Catalyzed path through ${m.cat.map(s => `${s.name} at ${fmtEnergy(s.g, u)}`).join(', ')}. Rate-limiting barrier ${fmtEnergy(m.limiting.barrier, u)} at ${m.limiting.ts.name}.`);
   parts.push(`Overall ΔG ${fmtEnergy(m.dG, u)}.`);
   canvas.setAttribute('aria-label', `Free energy diagram. ${parts.join(' ')}`);
-}
-
-function drawScrubber(m) {
-  const states = scrubStates(m);
-  const near = nearestState(states, state.progress);
-  const canvas = $('schematic');
-  const { ctx, W, H } = fitCanvas(canvas);
-  drawSpecies(ctx, near.kind, W / 2 - 4, H / 2, Math.min(32, H * 0.36));
-  canvas.setAttribute('aria-label', `Schematic of ${near.name}`);
-  $('scrub-state').textContent = near.name;
-  $('scrub-detail').textContent = `G here = ${fmtEnergy(pathValue(states, state.progress), state.unit)}`;
-  $('play').textContent = playing ? 'Pause' : 'Play';
 }
 
 // ── Activity plots ──
@@ -1314,60 +978,18 @@ function drawPHPlot(m) {
 
 function drawAll(m) {
   drawDiagram(m);
-  drawScrubber(m);
   drawTemperaturePlot(m);
   drawPHPlot(m);
 }
 
 
-// ═══ 6. PROGRESS ANIMATION ════════════════════════════════════
+// ═══ 4. RENDER ════════════════════════════════════════════════
 
-const PLAY_SECONDS = 7;
-
-function stopPlaying() {
-  if (playing && playing.frame) cancelAnimationFrame(playing.frame);
-  if (playing && playing.timer) clearInterval(playing.timer);
-  playing = null;
-}
-
-function togglePlay() {
-  if (playing) { stopPlaying(); render(); return; }
-  if (state.progress >= 1) state.progress = 0;
-  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced) {
-    // Steps from state to state, with no continuous motion.
-    playing = { timer: setInterval(() => {
-      const next = scrubStates(currentModel).find(s => s.u > state.progress + 1e-6);
-      if (!next) { stopPlaying(); render(); return; }
-      state.progress = next.u;
-      render();
-    }, 1200) };
-    render();
-    return;
-  }
-  let last = null;
-  const tick = time => {
-    if (!playing) return;
-    if (last !== null) state.progress = Math.min(1, state.progress + (time - last) / 1000 / PLAY_SECONDS);
-    last = time;
-    if (state.progress >= 1) { state.progress = 1; playing = null; render(); return; }
-    render();
-    playing.frame = requestAnimationFrame(tick);
-  };
-  playing = { frame: requestAnimationFrame(tick) };
-  render();
-}
-
-
-// ═══ 7. RENDER ════════════════════════════════════════════════
-
-let currentModel = null;
-
-// Every change goes through here: one model, then the controls, the numbers and the drawings.
+// Every change goes through here: one model, then the controls, the notes and the drawings.
 function render() {
   currentModel = buildModel(state);
   syncControls();
-  renderResults(currentModel);
+  renderNotes(currentModel);
   drawAll(currentModel);
 }
 
