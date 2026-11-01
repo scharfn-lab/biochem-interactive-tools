@@ -89,6 +89,10 @@ const pI = seq => page0.run(`findPI(ionizableGroups('${seq}'))`);
 const close = (actual, expected, tol, label) =>
   assert.ok(Math.abs(actual - expected) <= tol, `${label}: expected ${expected} ± ${tol}, got ${actual}`);
 const ALL = 'GAVLIPFWMSTCYNQDEKRH'.split('');
+const enterSeq = (page, text) => {
+  page.el('seq-input').value = text;
+  page.el('seq-input').fire('input');
+};
 
 // ── The test cases you specified ───────────────────────────────
 test('Gly at pH 7 has net charge about 0 and pI about 5.55', () => {
@@ -180,8 +184,8 @@ test('the neutral form is uncharged for every group', () => {
   const groups = page0.json(`ionizableGroups('CYDEKRH')`);
   for (const g of groups) {
     const form = page0.run(`neutralForm(${JSON.stringify(g)})`);
-    assert.equal(form, g.kind === 'base' ? 'deprot' : 'prot', g.name);
-    assert.doesNotMatch(g[form], /[⁺⁻]/, g.name);
+    assert.equal(form, g.kind === 'base' ? 'deprot' : 'prot', g.short);
+    assert.doesNotMatch(g[form], /[⁺⁻]/, g.short);
   }
 });
 
@@ -286,29 +290,29 @@ test('internal proline has no N-H, and other internal residues do', () => {
   assert.equal(hs('PPP'), 0);
 });
 
-test('residue names, peptide bonds and alternating bands are drawn', () => {
-  const svg = svgOf('ADEHKR');
-  for (const [i, name] of ['Ala', 'Asp', 'Glu', 'His', 'Lys', 'Arg'].entries()) assert.ok(svg.includes(`>${name} ${i + 1}<`), name);
-  assert.equal([...svg.matchAll(/>peptide bond</g)].length, 5);
-  assert.equal([...svg.matchAll(/class="peptide-glow"/g)].length, 5);
-  assert.equal([...svg.matchAll(/rgba\(104,92,83,0\.09\)/g)].length, 3);
-  assert.equal([...svg.matchAll(/rgba\(255,205,255,0\.28\)/g)].length, 3);
-  assert.equal(svgOf('A').includes('peptide bond'), false, 'one residue has no peptide bond');
+test('nothing in the drawing marks where one residue ends and the next begins', () => {
+  for (const seq of ['ADEHKR', 'GAVLIP', 'WWWWWW', 'G']) {
+    const svg = svgOf(seq);
+    assert.doesNotMatch(svg, /peptide bond|peptide-glow|class="leader"|class="res-name"|class="bond-name"/, seq);
+    assert.doesNotMatch(svg, /<rect/, `${seq}: no shaded bands or group circles`);
+    assert.doesNotMatch(svg, /stroke-dasharray/, seq);
+    for (const three of Object.values(page0.json('RESIDUES'))) assert.ok(!svg.includes(`>${three}`), `${seq} names ${three}`);
+  }
+  assert.doesNotMatch(CSS, /ion-box|peptide-glow|\.leader|\.res-name|\.bond-name|\.swatch/, 'no leftover styles');
 });
 
-test('six residues fit a desktop panel, with the drawing able to shrink', () => {
+test('the structure is 20% smaller and still fits beside the pI box', () => {
+  assert.match(SCRIPT, /Math\.round\(width \* 1\.04\)/, '1.3 × 0.8');
   for (const seq of ['ADEHKR', 'WWWWWW', 'RRRRRR', 'YWRYWR']) {
-    assert.ok(page0.run(`buildStructure('${seq}').width`) * 1.3 <= 1036, `${seq} fits 1080px minus panel padding`);
+    assert.ok(page0.run(`buildStructure('${seq}').width`) * 1.04 <= 723, `${seq} fits the structure panel`);
   }
   assert.match(CSS, /#structure-box svg \{[^}]*max-width: 100%;[^}]*height: auto;/);
   assert.match(CSS, /#structure-box \{[^}]*overflow: hidden/, 'no scrolling');
 });
 
-test('colors follow the spec, and the half state is dashed', () => {
-  assert.match(CSS, /\.charge-pos \.ion-box \{ stroke: var\(--positive\)/);
-  assert.match(CSS, /\.charge-neg \.ion-box \{ stroke: var\(--ut-crimson\)/);
-  assert.match(CSS, /\.charge-neu \.ion-box \{ stroke: var\(--ut-taupe\)/);
-  assert.match(CSS, /\.ion-group\.half \.ion-box \{ stroke-dasharray/);
+test('charges are still colored as text, and the half state keeps its label', () => {
+  assert.match(CSS, /\.charge-pos \.atom \{ fill: var\(--positive\)/);
+  assert.match(CSS, /\.charge-neg \.atom \{ fill: var\(--ut-crimson\)/);
   assert.match(CSS, /\.ion-state \{ opacity: 0; transition: opacity/, 'smooth updates');
   const lys = svgOf('K').match(/data-group="side0">([\s\S]*?)<text class="half-label"/)[1];
   assert.match(lys, /ion-state prot charge-pos/);
@@ -316,6 +320,7 @@ test('colors follow the spec, and the half state is dashed', () => {
   const asp = svgOf('D').match(/data-group="side0">([\s\S]*?)<text class="half-label"/)[1];
   assert.match(asp, /ion-state prot charge-neu/);
   assert.match(asp, /ion-state deprot charge-neg/);
+  assert.ok(svgOf('K').includes('≈50/50'));
 });
 
 // ── Page wiring ────────────────────────────────────────────────
@@ -334,75 +339,73 @@ test('the style matches the Ramachandran page', () => {
   assert.match(CSS, /button\.active \{ background: #FFCDD2; border-color: var\(--ut-crimson\)/);
 });
 
+test('removed parts are gone', () => {
+  assert.doesNotMatch(HTML, /<canvas|id="plot|drawPlot|hoverPH/, 'no plot');
+  assert.doesNotMatch(HTML, /notation|terminusText/, 'no notation lines');
+  assert.doesNotMatch(HTML, /seq-preset|data-seq/, 'no example peptides');
+  assert.doesNotMatch(HTML, /results-panel|net-charge|pi-value/, 'no results box');
+});
+
+test('the layout puts peptide beside pH, structure beside pI, and Quiz Mode on top', () => {
+  assert.match(CSS, /\.half-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
+  assert.match(CSS, /\.structure-row \{[^}]*grid-template-columns: minmax\(0, 2\.6fr\) minmax\(0, 1fr\)/);
+  const order = ['id="quiz-toggle"', 'id="seq-input"', 'id="ph-slider"', 'id="structure-box"', 'id="pka-rows"', 'id="quiz-panel"'];
+  const positions = order.map(id => MARKUP.indexOf(id));
+  assert.ok(positions.every(p => p >= 0));
+  assert.deepEqual(positions, [...positions].sort((a, b) => a - b), order.join(' < '));
+  const row = MARKUP.match(/id="seq-input"[\s\S]*?id="random-btn">([^<]+)</);
+  assert.equal(row[1], 'Randomly Generate');
+});
+
 test('the input updates the peptide and keeps the last good one on an error', () => {
   const page = loadPage();
   const input = page.el('seq-input');
-  input.value = 'Ala-Lys';
-  input.fire('input');
+  enterSeq(page, 'Ala-Lys');
   assert.equal(page.run('sequence'), 'AK');
-  assert.match(page.el('notation-three').innerHTML, /H₃N⁺–Ala–Lys–COO⁻/);
-  assert.match(page.el('notation-three').innerHTML, /N-terminus.*C-terminus/);
-  assert.match(page.el('notation-one').innerHTML, /H₃N⁺–A–K–COO⁻/);
 
-  input.value = 'AXK';
-  input.fire('input');
+  enterSeq(page, 'AXK');
   assert.equal(page.run('sequence'), 'AK', 'kept');
   assert.equal(page.el('seq-message').className, 'error');
   assert.match(page.el('seq-message').textContent, /Unknown residue: "X"/);
   assert.equal(input.getAttribute('aria-invalid'), 'true');
 
-  input.value = 'AK';
-  input.fire('input');
+  enterSeq(page, 'AK');
   assert.equal(input.getAttribute('aria-invalid'), null);
   assert.equal(page.el('seq-message').textContent, '');
 });
 
-test('the notation follows pH at the termini', () => {
+test('the page opens on a random peptide with the entry box empty', () => {
   const page = loadPage();
-  const notation = () => page.el('notation-three').innerHTML;
-  page.run(`chooseSequence('GA')`);
-  page.run('setPH(2, 2)');
-  assert.match(notation(), /H₃N⁺–Gly–Ala–COOH/);
-  page.run('setPH(7, 7)');
-  assert.match(notation(), /H₃N⁺–Gly–Ala–COO⁻/);
-  page.run('setPH(13, 13)');
-  assert.match(notation(), /H₂N–Gly–Ala–COO⁻/);
-  page.run(`chooseSequence('PA')`);
-  assert.match(notation(), /HN–Pro–Ala–COO⁻/);
-  page.run('setPH(7, 7)');
-  assert.match(notation(), /H₂N⁺–Pro–Ala–COO⁻/);
+  const seq = page.run('sequence');
+  assert.ok(seq.length >= 2 && seq.length <= 6, seq);
+  assert.equal(page.el('seq-input').value, '');
+  assert.equal(page.el('seq-message').textContent, '');
+  assert.ok(page.el('structure-box').innerHTML.includes('<svg'));
 });
 
-test('presets highlight, and Random gives a valid new peptide', () => {
+test('Randomly Generate draws a new peptide without showing its sequence', () => {
   const page = loadPage();
-  const active = () => page.qa('.seq-preset').filter(b => b.classList.contains('active')).map(b => b.dataset.seq);
-  assert.deepEqual(page.qa('.seq-preset').map(b => b.dataset.seq), ['GAG', 'DEK', 'HHH', 'CYKR', 'ADEHKR']);
-  assert.deepEqual(active(), ['ADEHKR']);
-  page.qa('.seq-preset')[0].fire('click');
-  assert.equal(page.run('sequence'), 'GAG');
-  assert.deepEqual(active(), ['GAG']);
-  assert.equal(page.el('seq-input').value, 'GAG');
-  for (let i = 0; i < 50; i++) {
+  enterSeq(page, 'AXK');
+  for (let i = 0; i < 300; i++) {
     const before = page.run('sequence');
     page.el('random-btn').fire('click');
     const after = page.run('sequence');
     assert.notEqual(after, before);
     assert.ok(after.length >= 2 && after.length <= 6, after);
-    assert.equal(parse(after).seq, after);
+    assert.equal(page.el('seq-input').value, '', 'the box stays empty');
+    assert.equal(page.el('seq-input').getAttribute('aria-invalid'), null);
+    assert.ok(!page.el('seq-message').textContent.includes(after));
+    assert.match(page.el('structure').getAttribute('aria-label'), /^Skeletal structure of the peptide at pH/);
   }
-  assert.deepEqual(active().length <= 1, true);
+  assert.match(page.el('seq-message').textContent, /Work out its residues/);
 });
 
-test('a chosen sequence that spells a three-letter code stays three residues', () => {
+test('the drawing description never names the sequence', () => {
   const page = loadPage();
-  for (const three of Object.values(page.json('RESIDUES'))) {
-    const seq = three.toUpperCase();
-    if (![...seq].every(c => page.run(`Boolean(RESIDUES['${c}'])`))) continue;
-    page.run(`chooseSequence('${seq}')`);
-    assert.equal(page.run('sequence'), seq, three);
-    assert.equal(page.el('seq-input').value, seq.split('').join('-'), three);
-    assert.equal(page.el('seq-message').textContent, '', three);
-  }
+  enterSeq(page, 'Ala-Lys');
+  const label = page.structure.getAttribute('aria-label');
+  assert.doesNotMatch(label, /Ala/);
+  assert.match(label, /N-term: NH₃⁺; C-term: COO⁻; Lys R group: NH₃⁺/);
 });
 
 test('pH presets set the slider, and moving the slider deselects them', () => {
@@ -428,19 +431,85 @@ test('pH presets set the slider, and moving the slider deselects them', () => {
   assert.equal(page.run('pH'), 14);
 });
 
-test('results show net charge, pI and a row for each group', () => {
+// ── Determining pI ─────────────────────────────────────────────
+const pkaTable = page => [...page.el('pka-rows').innerHTML.matchAll(/<tr><td>([^<]+)<\/td><td class="num">([^<]+)<\/td><\/tr>/g)].map(m => [m[1], m[2]]);
+
+test('the box lists every ionizable group by short name with its pKa', () => {
   const page = loadPage();
-  page.run(`chooseSequence('K')`);
-  page.run('setPH(7, 7)');
-  assert.equal(page.el('pi-value').textContent, '9.40');
-  assert.equal(page.el('net-charge').textContent, '+0.91');
-  const rows = page.el('group-rows').innerHTML;
-  assert.equal([...rows.matchAll(/<tr>/g)].length, 3);
-  assert.match(rows, /N-terminal α-amino \(Lys1\).*8\.0.*\+0\.91.*NH₃⁺/);
-  assert.match(rows, /Lys1 ε-amino.*10\.8.*\+1\.00.*NH₃⁺/);
-  assert.match(rows, /C-terminal α-carboxyl \(Lys1\).*3\.1.*−1\.00.*COO⁻/);
-  page.run('setPH(10.8)');
-  assert.match(page.el('group-rows').innerHTML, /Lys1 ε-amino.*\+0\.50.*≈50\/50/);
+  enterSeq(page, 'ADEHKR');
+  assert.deepEqual(pkaTable(page), [
+    ['N-term', '8.0'], ['C-term', '3.1'], ['Arg R group', '12.5'], ['Asp R group', '4.1'],
+    ['Glu R group', '4.1'], ['His R group', '6.0'], ['Lys R group', '10.8'],
+  ]);
+  enterSeq(page, 'CY');
+  assert.deepEqual(pkaTable(page), [['N-term', '8.0'], ['C-term', '3.1'], ['Cys R group', '8.3'], ['Tyr R group', '10.9']]);
+  enterSeq(page, 'GAG');
+  assert.deepEqual(pkaTable(page), [['N-term', '8.0'], ['C-term', '3.1']]);
+  enterSeq(page, 'KK');
+  assert.deepEqual(pkaTable(page).map(r => r[0]), ['N-term', 'C-term', 'Lys R group', 'Lys R group'], 'each group gets a row');
+  assert.match(MARKUP, /<th scope="col">Ionizable group<\/th><th scope="col" class="num">pKa<\/th>/);
+});
+
+test('the list order does not depend on the residue order', () => {
+  const page = loadPage();
+  enterSeq(page, 'KD');
+  const first = pkaTable(page);
+  enterSeq(page, 'DK');
+  assert.deepEqual(pkaTable(page), first);
+});
+
+test('the pI is never shown, and Check pI sits beside a blank box', () => {
+  const page = loadPage();
+  enterSeq(page, 'K');
+  assert.equal(page.el('pi-input').value, '');
+  assert.doesNotMatch(page.el('pka-rows').innerHTML, /9\.40/);
+  assert.equal(page.el('quiz-answers').textContent, '');
+  const box = MARKUP.match(/id="pi-title"[\s\S]*?<\/section>/)[0];
+  assert.ok(box.includes('Determining pI'));
+  assert.ok(box.indexOf('id="pi-input"') < box.indexOf('>Check pI<'));
+});
+
+test('Check pI accepts ±0.1 and keeps the answer hidden', () => {
+  const page = loadPage();
+  enterSeq(page, 'G');  // pI 5.55
+  const check = value => {
+    page.el('pi-input').value = value;
+    page.el('pi-check').fire('click');
+    return page.el('pi-result');
+  };
+  assert.equal(check('5.55').className, 'quiz-result right');
+  assert.match(page.el('pi-result').textContent, /^✓ pI/);
+  assert.equal(check('5.65').className, 'quiz-result right');
+  assert.equal(check('5.45').className, 'quiz-result right');
+  assert.equal(check('5.8').className, 'quiz-result wrong');
+  assert.match(page.el('pi-result').textContent, /^✗ pI/);
+  assert.doesNotMatch(page.el('pi-result').textContent, /5\.55/);
+  assert.match(check('').textContent, /enter a number/);
+  assert.match(check('abc').textContent, /enter a number/);
+});
+
+test('pressing Enter in the pI box checks it', () => {
+  const page = loadPage();
+  enterSeq(page, 'G');
+  page.el('pi-input').value = '5.55';
+  page.el('pi-input').fire('keydown', { key: 'Enter' });
+  assert.equal(page.el('pi-result').className, 'quiz-result right');
+});
+
+test('a new sequence clears the pI answer, but a pH change does not', () => {
+  const page = loadPage();
+  enterSeq(page, 'G');
+  page.el('pi-input').value = '5.55';
+  page.el('pi-check').fire('click');
+  page.run('setPH(3)');
+  assert.equal(page.el('pi-input').value, '5.55', 'the pI does not depend on pH');
+  assert.notEqual(page.el('pi-result').textContent, '');
+  enterSeq(page, 'A');
+  assert.equal(page.el('pi-input').value, '');
+  assert.equal(page.el('pi-result').textContent, '');
+  page.el('pi-input').value = '5';
+  page.el('random-btn').fire('click');
+  assert.equal(page.el('pi-input').value, '');
 });
 
 test('tiny charges never read as −0.00', () => {
@@ -450,86 +519,55 @@ test('tiny charges never read as −0.00', () => {
   assert.equal(page0.run('formatSigned(1.5)'), '+1.50');
 });
 
-test('the plot marks the zero line, current pH and pI, and describes itself', () => {
-  const page = loadPage();
-  page.run(`chooseSequence('K')`);
-  const label = page.el('plot').getAttribute('aria-label');
-  assert.match(label, /pI is 9\.40/);
-  const texts = page.el('plot').context.calls.filter(c => c.fn === 'fillText').map(c => c.args[0]);
-  assert.ok(texts.includes('pI 9.40'));
-  assert.ok(texts.includes('pH'));
-  assert.ok(texts.includes('Net charge'));
-  assert.ok(texts.includes('0'));
-  assert.ok(page.el('plot').context.calls.some(c => c.fn === 'arc'));
-});
-
-test('hovering the plot reads out pH and net charge', () => {
-  const page = loadPage();
-  page.run(`chooseSequence('G')`);
-  const canvas = page.el('plot');
-  const area = page.json(`$('plot').plotArea`);
-  canvas.fire('mousemove', { clientX: (area.left + area.right) / 2 });
-  assert.match(page.el('plot-readout').textContent, /^pH 7\.0: net charge −0\.09$/);
-  canvas.fire('mouseleave');
-  assert.match(page.el('plot-readout').textContent, /Hover/);
-  assert.equal(page.run('hoverPH'), null);
-});
-
 // ── Quiz ───────────────────────────────────────────────────────
 const quizPage = (seq = 'G') => {
   const page = loadPage();
-  page.run(`chooseSequence('${seq}')`);
+  enterSeq(page, seq);
   page.el('quiz-toggle').fire('click');
   return page;
 };
 const answerQuiz = (page, charge, pi) => {
   page.el('quiz-charge').value = charge;
-  page.el('quiz-pi').value = pi;
+  page.el('pi-input').value = pi;
   page.el('quiz-check').fire('click');
+  page.el('pi-check').fire('click');
 };
 
-test('Quiz Mode hides the answers and turns back off', () => {
+test('Quiz Mode hides the pKa values and draws the structure uncharged', () => {
   const page = loadPage();
+  enterSeq(page, 'GA');
   assert.equal(page.el('quiz-toggle').textContent, 'Quiz Mode: Off');
-  assert.equal(page.el('quiz-body').hidden, true);
+  assert.equal(page.el('quiz-panel').hidden, true);
+  assert.equal(page.el('pka-table-wrap').hidden, false);
   page.el('quiz-toggle').fire('click');
   assert.equal(page.el('quiz-toggle').textContent, 'Quiz Mode: On');
   assert.equal(page.el('quiz-toggle').getAttribute('aria-pressed'), 'true');
-  assert.equal(page.el('quiz-body').hidden, false);
-  for (const id of ['plot-panel', 'results-panel']) assert.equal(page.el(id).style.display, 'none', id);
-  page.el('quiz-toggle').fire('click');
-  assert.equal(page.el('plot-panel').style.display, '');
-  assert.equal(page.el('results-panel').style.display, '');
-});
-
-test('the quiz notation is uncharged at any pH', () => {
-  const page = quizPage('GA');
-  for (const ph of [2, 7, 13]) {
-    page.run(`setPH(${ph}, ${ph})`);
-    assert.match(page.el('notation-three').innerHTML, /H₂N–Gly–Ala–COOH/, `pH ${ph}`);
-  }
+  assert.equal(page.el('quiz-panel').hidden, false);
+  assert.equal(page.el('pka-table-wrap').hidden, true);
+  assert.equal(page.el('structure-legend').style.display, 'none');
   assert.match(page.structure.getAttribute('aria-label'), /drawn uncharged/);
   assert.ok(page.structure.classList.contains('neutral-view'));
+  page.el('quiz-toggle').fire('click');
+  assert.equal(page.el('quiz-panel').hidden, true);
+  assert.equal(page.el('pka-table-wrap').hidden, false);
+  assert.equal(page.structure.classList.contains('neutral-view'), false);
 });
 
-test('Check accepts answers within tolerance and gives ✓ or ✗', () => {
+test('the net charge check accepts answers within tolerance and gives ✓ or ✗', () => {
   const page = quizPage('G');
   page.run('setPH(7, 7)');
   // Gly at pH 7: net charge −0.09, pI 5.55
   answerQuiz(page, '0', '5.55');
   assert.match(page.el('quiz-charge-result').textContent, /^✓ Net charge/);
-  assert.match(page.el('quiz-pi-result').textContent, /^✓ pI/);
+  assert.match(page.el('pi-result').textContent, /^✓ pI/);
   assert.equal(page.el('quiz-charge-result').className, 'quiz-result right');
 
   answerQuiz(page, '0.5', '5.8');
   assert.match(page.el('quiz-charge-result').textContent, /^✗ Net charge/);
-  assert.match(page.el('quiz-pi-result').textContent, /^✗ pI/);
-  assert.equal(page.el('quiz-pi-result').className, 'quiz-result wrong');
-  assert.doesNotMatch(page.el('quiz-pi-result').textContent, /5\.55/, 'the answer stays hidden');
+  assert.equal(page.el('pi-result').className, 'quiz-result wrong');
 
   answerQuiz(page, 'abc', '');
   assert.match(page.el('quiz-charge-result').textContent, /enter a number/);
-  assert.match(page.el('quiz-pi-result').textContent, /enter a number/);
 });
 
 test('tolerances are ±0.2 for charge and ±0.1 for pI, and a typed minus sign works', () => {
@@ -545,26 +583,29 @@ test('tolerances are ±0.2 for charge and ±0.1 for pI, and a typed minus sign w
   assert.equal(page0.run(`parseAnswer('x')`), null);
 });
 
-test('Reveal restores everything', () => {
+test('Reveal restores the structure and pKa values, and gives the answers', () => {
   const page = quizPage('K');
+  page.run('setPH(7, 7)');
+  assert.equal(page.el('quiz-answers').textContent, '');
   page.el('quiz-reveal').fire('click');
-  assert.equal(page.el('plot-panel').style.display, '');
-  assert.equal(page.el('results-panel').style.display, '');
-  assert.equal(page.el('pi-value').textContent, '9.40');
+  assert.equal(page.el('pka-table-wrap').hidden, false);
+  assert.equal(page.el('structure-legend').style.display, '');
   assert.equal(page.structure.classList.contains('neutral-view'), false);
-  assert.match(page.el('notation-three').innerHTML, /H₃N⁺/);
+  assert.equal(page.el('quiz-answers').textContent, 'Net charge at pH 7: +0.91. pI: 9.40.');
 });
 
-test('changing the sequence or pH clears answers and hides a reveal again', () => {
-  for (const change of [`chooseSequence('A')`, 'setPH(3)', 'setPH(13, 13)']) {
+test('in the quiz, changing the sequence or pH clears answers and hides a reveal again', () => {
+  for (const change of [p => enterSeq(p, 'A'), p => p.run('setPH(3)'), p => p.run('setPH(13, 13)'), p => p.el('random-btn').fire('click')]) {
     const page = quizPage('K');
     answerQuiz(page, '1', '9');
     page.el('quiz-reveal').fire('click');
-    page.run(change);
-    assert.equal(page.el('quiz-charge').value, '', change);
-    assert.equal(page.el('quiz-pi').value, '', change);
-    assert.equal(page.el('quiz-charge-result').textContent, '', change);
-    assert.equal(page.el('plot-panel').style.display, 'none', change);
+    change(page);
+    assert.equal(page.el('quiz-charge').value, '');
+    assert.equal(page.el('pi-input').value, '');
+    assert.equal(page.el('quiz-charge-result').textContent, '');
+    assert.equal(page.el('pi-result').textContent, '');
+    assert.equal(page.el('pka-table-wrap').hidden, true);
+    assert.equal(page.el('quiz-answers').textContent, '');
   }
 });
 
@@ -572,20 +613,19 @@ test('re-selecting the same sequence or pH keeps the answers', () => {
   const page = quizPage('K');
   page.run('setPH(7, 7)');
   page.el('quiz-charge').value = '1';
-  page.run(`chooseSequence('K')`);
+  enterSeq(page, 'K');
   page.run('setPH(7, 7)');
   assert.equal(page.el('quiz-charge').value, '1');
 });
 
 test('pH and pI keep their capitalization on screen', () => {
   assert.match(MARKUP, /class="panel-section-title keep-case" id="ph-title"/);
-  assert.match(MARKUP, /class="panel-section-title keep-case" id="plot-title"/);
+  assert.match(MARKUP, /class="panel-section-title keep-case" id="pi-title"/);
   assert.match(CSS, /\.keep-case \{ text-transform: none/);
-  assert.doesNotMatch(CSS.match(/\.stat-label \{[^}]*\}/)[0], /uppercase/);
   assert.ok(CSS.indexOf('.panel-section-title') < CSS.indexOf('.keep-case'), 'keep-case wins the cascade');
 });
 
-test('quiz feedback keeps readable text on lavender', () => {
+test('feedback keeps readable text on lavender', () => {
   assert.match(CSS, /\.quiz-result\.right \{ background: var\(--ut-lavender\)/);
   assert.match(CSS, /\.quiz-result\.wrong \{[^}]*border-color: var\(--ut-crimson\)/);
   assert.match(CSS, /\.quiz-result \{[^}]*color: #000000/);
