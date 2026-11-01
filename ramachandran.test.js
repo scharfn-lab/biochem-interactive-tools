@@ -51,7 +51,7 @@ function makeTarget(id) {
 
 function loadPage() {
   const elements = new Map(IDS.map(id => [id, makeTarget(id)]));
-  elements.get('plot').rect = { left: 0, top: 0, width: 469, height: 421 };
+  elements.get('plot').rect = { left: 0, top: 0, width: 395, height: 347 };
   const intervals = new Set();
   let nextInterval = 1;
   const document = makeTarget('document');
@@ -272,7 +272,7 @@ test('number inputs ignore invalid text; change clamps but input does not apply'
 test('clicking and dragging the plot sets angles only inside the axes', () => {
   const page = loadPage();
   const plot = page.el('plot');
-  plot.fire('mousedown', { clientX: 234.5, clientY: 194.5 });
+  plot.fire('mousedown', { clientX: 197.5, clientY: 157.5 });
   assertClose(page.run('phi'), 0, 1e-9, 'phi at center');
   assertClose(page.run('psi'), 0, 1e-9, 'psi at center');
 
@@ -284,15 +284,15 @@ test('clicking and dragging the plot sets angles only inside the axes', () => {
   assertClose(page.run('phi'), -180, 1e-9, 'margin is ignored');
 
   page.document.fire('mouseup');
-  plot.fire('mousemove', { clientX: 234.5, clientY: 194.5 });
+  plot.fire('mousemove', { clientX: 197.5, clientY: 157.5 });
   assertClose(page.run('phi'), -180, 1e-9, 'moves after release are ignored');
 });
 
 test('pointer coordinates account for CSS scaling of the canvas', () => {
   const page = loadPage();
   const plot = page.el('plot');
-  plot.rect = { left: 100, top: 50, width: 234.5, height: 210.5 };
-  plot.fire('mousedown', { clientX: 217.25, clientY: 147.25 });
+  plot.rect = { left: 100, top: 50, width: 197.5, height: 173.5 };
+  plot.fire('mousedown', { clientX: 198.75, clientY: 128.75 });
   assertClose(page.run('phi'), 0, 1e-9, 'phi');
   assertClose(page.run('psi'), 0, 1e-9, 'psi');
 });
@@ -1232,7 +1232,7 @@ test('only atoms on screen can clash', () => {
 
 test('the viewer marks at most MAX_CLASHES_DRAWN pairs of groups', () => {
   const page = loadPage();
-  page.run('toggleExtra4(); setAngles(180, 0)');
+  page.run('toggleExtra4(); setAngles(-20, 0)');
   assert.ok(page.run('groupClashes(findClashes(buildChain(), Object.keys(buildChain()))).length') > page.run('MAX_CLASHES_DRAWN'));
   assert.equal(shownClashes(page), page.run('MAX_CLASHES_DRAWN'));
 });
@@ -1515,9 +1515,9 @@ test('the plot box has no notes under the residue buttons, only the click-or-dra
   assert.match(box, /<b>Click or drag<\/b> on the plot to move the point\./);
 });
 
-test('the plot is 10% smaller and starts right below the hint', () => {
+test('the plot is sized as asked and starts right below the hint', () => {
   const page = loadPage();
-  assert.equal(page.run('PW'), 369, '10% smaller than the old 410');
+  assert.equal(page.run('PW'), 295, '20% smaller than the previous 369');
   assert.ok(page.run('MT') <= 10, 'no blank band above the plot');
   assert.ok(HTML.includes(`<canvas id="plot" width="${page.run('W')}" height="${page.run('H')}"`), 'markup and script agree');
   assert.equal(page.run('M + PW + M'), page.run('W'));
@@ -1611,4 +1611,88 @@ test('the γ-turn image marks its three residues, the H-bond and both ends', () 
     assert.ok(x >= 0 && x <= 456 && y >= 0 && y <= 150, `${label} at ${x}, ${y}`);
   }
   assert.ok(page.el('ribbon').context.calls.some(c => c.fn === 'setLineDash' && c.args[0].length === 2), 'dashed H-bond');
+});
+
+// ── The α region ───────────────────────────────────────────────
+const ALPHA_GRID = page => page.run(`(() => {
+  const out = [];
+  for (let p = -140; p <= -10; p += 5) for (let q = 40; q >= -100; q -= 5) {
+    const r = getRegion(p, q);
+    if (r.name === 'alpha-helix') out.push([p, q, r.level]);
+  }
+  return out;
+})()`);
+const VIEW_SETUPS = { 'one residue': '0', 'three residues': 'toggleNterm(); toggleCterm()', 'five residues': 'toggleExtra2()', 'nine residues': 'toggleExtra4()' };
+
+for (const [label, setup] of Object.entries(VIEW_SETUPS)) {
+  test(`no clash is marked anywhere in the favored α region with ${label} shown`, () => {
+    const page = loadPage();
+    page.run(setup);
+    const favored = ALPHA_GRID(page).filter(([, , level]) => level === 'favored');
+    assert.ok(favored.length > 80, `${favored.length} points checked`);
+    for (const [p, q] of favored) {
+      page.run(`setAngles(${p}, ${q})`);
+      assert.equal(shownClashes(page), 0, `(${p}, ${q})`);
+    }
+  });
+}
+
+test('the points that used to show clashes in the middle of the α region are clear', () => {
+  const page = loadPage();
+  page.run('toggleExtra4()');
+  for (const [p, q] of [[-80, -40], [-90, -40], [-70, -50], [-60, -60], [-100, -30]]) {
+    page.run(`setAngles(${p}, ${q})`);
+    assert.equal(shownClashes(page), 0, `(${p}, ${q})`);
+    const shown = page.run('Object.keys(shownAtomStyle())');
+    const everything = page.run(`(() => { const a = buildChain(), k = ${JSON.stringify(shown)}; let n = 0;
+      for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) {
+        if (Math.abs(+k[i].match(/\\d+$/)[0] - +k[j].match(/\\d+$/)[0]) >= 4 && len3(sub3(a[k[i]], a[k[j]])) < 2.6) n++;
+      }
+      return n; })()`);
+    if (p === -80) assert.ok(everything > 0, 'atoms four or more residues apart really are this close');
+  }
+});
+
+test('a long chain marks the same local clashes as one residue, residue by residue', () => {
+  const page = loadPage();
+  page.run('setAngles(0, 0)');
+  const pairs = keys => page.run(`findClashes(buildChain(), ${keys})`).map(c => [c.a, c.b].sort().join('-')).sort();
+  const one = pairs('Object.keys(ATOM_STYLE)');
+  assert.ok(one.length > 0);
+  const all = pairs('Object.keys(buildChain())');
+  for (const pair of one) assert.ok(all.includes(pair), pair);
+  for (const c of page.run('findClashes(buildChain(), Object.keys(buildChain()))')) {
+    assert.ok(page.run(`shareUnit('${c.a}', '${c.b}')`), `${c.a}-${c.b}`);
+  }
+});
+
+test('ϕ/ψ units cover exactly the atoms of the one-residue view', () => {
+  const page = loadPage();
+  const unitOf5 = page.run("Object.keys(buildChain()).filter(k => ramachandranUnits(k).includes(5))").sort();
+  assert.deepEqual([...unitOf5], ['C4', 'C5', 'Ca4', 'Ca5', 'Ca6', 'Cb5', 'HN5', 'HN6', 'Ha5', 'N5', 'N6', 'O4', 'O5'].sort());
+  assert.equal(page.run("shareUnit('O4', 'N6')"), true, 'the classic ψ/ϕ contact');
+  assert.equal(page.run("shareUnit('Cb5', 'O9')"), false, 'four residues along');
+  assert.equal(page.run("shareUnit('O3', 'N6')"), false);
+});
+
+const ALPHA_LEVELS = [
+  [-60, -45, 'favored', 'helix center'], [-57, -47, 'favored', 'textbook α'], [-65, -40, 'favored', 'protein average'],
+  [-50, -50, 'favored', 'right part of the core'], [-80, -40, 'favored', 'left of center'], [-90, 0, 'favored', 'bridge region'],
+  [-100, 10, 'favored', 'top of the bridge'], [-49, -26, 'allowed', '3₁₀ helix'], [-40, -45, 'allowed', 'edge where clashes start'],
+  [-60, 40, 'disallowed', 'too far up'], [-30, -45, 'disallowed', 'past the edge'], [-20, -45, 'disallowed', 'near eclipsed ϕ'],
+  [-10, -30, 'disallowed', 'near eclipsed ϕ'], [-60, -90, 'disallowed', 'below the region'],
+];
+for (const [p, q, level, label] of ALPHA_LEVELS) {
+  test(`(${p}, ${q}), ${label}, is ${level}`, () => {
+    assert.equal(loadPage().run(`getRegion(${p}, ${q}).level`), level);
+  });
+}
+
+test('every part of the α lobes reads as α, and its ribbon as a helix', () => {
+  const page = loadPage();
+  for (const [p, q] of [[-63, -43], [-80, -35], [-95, -5]]) {
+    assert.equal(page.run(`getRegion(${p}, ${q}).name`), 'alpha-helix');
+    page.run(`setAngles(${p}, ${q})`);
+    assert.equal(page.run('ribbonShown'), 'helix');
+  }
 });

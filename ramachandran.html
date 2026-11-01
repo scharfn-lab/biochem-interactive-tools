@@ -500,7 +500,7 @@
       <button class="residue-btn" id="residue-pro" aria-pressed="false" onclick="setResidueType('pro')">Proline</button>
     </div>
     <p class="plot-hint"><b>Click or drag</b> on the plot to move the point.</p>
-    <canvas id="plot" width="469" height="421" tabindex="0" role="application"></canvas>
+    <canvas id="plot" width="395" height="347" tabindex="0" role="application"></canvas>
     <div class="legend">
       <div class="legend-item"><div class="legend-swatch" style="background:#6A0DAD;"></div>Favored</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#F3E5F5; border:1px solid #685C53;"></div>Disallowed</div>
@@ -515,11 +515,15 @@
 // ═══════════════════════════════════════════════════════════════
 //  RAMACHANDRAN PLOT
 // ═══════════════════════════════════════════════════════════════
-const PW = 369, M = 50, MT = 10, MB = 42;   // plot side; left/right, top and bottom margins
+const PW = 295, M = 50, MT = 10, MB = 42;   // plot side; left/right, top and bottom margins
 const W = PW + 2 * M, H = MT + PW + MB;
 
 const REGIONS = [
-  { phi0: -60,  psi0: -45,  sP: 24, sQ: 22, w: 1.00, name: 'alpha-helix'     },
+  // Three overlapping lobes give the α region its tilt: the helix center, then down and to the left,
+  // then up to the bridge region near (−90°, 0°). It stops where local clashes begin at ϕ ≈ −40°.
+  { phi0: -63,  psi0: -43,  sP: 11, sQ: 15, w: 1.00, name: 'alpha-helix'     },
+  { phi0: -80,  psi0: -35,  sP: 13, sQ: 16, w: 0.80, name: 'alpha-helix'     },
+  { phi0: -95,  psi0:  -5,  sP: 12, sQ: 15, w: 0.75, name: 'alpha-helix'     },
   { phi0: -120, psi0: 130,  sP: 34, sQ: 32, w: 0.90, name: 'beta-sheet'      },
   { phi0: -75,  psi0: 148,  sP: 22, sQ: 22, w: 0.65, name: 'PPII / beta'     },
   { phi0:  60,  psi0:  45,  sP: 18, sQ: 18, w: 0.50, name: 'left-hand helix' },
@@ -1526,7 +1530,21 @@ function isAmideContact(a, b) {
   return hn.startsWith('HN') && n[0] === 'N' && +hn.slice(2) === +n.slice(1) + 1;
 }
 
-// Pairs of the shown atoms closer than their contact limit, closest first.
+// The residues whose ϕ/ψ unit an atom is part of. Residue w's unit runs from Cα, C and O of w−1,
+// through all of w, to N, H and Cα of w+1, the atoms the one-residue view shows.
+function ramachandranUnits(key) {
+  const n = +key.match(/\d+$/)[0];
+  if (key.startsWith('Ca')) return [n - 1, n, n + 1];
+  if (key.startsWith('Cb') || key.startsWith('Ha')) return [n];
+  if (key.startsWith('N') || key.startsWith('HN')) return [n - 1, n];
+  return [n, n + 1];    // C and O
+}
+const shareUnit = (a, b) => ramachandranUnits(a).some(unit => ramachandranUnits(b).includes(unit));
+
+// Pairs of the shown atoms closer than their contact limit, closest first. Only contacts within
+// one residue's ϕ/ψ unit count: those set a residue's place on the plot. A chain with every residue
+// at the same angles can also run into itself four or more residues along, but that says nothing
+// about whether one residue can take those angles, so it isn't marked.
 // N–H···O is an H-bond, not a clash, and the terminal HN1 is only a placeholder position.
 function findClashes(atoms, shownKeys) {
   const keys = shownKeys.filter(k => k !== 'HN1');
@@ -1534,7 +1552,7 @@ function findClashes(atoms, shownKeys) {
   for (let i = 0; i < keys.length; i++) {
     for (let j = i + 1; j < keys.length; j++) {
       const a = keys[i], b = keys[j];
-      if (withinTwoBonds(a, b)) continue;
+      if (withinTwoBonds(a, b) || !shareUnit(a, b)) continue;
       const pair = [atomElement(a), atomElement(b)].sort().join('');
       if (pair === 'HO' && (a.startsWith('HN') || b.startsWith('HN'))) continue;
       if (isAmideContact(a, b)) continue;
