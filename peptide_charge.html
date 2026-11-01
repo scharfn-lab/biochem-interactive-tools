@@ -15,6 +15,9 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Some of these rows are grids, whose display would otherwise win over hidden */
+    [hidden] { display: none !important; }
+
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       background: #FFFFFF;
@@ -153,11 +156,11 @@
 
     /* Quiz */
     #quiz-bar { display: flex; justify-content: center; margin-bottom: 16px; }
-    #quiz-intro { font-size: 0.88em; color: var(--ut-taupe); margin-bottom: 10px; }
-    #quiz-charge-label { display: block; margin-bottom: 6px; }
-    #quiz-charge { width: 150px; }
-    #quiz-answers { font-weight: 600; margin-top: 10px; }
-    #quiz-answers:empty { display: none; }
+    #quiz-intro { font-size: 0.88em; color: var(--ut-taupe); margin-bottom: 12px; }
+    #quiz-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
+    .quiz-field label { display: block; margin-bottom: 6px; }
+    .quiz-field input { flex: 1 1 90px; width: 90px; min-width: 0; }
+    #quiz-actions { margin-top: 14px; }
     .quiz-result {
       margin-top: 10px;
       padding: 8px 12px;
@@ -169,9 +172,34 @@
     .quiz-result:empty { display: none; }
     .quiz-result.right { background: #DBEAFE; border-color: #1565C0; }
     .quiz-result.wrong { background: #FFEBEE; border-color: #C8102E; }
+    .quiz-result.info { background: #FFFFFF; border-color: var(--ut-taupe); }
+
+    input:disabled, button:disabled {
+      background: #E4E4E4;
+      border-color: #BFBFBF;
+      color: #404040;
+      cursor: not-allowed;
+    }
+
+    /* Score breakdown */
+    .score-links { display: flex; justify-content: center; gap: 20px; }
+    .score-link {
+      background: none;
+      border: none;
+      padding: 2px 4px;
+      font-size: 0.85em;
+      color: var(--ut-taupe);
+      text-decoration: underline;
+    }
+    .score-link:hover { background: none; color: var(--ut-crimson); }
+    #score-breakdown { margin-top: 12px; }
+    #score-breakdown thead th.correct-col { color: #1565C0; }
+    #score-breakdown thead th.incorrect-col { color: #8B0000; }
+    #score-breakdown tbody th { color: #000000; font-weight: 600; }
+    #score-breakdown tfoot th, #score-breakdown tfoot td { color: #000000; font-weight: 700; border-bottom: none; }
 
     @media (max-width: 860px) {
-      .half-row, .structure-row { grid-template-columns: minmax(0, 1fr); }
+      .half-row, .structure-row, #quiz-fields { grid-template-columns: minmax(0, 1fr); }
       .panel { padding: 14px 14px; }
     }
   </style>
@@ -185,7 +213,7 @@
   </div>
 
   <div id="main-layout">
-    <div class="half-row">
+    <div class="half-row" id="setup-row">
       <section class="panel" aria-labelledby="seq-title">
         <h2 class="panel-section-title" id="seq-title">Peptide</h2>
         <label for="seq-input" id="seq-field-label">Sequence (1–6 residues)</label>
@@ -214,6 +242,41 @@
       </section>
     </div>
 
+    <section class="panel" id="quiz-panel" aria-labelledby="quiz-title" hidden>
+      <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
+      <p id="quiz-intro">The structure is drawn uncharged. Identify the peptide from its N-terminus on the left, then work out its charge and pI.</p>
+      <div id="quiz-fields">
+        <div class="quiz-field">
+          <label for="quiz-seq" id="quiz-seq-label"></label>
+          <div class="controls-row">
+            <input type="text" id="quiz-seq" autocomplete="off" spellcheck="false">
+            <button type="button" id="quiz-seq-check">Check</button>
+          </div>
+          <p class="quiz-result" id="quiz-seq-result" aria-live="polite"></p>
+        </div>
+        <div class="quiz-field">
+          <label for="quiz-charge">Net charge at <span id="quiz-ph"></span></label>
+          <div class="controls-row">
+            <input type="text" id="quiz-charge" inputmode="decimal" autocomplete="off">
+            <button type="button" id="quiz-check">Check</button>
+          </div>
+          <p class="quiz-result" id="quiz-charge-result" aria-live="polite"></p>
+        </div>
+        <div class="quiz-field">
+          <label for="quiz-pi">Determining pI</label>
+          <div class="controls-row">
+            <input type="text" id="quiz-pi" inputmode="decimal" autocomplete="off">
+            <button type="button" id="quiz-pi-check">Check pI</button>
+          </div>
+          <p class="quiz-result" id="quiz-pi-result" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="controls-row" id="quiz-actions">
+        <button type="button" id="quiz-reveal">Reveal</button>
+        <button type="button" id="quiz-next">Next Peptide</button>
+      </div>
+    </section>
+
     <div class="structure-row">
       <section class="panel" aria-labelledby="structure-title">
         <h2 class="panel-section-title" id="structure-title">Most prevalent structure</h2>
@@ -227,12 +290,14 @@
 
       <section class="panel" aria-labelledby="pi-title">
         <h2 class="panel-section-title keep-case" id="pi-title">Determining pI</h2>
-        <label for="pi-input" id="pi-field-label">pI</label>
-        <div class="controls-row">
-          <input type="text" id="pi-input" inputmode="decimal" autocomplete="off">
-          <button type="button" id="pi-check">Check pI</button>
+        <div id="pi-entry">
+          <label for="pi-input" id="pi-field-label">pI</label>
+          <div class="controls-row">
+            <input type="text" id="pi-input" inputmode="decimal" autocomplete="off">
+            <button type="button" id="pi-check">Check pI</button>
+          </div>
+          <p class="quiz-result" id="pi-result" aria-live="polite"></p>
         </div>
-        <p class="quiz-result" id="pi-result" aria-live="polite"></p>
         <div id="pka-table-wrap">
           <table>
             <thead>
@@ -244,18 +309,13 @@
       </section>
     </div>
 
-    <section class="panel" id="quiz-panel" aria-labelledby="quiz-title" hidden>
-      <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
-      <p id="quiz-intro">The structure is drawn uncharged. Predict the charges at the selected pH, then enter the net charge here and the pI above.</p>
-      <label for="quiz-charge" id="quiz-charge-label">Net charge at <span id="quiz-ph"></span></label>
-      <div class="controls-row">
-        <input type="text" id="quiz-charge" inputmode="decimal" autocomplete="off">
-        <button type="button" id="quiz-check">Check net charge</button>
-        <button type="button" id="quiz-reveal">Reveal</button>
+    <div id="score-area" hidden>
+      <div class="score-links">
+        <button type="button" class="score-link" id="score-reset">Reset score</button>
+        <button type="button" class="score-link" id="breakdown-btn" aria-expanded="false" aria-controls="score-breakdown">Score breakdown</button>
       </div>
-      <p class="quiz-result" id="quiz-charge-result" aria-live="polite"></p>
-      <p id="quiz-answers" aria-live="polite"></p>
-    </section>
+      <div class="panel" id="score-breakdown" hidden></div>
+    </div>
   </div>
 
 <script>
@@ -367,6 +427,14 @@ function findPI(groups) {
     else high = mid;
   }
   return (low + high) / 2;
+}
+
+// The two pKa values either side of the neutral form. Going up in pKa order, each group loses a
+// proton and the net charge falls by one, starting from one positive charge per base.
+function relevantPKas(groups) {
+  const positives = groups.filter(g => g.kind === 'base').length;
+  const sorted = groups.map(g => g.pKa).sort((a, b) => a - b);
+  return [sorted[positives - 1], sorted[positives]];
 }
 
 // Which form to draw: protonated below the pKa, deprotonated above, flagged within ±0.05
@@ -603,6 +671,12 @@ let pH = 7;
 let activePHPreset = 7;
 let quizOn = false;
 let quizRevealed = false;
+let quizFormat = 'one';        // the quiz asks for the sequence in 'one'- or 'three'-letter codes
+let phBeforeQuiz = null;       // restored when the quiz ends
+let piWrongGuesses = 0;        // outside the quiz, for the Check pI hint
+let breakdown = {};            // quiz results per response type: { correct, incorrect }
+const newFieldState = () => ({ wrong: 0, done: false });
+let quizField = { seq: newFieldState(), charge: newFieldState(), pi: newFieldState() };
 
 const $ = id => document.getElementById(id);
 const answersHidden = () => quizOn && !quizRevealed;
@@ -628,12 +702,23 @@ function pKaRows(groups) {
   return [...termini, ...sides];
 }
 
+const ANSWER_INPUTS = ['pi-input', 'quiz-seq', 'quiz-charge', 'quiz-pi'];
+const ANSWER_RESULTS = ['pi-result', 'quiz-seq-result', 'quiz-charge-result', 'quiz-pi-result'];
+const QUIZ_CHECK_BUTTONS = ['quiz-seq-check', 'quiz-check', 'quiz-pi-check'];
+
 function clearAnswers() {
-  ['quiz-charge', 'pi-input'].forEach(id => { $(id).value = ''; });
-  ['quiz-charge-result', 'pi-result'].forEach(id => {
+  ANSWER_INPUTS.forEach(id => {
+    $(id).value = '';
+    $(id).disabled = false;
+  });
+  ANSWER_RESULTS.forEach(id => {
     $(id).textContent = '';
     $(id).className = 'quiz-result';
   });
+  QUIZ_CHECK_BUTTONS.forEach(id => { $(id).disabled = false; });
+  $('quiz-reveal').disabled = false;
+  piWrongGuesses = 0;
+  quizField = { seq: newFieldState(), charge: newFieldState(), pi: newFieldState() };
   quizRevealed = false;
 }
 
@@ -644,11 +729,9 @@ function setSequence(seq) {
   refresh();
 }
 
-// The pI doesn't depend on pH, so outside the quiz a pH change leaves a typed pI alone
+// Only outside the quiz, where the pH box shows. The pI doesn't depend on pH, so a typed pI stays.
 function setPH(value, preset = null) {
-  const next = Math.min(14, Math.max(0, Math.round(value * 100) / 100));
-  if (next !== pH && quizOn) clearAnswers();
-  pH = next;
+  pH = Math.min(14, Math.max(0, Math.round(value * 100) / 100));
   activePHPreset = preset;
   refresh();
 }
@@ -693,17 +776,20 @@ function refresh() {
   $('quiz-toggle').textContent = `Quiz Mode: ${quizOn ? 'On' : 'Off'}`;
   $('quiz-toggle').classList.toggle('active', quizOn);
   $('quiz-toggle').setAttribute('aria-pressed', quizOn);
+  $('setup-row').hidden = quizOn;
   $('quiz-panel').hidden = !quizOn;
+  $('pi-entry').hidden = quizOn;
+  $('score-area').hidden = !quizOn;
+  $('pi-title').textContent = quizOn ? 'pKa values' : 'Determining pI';
   $('quiz-ph').textContent = `pH ${pH}`;
+  $('quiz-seq-label').textContent = quizFormat === 'one'
+    ? 'Sequence in 1-letter codes (like AKD)'
+    : 'Sequence in 3-letter codes (like Ala-Lys-Asp)';
   $('structure-legend').style.display = neutral ? 'none' : '';
 
   $('pka-rows').innerHTML = pKaTableRows().map(g =>
     `<tr><td>${g.short}</td><td class="num">${g.pKa.toFixed(1)}</td></tr>`
   ).join('');
-
-  $('quiz-answers').textContent = quizOn && quizRevealed
-    ? `Net charge at pH ${pH}: ${formatSigned(netCharge(groups, pH))}. pI: ${findPI(groups).toFixed(2)}.`
-    : '';
 }
 
 // ─── Checking answers ─────────────────────────────────────────────────────────
@@ -720,38 +806,196 @@ function withinTolerance(answer, truth, tolerance) {
   return Math.abs(answer - truth) <= tolerance + 1e-9;
 }
 
-function showResult(id, label, inputId, truth, tolerance) {
-  const answer = parseAnswer($(inputId).value);
-  const el = $(id);
-  if (answer === null) {
-    el.textContent = `✗ ${label}: enter a number.`;
-    el.className = 'quiz-result wrong';
-  } else if (withinTolerance(answer, truth, tolerance)) {
-    el.textContent = `✓ ${label}: correct.`;
-    el.className = 'quiz-result right';
-  } else {
-    el.textContent = `✗ ${label}: not within ±${tolerance}. Try again.`;
-    el.className = 'quiz-result wrong';
+function showResult(id, kind, text) {
+  $(id).textContent = text;
+  $(id).className = `quiz-result ${kind}`;
+}
+
+// Reads a typed sequence in the asked format: returns one-letter codes, or null if it isn't in that format
+function parseSequenceAnswer(text, format) {
+  const tokens = text.trim().split(/[\s,\-–—]+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  if (format === 'one') {
+    if (tokens.length > 1 && tokens.some(t => t.length !== 1)) return null;
+    const letters = tokens.join('').toUpperCase().split('');
+    return letters.every(c => RESIDUES[c]) ? letters.join('') : null;
   }
+  const joined = tokens.join('');
+  if (joined.length % 3 !== 0) return null;
+  const codes = joined.match(/.{3}/g).map(t => THREE_TO_ONE[t.toLowerCase()]);
+  return codes.every(Boolean) ? codes.join('') : null;
+}
+
+function formatSequence(seq, format) {
+  return format === 'one' ? seq : seq.split('').map(c => RESIDUES[c]).join('-');
+}
+
+// The feedback for a pI answer. A first wrong guess gets a pH range to evaluate, not the answer.
+function piFeedback(groups, answer, wrongGuesses) {
+  const actual = findPI(groups).toFixed(2);
+  if (answer === null) return { kind: 'info', outcome: 'shown', text: `The pI is ${actual}.` };
+  if (withinTolerance(answer, findPI(groups), PI_TOLERANCE)) {
+    return { kind: 'right', outcome: 'right', text: `✓ pI: correct. The actual pI is ${actual}.` };
+  }
+  if (wrongGuesses === 0) {
+    const [low, high] = relevantPKas(groups);
+    const range = low === high ? `near pH ${low.toFixed(1)}` : `between pH ${low.toFixed(1)} and pH ${high.toFixed(1)}`;
+    return { kind: 'wrong', outcome: 'hint', text: `✗ pI: not within ±${PI_TOLERANCE}. Evaluate the structure ${range}, then try again.` };
+  }
+  return { kind: 'wrong', outcome: 'shown', text: `✗ pI: the actual pI is ${actual}.` };
 }
 
 function checkPI() {
-  showResult('pi-result', 'pI', 'pi-input', findPI(currentGroups()), PI_TOLERANCE);
+  const feedback = piFeedback(currentGroups(), parseAnswer($('pi-input').value), piWrongGuesses);
+  if (feedback.outcome === 'hint') piWrongGuesses++;
+  showResult('pi-result', feedback.kind, feedback.text);
+}
+
+// ─── Quiz ─────────────────────────────────────────────────────────────────────
+// Each answer counts once per peptide. It's correct if the student gets it before the answer shows.
+const QUIZ_FIELDS = {
+  seq: { input: 'quiz-seq', button: 'quiz-seq-check', result: 'quiz-seq-result' },
+  charge: { input: 'quiz-charge', button: 'quiz-check', result: 'quiz-charge-result' },
+  pi: { input: 'quiz-pi', button: 'quiz-pi-check', result: 'quiz-pi-result' }
+};
+
+function scoreKey(field) {
+  if (field !== 'seq') return field;
+  return quizFormat === 'one' ? 'seq1' : 'seq3';
+}
+
+function finishField(field, right, kind, text) {
+  const { input, button, result } = QUIZ_FIELDS[field];
+  quizField[field].done = true;
+  $(input).disabled = true;
+  $(button).disabled = true;
+  showResult(result, kind, text);
+  const key = scoreKey(field);
+  breakdown[key] = breakdown[key] || { correct: 0, incorrect: 0 };
+  breakdown[key][right ? 'correct' : 'incorrect']++;
+  renderScoreBreakdown();
+  // Once every answer is in, the drawing shows the charges and there's nothing left to reveal
+  if (Object.values(quizField).every(f => f.done)) {
+    quizRevealed = true;
+    $('quiz-reveal').disabled = true;
+  }
+  refresh();
+}
+
+function checkQuizSequence() {
+  if (quizField.seq.done) return;
+  const text = $('quiz-seq').value;
+  const answer = parseSequenceAnswer(text, quizFormat);
+  const shown = formatSequence(sequence, quizFormat);
+  if (answer === null) {
+    const example = quizFormat === 'one' ? '1-letter codes, like AKD' : '3-letter codes, like Ala-Lys-Asp';
+    showResult('quiz-seq-result', 'wrong', `✗ Sequence: enter it in ${example}.`);
+  } else if (answer === sequence) {
+    finishField('seq', true, 'right', `✓ Sequence: correct. The peptide is ${shown}.`);
+  } else if (quizField.seq.wrong === 0) {
+    quizField.seq.wrong++;
+    showResult('quiz-seq-result', 'wrong', '✗ Sequence: not correct. Look at the structure again and try once more.');
+  } else {
+    finishField('seq', false, 'wrong', `✗ Sequence: the peptide is ${shown}.`);
+  }
 }
 
 function checkNetCharge() {
-  showResult('quiz-charge-result', 'Net charge', 'quiz-charge', netCharge(currentGroups(), pH), CHARGE_TOLERANCE);
+  if (quizField.charge.done) return;
+  const answer = parseAnswer($('quiz-charge').value);
+  const truth = netCharge(currentGroups(), pH);
+  if (answer === null) {
+    showResult('quiz-charge-result', 'wrong', '✗ Net charge: enter a number.');
+  } else if (withinTolerance(answer, truth, CHARGE_TOLERANCE)) {
+    finishField('charge', true, 'right', `✓ Net charge: correct. The net charge is ${formatSigned(truth)}.`);
+  } else if (quizField.charge.wrong === 0) {
+    quizField.charge.wrong++;
+    showResult('quiz-charge-result', 'wrong', `✗ Net charge: not within ±${CHARGE_TOLERANCE}. Try once more.`);
+  } else {
+    finishField('charge', false, 'wrong', `✗ Net charge: the net charge is ${formatSigned(truth)}.`);
+  }
+}
+
+function checkQuizPI() {
+  if (quizField.pi.done) return;
+  const feedback = piFeedback(currentGroups(), parseAnswer($('quiz-pi').value), quizField.pi.wrong);
+  if (feedback.outcome === 'hint') {
+    quizField.pi.wrong++;
+    showResult('quiz-pi-result', feedback.kind, feedback.text);
+  } else {
+    finishField('pi', feedback.outcome === 'right', feedback.kind, feedback.text);
+  }
+}
+
+// Anything not answered yet counts as incorrect, and the drawing shows its charges
+function revealQuiz() {
+  const groups = currentGroups();
+  if (!quizField.seq.done) finishField('seq', false, 'wrong', `✗ Sequence: the peptide is ${formatSequence(sequence, quizFormat)}.`);
+  if (!quizField.charge.done) finishField('charge', false, 'wrong', `✗ Net charge: the net charge is ${formatSigned(netCharge(groups, pH))}.`);
+  if (!quizField.pi.done) finishField('pi', false, 'wrong', `✗ pI: the actual pI is ${findPI(groups).toFixed(2)}.`);
+}
+
+const QUIZ_PH_VALUES = [2, 7, 13];
+
+function nextQuizQuestion() {
+  pH = QUIZ_PH_VALUES[Math.floor(Math.random() * QUIZ_PH_VALUES.length)];
+  activePHPreset = pH;
+  quizFormat = Math.random() < 0.5 ? 'one' : 'three';
+  generateRandomPeptide();
+  $('quiz-seq').focus();
 }
 
 function toggleQuiz() {
   quizOn = !quizOn;
-  clearAnswers();
-  refresh();
+  if (quizOn) {
+    phBeforeQuiz = { pH, activePHPreset };
+    nextQuizQuestion();
+  } else {
+    pH = phBeforeQuiz.pH;
+    activePHPreset = phBeforeQuiz.activePHPreset;
+    $('seq-message').textContent = '';
+    clearAnswers();
+    refresh();
+  }
 }
 
-function revealQuiz() {
-  quizRevealed = true;
-  refresh();
+// ─── Score breakdown ──────────────────────────────────────────────────────────
+const BREAKDOWN_ROWS = [
+  ['seq1', 'Sequence (1-letter)'],
+  ['seq3', 'Sequence (3-letter)'],
+  ['charge', 'Net charge'],
+  ['pi', 'pI']
+];
+
+function renderScoreBreakdown() {
+  const rows = BREAKDOWN_ROWS.map(([key, label]) => {
+    const { correct = 0, incorrect = 0 } = breakdown[key] || {};
+    return { label, correct, incorrect };
+  });
+  const sum = key => rows.reduce((total, r) => total + r[key], 0);
+  $('score-breakdown').innerHTML = `<table>
+    <thead><tr>
+      <th scope="col">Question type</th>
+      <th scope="col" class="num correct-col">Correct Responses</th>
+      <th scope="col" class="num incorrect-col">Incorrect Responses</th>
+    </tr></thead>
+    <tbody>${rows.map(r =>
+      `<tr><th scope="row">${r.label}</th><td class="num">${r.correct}</td><td class="num">${r.incorrect}</td></tr>`
+    ).join('')}</tbody>
+    <tfoot><tr><th scope="row">Total</th><td class="num">${sum('correct')}</td><td class="num">${sum('incorrect')}</td></tr></tfoot>
+  </table>`;
+}
+
+function toggleScoreBreakdown() {
+  const panel = $('score-breakdown');
+  panel.hidden = !panel.hidden;
+  $('breakdown-btn').setAttribute('aria-expanded', !panel.hidden);
+  if (!panel.hidden) renderScoreBreakdown();
+}
+
+function resetScore() {
+  breakdown = {};
+  renderScoreBreakdown();
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -790,6 +1034,8 @@ function generateRandomPeptide() {
   setSequence(seq);
 }
 
+const onEnter = (id, action) => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') action(); });
+
 $('seq-input').addEventListener('input', handleSequenceInput);
 $('random-btn').addEventListener('click', generateRandomPeptide);
 
@@ -802,10 +1048,17 @@ $('ph-input').addEventListener('change', e => { e.target.value = pH; });
 
 $('quiz-toggle').addEventListener('click', toggleQuiz);
 $('pi-check').addEventListener('click', checkPI);
-$('pi-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPI(); });
+onEnter('pi-input', checkPI);
+$('quiz-seq-check').addEventListener('click', checkQuizSequence);
+onEnter('quiz-seq', checkQuizSequence);
 $('quiz-check').addEventListener('click', checkNetCharge);
-$('quiz-charge').addEventListener('keydown', e => { if (e.key === 'Enter') checkNetCharge(); });
+onEnter('quiz-charge', checkNetCharge);
+$('quiz-pi-check').addEventListener('click', checkQuizPI);
+onEnter('quiz-pi', checkQuizPI);
 $('quiz-reveal').addEventListener('click', revealQuiz);
+$('quiz-next').addEventListener('click', nextQuizQuestion);
+$('score-reset').addEventListener('click', resetScore);
+$('breakdown-btn').addEventListener('click', toggleScoreBreakdown);
 
 generateRandomPeptide();
 $('seq-message').textContent = '';

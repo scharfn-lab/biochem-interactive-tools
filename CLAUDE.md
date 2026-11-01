@@ -67,7 +67,9 @@ Central `state` object holds all ion concentrations, membrane potential (Vm), an
 
 ## Architecture: peptide_charge.html
 
-All pKa values live in the `PKA` table at the top of the script (Berg, Tymoczko & Stryer). `ionizableGroups(seq)` lists the free termini and side chains; `netCharge()` and `findPI()` (bisection) work from that list. `buildStructure(seq)` returns the SVG, drawing each residue from `SIDE_TEMPLATES` in local coordinates (x along the chain, u away from the backbone). Each ionizable group holds both its forms as `.ion-state` groups, and `updateStructureStates()` crossfades between them, so a pH change never rebuilds the drawing. Students identify the residues themselves, so nothing may mark residue boundaries or name the sequence: no bands, residue labels or peptide bond marks in the drawing, no sequence in its `aria-label`, `generateRandomPeptide()` leaves the entry box empty, and `pKaRows()` lists R groups by name rather than position. `pKaTableRows()` fills the Determining pI table with the termini and all seven ionizable side chains in alphabetical order, whatever the peptide, and it always shows, so it can't reveal the residues. `answersHidden()` is true in Quiz Mode until Reveal, and draws the structure uncharged. A lone three-letter code in the input is read as one residue.
+All pKa values live in the `PKA` table at the top of the script (Berg, Tymoczko & Stryer). `ionizableGroups(seq)` lists the free termini and side chains; `netCharge()` and `findPI()` (bisection) work from that list. `buildStructure(seq)` returns the SVG, drawing each residue from `SIDE_TEMPLATES` in local coordinates (x along the chain, u away from the backbone). Each ionizable group holds both its forms as `.ion-state` groups, and `updateStructureStates()` crossfades between them, so a pH change never rebuilds the drawing. Students identify the residues themselves, so nothing may mark residue boundaries or name the sequence: no bands, residue labels or peptide bond marks in the drawing, no sequence in its `aria-label`, `generateRandomPeptide()` leaves the entry box empty, and `pKaRows()` lists R groups by name rather than position. `pKaTableRows()` fills the Determining pI table with the termini and all seven ionizable side chains in alphabetical order, whatever the peptide, and it always shows, so it can't reveal the residues. A lone three-letter code in the input is read as one residue. `piFeedback()` words every pI check: the actual pI when right, empty or on a later wrong try, and on a first wrong guess the range from `relevantPKas()`, the two pKa values either side of the neutral form.
+
+Quiz Mode hides the Peptide and pH boxes and puts the quiz box above the structure. `nextQuizQuestion()` picks a peptide, a pH of 2, 7 or 13, and `quizFormat`, which asks for the sequence in 1-letter or 3-letter codes. `answersHidden()` draws the structure uncharged until all three answers are finished or Reveal is used. `quizField` tracks each answer's wrong tries, and `finishField()` locks it and adds it to `breakdown` once.
 
 ## Architecture: buffers.html
 
@@ -152,6 +154,20 @@ These pages don't match yet, and should be brought in line when they're next cha
 - **chemistry_quiz.html:** its dark theme uses green and red for answers
 - **amino_acids.html:** the correct background is right, but correct entry boxes have a crimson border and the all-correct message has a taupe border
 - **cell_membrane.html:** its disabled button uses `#A0A0A0`
+
+### Quiz Score Tracking
+
+Every page with a quiz tracks each student's results the same way, so a student can see which kinds of question they mostly get right and wrong. `amino_acids.html` and `peptide_charge.html` are the models to follow.
+
+- **Buttons:** put "Reset score" and "Score breakdown" together at the bottom of the page. "Score breakdown" opens and closes the table, and sets `aria-expanded`.
+- **Table:** one row per question type, with "Correct Responses" and "Incorrect Responses" columns and a "Total" row. Keep the page's rows specific enough to show a weak spot, such as separate rows for 1-letter and 3-letter codes.
+- **Counting:** count each response once per question, even if the question is reopened or a setting changes. Decide when a response is final and test it: a correct answer counts if the student gets it before the answer is shown, and showing the answer counts as incorrect. Hints, format errors and skipped questions don't count.
+- **Storage:** results last for the session in a plain object such as `breakdown`, and aren't saved. An open table updates as answers come in, and "Reset score" clears it.
+
+These pages have a quiz but don't track results this way yet, and should gain it when they're next changed:
+- **enzyme_kinetics.html**
+- **buffers.html**
+- **chemistry_quiz.html**
 
 ## Conventions
 

@@ -53,6 +53,7 @@ function makeElement(tag, attrs = {}) {
     getContext: () => context,
     context,
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
+    focus() {},
     querySelectorAll: () => [],
     querySelector: () => null,
   };
@@ -349,7 +350,7 @@ test('removed parts are gone', () => {
 test('the layout puts peptide beside pH, structure beside pI, and Quiz Mode on top', () => {
   assert.match(CSS, /\.half-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.match(CSS, /\.structure-row \{[^}]*grid-template-columns: minmax\(0, 2\.6fr\) minmax\(0, 1fr\)/);
-  const order = ['id="quiz-toggle"', 'id="seq-input"', 'id="ph-slider"', 'id="structure-box"', 'id="pka-rows"', 'id="quiz-panel"'];
+  const order = ['id="quiz-toggle"', 'id="seq-input"', 'id="ph-slider"', 'id="structure-box"', 'id="pka-rows"'];
   const positions = order.map(id => MARKUP.indexOf(id));
   assert.ok(positions.every(p => p >= 0));
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b), order.join(' < '));
@@ -492,34 +493,97 @@ test('the pH slider is the width of the entry box and directly below it', () => 
   assert.match(CSS, /input\[type=range\] \{\s*width: 100%;/);
 });
 
-test('the pI is never shown, and Check pI sits beside a blank box', () => {
+test('the pI stays hidden until it is checked, and Check pI sits beside a blank box', () => {
   const page = loadPage();
   enterSeq(page, 'K');
   assert.equal(page.el('pi-input').value, '');
+  assert.equal(page.el('pi-result').textContent, '');
   assert.doesNotMatch(page.el('pka-rows').innerHTML, /9\.40/);
-  assert.equal(page.el('quiz-answers').textContent, '');
   const box = MARKUP.match(/id="pi-title"[\s\S]*?<\/section>/)[0];
   assert.ok(box.includes('Determining pI'));
   assert.ok(box.indexOf('id="pi-input"') < box.indexOf('>Check pI<'));
 });
 
-test('Check pI accepts ±0.1 and keeps the answer hidden', () => {
+const checkPIWith = (page, value) => {
+  page.el('pi-input').value = value;
+  page.el('pi-check').fire('click');
+  return page.el('pi-result');
+};
+
+test('a right pI within ±0.1 shows the actual pI', () => {
   const page = loadPage();
   enterSeq(page, 'G');  // pI 5.55
-  const check = value => {
-    page.el('pi-input').value = value;
-    page.el('pi-check').fire('click');
-    return page.el('pi-result');
-  };
-  assert.equal(check('5.55').className, 'quiz-result right');
-  assert.match(page.el('pi-result').textContent, /^✓ pI/);
-  assert.equal(check('5.65').className, 'quiz-result right');
-  assert.equal(check('5.45').className, 'quiz-result right');
-  assert.equal(check('5.8').className, 'quiz-result wrong');
-  assert.match(page.el('pi-result').textContent, /^✗ pI/);
-  assert.doesNotMatch(page.el('pi-result').textContent, /5\.55/);
-  assert.match(check('').textContent, /enter a number/);
-  assert.match(check('abc').textContent, /enter a number/);
+  for (const value of ['5.55', '5.65', '5.45']) {
+    const result = checkPIWith(page, value);
+    assert.equal(result.className, 'quiz-result right', value);
+    assert.equal(result.textContent, '✓ pI: correct. The actual pI is 5.55.', value);
+  }
+});
+
+test('an empty Check pI still shows the pI, without calling it wrong', () => {
+  const page = loadPage();
+  enterSeq(page, 'K');
+  const result = checkPIWith(page, '');
+  assert.equal(result.textContent, 'The pI is 9.40.');
+  assert.equal(result.className, 'quiz-result info');
+  enterSeq(page, 'G');
+  assert.equal(checkPIWith(page, '   ').textContent, 'The pI is 5.55.');
+  assert.equal(checkPIWith(page, 'abc').textContent, 'The pI is 5.55.', 'text that is not a number works the same way');
+});
+
+test('a first wrong guess gets the pH range and keeps the pI back; the next one gets the pI', () => {
+  const page = loadPage();
+  enterSeq(page, 'G');
+  const first = checkPIWith(page, '7');
+  assert.equal(first.className, 'quiz-result wrong');
+  assert.equal(first.textContent, '✗ pI: not within ±0.1. Evaluate the structure between pH 3.1 and pH 8.0, then try again.');
+  assert.doesNotMatch(first.textContent, /5\.55/);
+  const second = checkPIWith(page, '7');
+  assert.equal(second.className, 'quiz-result wrong');
+  assert.equal(second.textContent, '✗ pI: the actual pI is 5.55.');
+});
+
+test('a right answer after the hint still gets credit, and empty after the hint shows the pI', () => {
+  const page = loadPage();
+  enterSeq(page, 'K');
+  checkPIWith(page, '7');
+  assert.match(checkPIWith(page, '9.4').textContent, /^✓ pI: correct\. The actual pI is 9\.40\./);
+  enterSeq(page, 'K');
+  enterSeq(page, 'G');
+  checkPIWith(page, '7');
+  assert.equal(checkPIWith(page, '').textContent, 'The pI is 5.55.');
+});
+
+test('the wrong-guess count starts over with each new peptide', () => {
+  const page = loadPage();
+  enterSeq(page, 'G');
+  checkPIWith(page, '7');
+  enterSeq(page, 'K');
+  assert.match(checkPIWith(page, '1').textContent, /Evaluate the structure between pH 8\.0 and pH 10\.8/);
+  page.el('random-btn').fire('click');
+  assert.match(checkPIWith(page, '-5').textContent, /Evaluate the structure/);
+});
+
+test('the range uses the two pKa values on either side of the neutral form', () => {
+  // Hand-worked: deprotonating in pKa order, net charge reaches 0 between these two steps
+  const cases = [
+    ['G', [3.1, 8]], ['K', [8, 10.8]], ['D', [3.1, 4.1]], ['R', [8, 12.5]], ['H', [6, 8]], ['C', [3.1, 8]],
+    ['DEK', [4.1, 4.1]], ['KK', [10.8, 10.8]], ['HHH', [6, 8]], ['ADEHKR', [6, 8]], ['DHCYKR', [8, 8.3]], ['CYKR', [8.3, 10.8]],
+  ];
+  for (const [seq, range] of cases) {
+    assert.deepEqual(page0.json(`relevantPKas(ionizableGroups('${seq}'))`), range, seq);
+  }
+  // The two-group and three-group textbook cases land on the average of that range
+  for (const [seq, pi] of [['G', 5.55], ['K', 9.4], ['D', 3.6]]) {
+    const [low, high] = page0.json(`relevantPKas(ionizableGroups('${seq}'))`);
+    close((low + high) / 2, pi, 0.005, seq);
+  }
+});
+
+test('two equal relevant pKa values read as "near" that pH', () => {
+  const page = loadPage();
+  enterSeq(page, 'KK');
+  assert.match(checkPIWith(page, '2').textContent, /Evaluate the structure near pH 10\.8, then try again\./);
 });
 
 test('pressing Enter in the pI box checks it', () => {
@@ -554,53 +618,318 @@ test('tiny charges never read as −0.00', () => {
 });
 
 // ── Quiz ───────────────────────────────────────────────────────
-const quizPage = (seq = 'G') => {
+// Starts the quiz, then fixes the peptide, pH and sequence format for the test
+const quizPage = (seq = 'G', format = 'one', ph = 7) => {
   const page = loadPage();
-  enterSeq(page, seq);
   page.el('quiz-toggle').fire('click');
+  setQuestion(page, seq, format, ph);
   return page;
 };
-const answerQuiz = (page, charge, pi) => {
-  page.el('quiz-charge').value = charge;
-  page.el('pi-input').value = pi;
-  page.el('quiz-check').fire('click');
-  page.el('pi-check').fire('click');
+const setQuestion = (page, seq, format = 'one', ph = 7) => {
+  page.run(`quizFormat = '${format}'; pH = ${ph}; setSequence('${seq}'); clearAnswers(); refresh();`);
 };
+const answerField = (page, input, button, value) => {
+  page.el(input).value = value;
+  page.el(button).fire('click');
+};
+const answerSeq = (page, value) => answerField(page, 'quiz-seq', 'quiz-seq-check', value);
+const answerCharge = (page, value) => answerField(page, 'quiz-charge', 'quiz-check', value);
+const answerPI = (page, value) => answerField(page, 'quiz-pi', 'quiz-pi-check', value);
+const breakdownRows = page => [...page.el('score-breakdown').innerHTML.matchAll(/<tr><th scope="row">([^<]+)<\/th><td class="num">(\d+)<\/td><td class="num">(\d+)<\/td><\/tr>/g)]
+  .map(m => [m[1], +m[2], +m[3]]);
+const counts = (page, label) => breakdownRows(page).find(r => r[0] === label).slice(1);
 
-test('Quiz Mode draws the structure uncharged', () => {
+test('Quiz Mode hides the peptide and pH boxes and puts the quiz above the structure', () => {
   const page = loadPage();
-  enterSeq(page, 'GA');
   assert.equal(page.el('quiz-toggle').textContent, 'Quiz Mode: Off');
   assert.equal(page.el('quiz-panel').hidden, true);
+  assert.equal(page.el('setup-row').hidden, false);
+  assert.equal(page.el('score-area').hidden, true);
+
   page.el('quiz-toggle').fire('click');
   assert.equal(page.el('quiz-toggle').textContent, 'Quiz Mode: On');
   assert.equal(page.el('quiz-toggle').getAttribute('aria-pressed'), 'true');
   assert.equal(page.el('quiz-panel').hidden, false);
+  assert.equal(page.el('setup-row').hidden, true);
+  assert.equal(page.el('score-area').hidden, false);
+
+  const order = ['id="quiz-panel"', 'id="structure-box"', 'id="pka-rows"', 'id="score-area"'].map(id => MARKUP.indexOf(id));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'quiz, then structure and table, then score');
+  assert.ok(MARKUP.indexOf('id="setup-row"') < MARKUP.indexOf('id="quiz-panel"'));
+});
+
+test('hidden rows really disappear, whatever display their class sets', () => {
+  assert.match(CSS, /\[hidden\] \{ display: none !important; \}/);
+});
+
+test('the quiz box holds the sequence, net charge and pI entries, and the table stays below', () => {
+  const box = MARKUP.match(/id="quiz-panel"[\s\S]*?<\/section>/)[0];
+  for (const id of ['quiz-seq', 'quiz-charge', 'quiz-pi']) assert.ok(box.includes(`id="${id}"`), id);
+  assert.ok(box.includes('Determining pI'));
+  assert.ok(box.includes('>Check pI<'));
+
+  const page = loadPage();
+  assert.equal(page.el('pi-entry').hidden, false);
+  assert.equal(page.el('pi-title').textContent, 'Determining pI');
+  page.el('quiz-toggle').fire('click');
+  assert.equal(page.el('pi-entry').hidden, true, 'one pI entry at a time');
+  assert.equal(page.el('pi-title').textContent, 'pKa values');
+  assert.deepEqual(pkaTable(page), FULL_PKA_TABLE);
+  page.el('quiz-toggle').fire('click');
+  assert.equal(page.el('pi-entry').hidden, false);
+});
+
+test('Quiz Mode draws the structure uncharged and leaving it restores the pH', () => {
+  const page = loadPage();
+  page.run('setPH(4.5)');
+  page.el('quiz-toggle').fire('click');
+  assert.ok([2, 7, 13].includes(page.run('pH')), 'the quiz picks its own pH');
   assert.equal(page.el('structure-legend').style.display, 'none');
   assert.match(page.structure.getAttribute('aria-label'), /drawn uncharged/);
   assert.ok(page.structure.classList.contains('neutral-view'));
   page.el('quiz-toggle').fire('click');
-  assert.equal(page.el('quiz-panel').hidden, true);
+  assert.equal(page.run('pH'), 4.5);
   assert.equal(page.structure.classList.contains('neutral-view'), false);
 });
 
-test('the net charge check accepts answers within tolerance and gives ✓ or ✗', () => {
-  const page = quizPage('G');
-  page.run('setPH(7, 7)');
-  // Gly at pH 7: net charge −0.09, pI 5.55
-  answerQuiz(page, '0', '5.55');
-  assert.match(page.el('quiz-charge-result').textContent, /^✓ Net charge/);
-  assert.match(page.el('pi-result').textContent, /^✓ pI/);
-  assert.equal(page.el('quiz-charge-result').className, 'quiz-result right');
-
-  answerQuiz(page, '0.5', '5.8');
-  assert.match(page.el('quiz-charge-result').textContent, /^✗ Net charge/);
-  assert.equal(page.el('pi-result').className, 'quiz-result wrong');
-
-  answerQuiz(page, 'abc', '');
-  assert.match(page.el('quiz-charge-result').textContent, /enter a number/);
+test('each question randomly asks for 1-letter or 3-letter codes', () => {
+  const page = loadPage();
+  page.el('quiz-toggle').fire('click');
+  const seen = { 'Sequence in 1-letter codes (like AKD)': 0, 'Sequence in 3-letter codes (like Ala-Lys-Asp)': 0 };
+  for (let i = 0; i < 200; i++) {
+    page.el('quiz-next').fire('click');
+    const label = page.el('quiz-seq-label').textContent;
+    assert.ok(label in seen, label);
+    seen[label]++;
+    assert.ok([2, 7, 13].includes(page.run('pH')));
+    assert.equal(page.el('quiz-ph').textContent, `pH ${page.run('pH')}`);
+  }
+  for (const [label, n] of Object.entries(seen)) assert.ok(n > 40, `${label}: ${n}`);
 });
 
+test('sequences are read in the asked format, in any case and with or without separators', () => {
+  const read = (text, format) => page0.run(`parseSequenceAnswer(${JSON.stringify(text)}, '${format}')`);
+  for (const text of ['AKD', 'akd', 'A-K-D', 'a k d', ' AKD ']) assert.equal(read(text, 'one'), 'AKD', text);
+  for (const text of ['Ala-Lys-Asp', 'ala lys asp', 'ALA-LYS-ASP', 'AlaLysAsp', 'ala,lys,asp']) assert.equal(read(text, 'three'), 'AKD', text);
+  assert.equal(read('Ala-Lys', 'one'), null, 'three-letter codes when asked for one');
+  assert.equal(read('AK', 'three'), null, 'one-letter codes when asked for three');
+  assert.equal(read('A-K', 'three'), null);
+  assert.equal(read('AXK', 'one'), null);
+  assert.equal(read('Ala-Foo', 'three'), null);
+  assert.equal(read('', 'one'), null);
+  assert.equal(read('   ', 'three'), null);
+});
+
+test('a right sequence is locked and shown, in either format', () => {
+  const page = quizPage('AK', 'three');
+  answerSeq(page, 'ala-lys');
+  assert.equal(page.el('quiz-seq-result').textContent, '✓ Sequence: correct. The peptide is Ala-Lys.');
+  assert.equal(page.el('quiz-seq-result').className, 'quiz-result right');
+  assert.equal(page.el('quiz-seq').disabled, true);
+  assert.equal(page.el('quiz-seq-check').disabled, true);
+  setQuestion(page, 'AK', 'one');
+  answerSeq(page, 'ak');
+  assert.equal(page.el('quiz-seq-result').textContent, '✓ Sequence: correct. The peptide is AK.');
+});
+
+test('the wrong format or empty box does not use up a try', () => {
+  const page = quizPage('AK', 'one');
+  answerSeq(page, 'Ala-Lys');
+  assert.match(page.el('quiz-seq-result').textContent, /enter it in 1-letter codes/);
+  answerSeq(page, '');
+  assert.match(page.el('quiz-seq-result').textContent, /enter it in 1-letter codes/);
+  assert.equal(page.run('quizField.seq.wrong'), 0);
+  answerSeq(page, 'AK');
+  assert.match(page.el('quiz-seq-result').textContent, /^✓/);
+  setQuestion(page, 'AK', 'three');
+  answerSeq(page, 'AK');
+  assert.match(page.el('quiz-seq-result').textContent, /enter it in 3-letter codes/);
+});
+
+test('sequence order matters, and a second wrong try shows the answer', () => {
+  const page = quizPage('AK', 'one');
+  answerSeq(page, 'KA');
+  assert.match(page.el('quiz-seq-result').textContent, /try once more/);
+  assert.equal(page.el('quiz-seq').disabled, false);
+  assert.doesNotMatch(page.el('quiz-seq-result').textContent, /AK/);
+  answerSeq(page, 'GG');
+  assert.equal(page.el('quiz-seq-result').textContent, '✗ Sequence: the peptide is AK.');
+  assert.equal(page.el('quiz-seq').disabled, true);
+});
+
+test('net charge accepts ±0.2, and a second wrong try shows the answer', () => {
+  const page = quizPage('G');  // −0.09 at pH 7
+  answerCharge(page, 'x');
+  assert.match(page.el('quiz-charge-result').textContent, /enter a number/);
+  answerCharge(page, '1');
+  assert.match(page.el('quiz-charge-result').textContent, /not within ±0\.2\. Try once more/);
+  assert.doesNotMatch(page.el('quiz-charge-result').textContent, /0\.09/);
+  answerCharge(page, '−0.2');
+  assert.equal(page.el('quiz-charge-result').textContent, '✓ Net charge: correct. The net charge is −0.09.');
+  setQuestion(page, 'G');
+  answerCharge(page, '1');
+  answerCharge(page, '1');
+  assert.equal(page.el('quiz-charge-result').textContent, '✗ Net charge: the net charge is −0.09.');
+  assert.equal(page.el('quiz-check').disabled, true);
+});
+
+test('the quiz pI follows the same rules as Check pI', () => {
+  const page = quizPage('G');
+  answerPI(page, '7');
+  assert.match(page.el('quiz-pi-result').textContent, /Evaluate the structure between pH 3\.1 and pH 8\.0/);
+  assert.equal(page.el('quiz-pi').disabled, false);
+  answerPI(page, '5.55');
+  assert.equal(page.el('quiz-pi-result').textContent, '✓ pI: correct. The actual pI is 5.55.');
+  assert.equal(page.el('quiz-pi').disabled, true);
+
+  setQuestion(page, 'G');
+  answerPI(page, '');
+  assert.equal(page.el('quiz-pi-result').textContent, 'The pI is 5.55.');
+  assert.equal(page.el('quiz-pi').disabled, true, 'an empty check shows it, so that try is over');
+
+  setQuestion(page, 'G');
+  answerPI(page, '7');
+  answerPI(page, '7');
+  assert.equal(page.el('quiz-pi-result').textContent, '✗ pI: the actual pI is 5.55.');
+});
+
+test('pressing Enter checks each quiz field', () => {
+  const page = quizPage('AK');
+  page.el('quiz-seq').value = 'AK';
+  page.el('quiz-seq').fire('keydown', { key: 'Enter' });
+  assert.match(page.el('quiz-seq-result').textContent, /^✓/);
+  page.el('quiz-charge').value = '1';
+  page.el('quiz-charge').fire('keydown', { key: 'Enter' });
+  assert.notEqual(page.el('quiz-charge-result').textContent, '');
+  page.el('quiz-pi').value = '9.4';
+  page.el('quiz-pi').fire('keydown', { key: 'Enter' });
+  assert.notEqual(page.el('quiz-pi-result').textContent, '');
+});
+
+test('once all three are answered, the drawing shows the charges', () => {
+  const page = quizPage('G');
+  answerSeq(page, 'G');
+  answerCharge(page, '0');
+  assert.ok(page.structure.classList.contains('neutral-view'), 'still uncharged');
+  answerPI(page, '5.55');
+  assert.equal(page.structure.classList.contains('neutral-view'), false);
+  assert.equal(page.el('structure-legend').style.display, '');
+  assert.equal(page.el('quiz-reveal').disabled, true);
+});
+
+test('Reveal shows every remaining answer, counts them as incorrect and shows the charges', () => {
+  const page = quizPage('K', 'three');
+  page.el('breakdown-btn').fire('click');
+  answerSeq(page, 'Lys');
+  page.el('quiz-reveal').fire('click');
+  assert.equal(page.el('quiz-seq-result').textContent, '✓ Sequence: correct. The peptide is Lys.', 'a finished answer stays');
+  assert.equal(page.el('quiz-charge-result').textContent, '✗ Net charge: the net charge is +0.91.');
+  assert.equal(page.el('quiz-pi-result').textContent, '✗ pI: the actual pI is 9.40.');
+  assert.equal(page.structure.classList.contains('neutral-view'), false);
+  assert.deepEqual(counts(page, 'Sequence (3-letter)'), [1, 0]);
+  assert.deepEqual(counts(page, 'Net charge'), [0, 1]);
+  assert.deepEqual(counts(page, 'pI'), [0, 1]);
+});
+
+test('Next Peptide starts a clean question', () => {
+  const page = quizPage('K');
+  answerSeq(page, 'K');
+  answerCharge(page, '1');
+  page.el('quiz-reveal').fire('click');
+  page.el('quiz-next').fire('click');
+  assert.notEqual(page.run('sequence'), 'K');
+  for (const id of ['quiz-seq', 'quiz-charge', 'quiz-pi']) {
+    assert.equal(page.el(id).value, '', id);
+    assert.equal(page.el(id).disabled, false, id);
+    assert.equal(page.el(id + '-result').textContent, '', id);
+  }
+  assert.equal(page.el('quiz-reveal').disabled, false);
+  assert.ok(page.structure.classList.contains('neutral-view'));
+});
+
+// ── Score breakdown ────────────────────────────────────────────
+test('a Score breakdown button sits at the bottom and toggles a table', () => {
+  const area = MARKUP.slice(MARKUP.indexOf('id="score-area"'));
+  assert.ok(area.indexOf('>Reset score<') >= 0 && area.indexOf('>Reset score<') < area.indexOf('>Score breakdown<'));
+  const page = loadPage();
+  page.el('quiz-toggle').fire('click');
+  assert.equal(page.el('score-breakdown').hidden, true);
+  assert.equal(page.el('breakdown-btn').getAttribute('aria-expanded'), 'false');
+  page.el('breakdown-btn').fire('click');
+  assert.equal(page.el('score-breakdown').hidden, false);
+  assert.equal(page.el('breakdown-btn').getAttribute('aria-expanded'), 'true');
+  assert.match(page.el('score-breakdown').innerHTML, /Correct Responses/);
+  assert.match(page.el('score-breakdown').innerHTML, /Incorrect Responses/);
+  assert.deepEqual(breakdownRows(page).map(r => r[0]),
+    ['Sequence (1-letter)', 'Sequence (3-letter)', 'Net charge', 'pI', 'Total']);
+  assert.ok(breakdownRows(page).every(r => r[1] === 0 && r[2] === 0), 'starts empty');
+  page.el('breakdown-btn').fire('click');
+  assert.equal(page.el('score-breakdown').hidden, true);
+});
+
+test('each answer counts in its own row, and the open table stays current', () => {
+  const page = quizPage('AK', 'one');
+  page.el('breakdown-btn').fire('click');
+  answerSeq(page, 'AK');
+  assert.deepEqual(counts(page, 'Sequence (1-letter)'), [1, 0]);
+  answerCharge(page, '5');
+  answerCharge(page, '5');
+  assert.deepEqual(counts(page, 'Net charge'), [0, 1]);
+  answerPI(page, '');
+  assert.deepEqual(counts(page, 'pI'), [0, 1]);
+
+  setQuestion(page, 'G', 'three');
+  answerSeq(page, 'Ala');
+  answerSeq(page, 'Gly');
+  assert.deepEqual(counts(page, 'Sequence (3-letter)'), [1, 0], 'right on the second try counts');
+  assert.deepEqual(counts(page, 'Sequence (1-letter)'), [1, 0], 'the other format is untouched');
+  answerPI(page, '1');
+  answerPI(page, '5.55');
+  assert.deepEqual(counts(page, 'pI'), [1, 1], 'right after the hint counts');
+  assert.deepEqual(counts(page, 'Total'), [3, 2]);
+});
+
+test('an answer counts only once per peptide, and hints and format errors do not count', () => {
+  const page = quizPage('G', 'one');
+  page.el('breakdown-btn').fire('click');
+  answerSeq(page, 'Gly');
+  answerPI(page, '1');
+  answerCharge(page, '5');
+  assert.deepEqual(counts(page, 'Total'), [0, 0], 'nothing is final yet');
+  answerSeq(page, 'G');
+  answerSeq(page, 'G');
+  page.run('checkQuizSequence()');
+  assert.deepEqual(counts(page, 'Total'), [1, 0]);
+  page.el('quiz-reveal').fire('click');
+  page.el('quiz-reveal').fire('click');
+  assert.deepEqual(counts(page, 'Total'), [1, 2]);
+});
+
+test('skipping with Next Peptide adds nothing, and the outside-quiz pI check is not scored', () => {
+  const page = loadPage();
+  enterSeq(page, 'G');
+  checkPIWith(page, '5.55');
+  assert.deepEqual(page.json('breakdown'), {});
+  page.el('quiz-toggle').fire('click');
+  page.el('breakdown-btn').fire('click');
+  page.el('quiz-next').fire('click');
+  assert.deepEqual(counts(page, 'Total'), [0, 0]);
+});
+
+test('the score survives leaving the quiz, and Reset score clears it', () => {
+  const page = quizPage('G');
+  page.el('breakdown-btn').fire('click');
+  answerSeq(page, 'G');
+  page.el('quiz-toggle').fire('click');
+  assert.equal(page.el('score-area').hidden, true);
+  page.el('quiz-toggle').fire('click');
+  assert.deepEqual(counts(page, 'Total'), [1, 0]);
+  page.el('score-reset').fire('click');
+  assert.deepEqual(counts(page, 'Total'), [0, 0]);
+  assert.equal(page.el('score-breakdown').hidden, false, 'the table stays open');
+});
+
+// ── Shared standards ───────────────────────────────────────────
 test('tolerances are ±0.2 for charge and ±0.1 for pI, and a typed minus sign works', () => {
   const within = (a, t, tol) => page0.run(`withinTolerance(${a}, ${t}, ${tol})`);
   assert.equal(within(1.2, 1, 0.2), true);
@@ -614,37 +943,17 @@ test('tolerances are ±0.2 for charge and ±0.1 for pI, and a typed minus sign w
   assert.equal(page0.run(`parseAnswer('x')`), null);
 });
 
-test('Reveal restores the structure and pKa values, and gives the answers', () => {
-  const page = quizPage('K');
-  page.run('setPH(7, 7)');
-  assert.equal(page.el('quiz-answers').textContent, '');
-  page.el('quiz-reveal').fire('click');
-  assert.equal(page.el('structure-legend').style.display, '');
-  assert.equal(page.structure.classList.contains('neutral-view'), false);
-  assert.equal(page.el('quiz-answers').textContent, 'Net charge at pH 7: +0.91. pI: 9.40.');
+test('disabled boxes and buttons use the shared gray from CLAUDE.md', () => {
+  assert.match(CSS, /input:disabled, button:disabled \{[^}]*background: #E4E4E4;[^}]*border-color: #BFBFBF;[^}]*color: #404040;/);
+  const guide = fs.readFileSync(path.join(__dirname, 'CLAUDE.md'), 'utf8');
+  assert.match(guide, /Grayed out \(disabled box\) \| `#E4E4E4` \| `#BFBFBF` \| `#404040`/);
 });
 
-test('in the quiz, changing the sequence or pH clears answers and hides a reveal again', () => {
-  for (const change of [p => enterSeq(p, 'A'), p => p.run('setPH(3)'), p => p.run('setPH(13, 13)'), p => p.el('random-btn').fire('click')]) {
-    const page = quizPage('K');
-    answerQuiz(page, '1', '9');
-    page.el('quiz-reveal').fire('click');
-    change(page);
-    assert.equal(page.el('quiz-charge').value, '');
-    assert.equal(page.el('pi-input').value, '');
-    assert.equal(page.el('quiz-charge-result').textContent, '');
-    assert.equal(page.el('pi-result').textContent, '');
-      assert.equal(page.el('quiz-answers').textContent, '');
-  }
-});
-
-test('re-selecting the same sequence or pH keeps the answers', () => {
-  const page = quizPage('K');
-  page.run('setPH(7, 7)');
-  page.el('quiz-charge').value = '1';
-  enterSeq(page, 'K');
-  page.run('setPH(7, 7)');
-  assert.equal(page.el('quiz-charge').value, '1');
+test('CLAUDE.md asks every quiz page for this score tracking', () => {
+  const guide = fs.readFileSync(path.join(__dirname, 'CLAUDE.md'), 'utf8');
+  assert.match(guide, /### Quiz Score Tracking/);
+  assert.match(guide, /Correct Responses/);
+  assert.match(guide, /Score breakdown/);
 });
 
 test('pH and pI keep their capitalization on screen', () => {
@@ -656,4 +965,5 @@ test('pH and pI keep their capitalization on screen', () => {
 
 test('feedback keeps black text on its colored background', () => {
   assert.match(CSS, /\.quiz-result \{[^}]*color: #000000/);
+  assert.match(CSS, /\.quiz-result\.info \{/);
 });
