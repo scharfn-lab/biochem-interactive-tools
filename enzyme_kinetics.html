@@ -276,14 +276,12 @@
     .rates-layout #plot-column { order: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
     .rates-layout #plot-hint { grid-column: 1 / -1; margin-top: 0; }
     .rates-layout #entry-box { order: 2; }
-    #demo-controls, #collect-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; align-items: start; }
-    #collect-controls .note, #demo-controls .note { margin-top: 0; }
-    #demo-controls .readout { margin-bottom: 6px; }
+    #collect-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; align-items: start; }
+    #collect-controls .note { margin-top: 0; }
 
     /* Measuring Rates controls */
     #rates-settings-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    /* Up to 1 × Km on the first row, higher values on the second */
-    #demo-s-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+    #demo-s-buttons { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
     #demo-s-buttons button { padding: 3px 4px; font-size: 0.8em; }
     #demo-s-buttons button.previous { background: #BFBFBF; border: 1px dashed #000000; color: #000000; }
     .readout { font-size: 0.85em; line-height: 1.5; }
@@ -375,7 +373,8 @@
 
     @media (max-width: 640px) {
       .rates-layout #plot-column { grid-template-columns: minmax(0, 1fr); }
-      #demo-controls, #collect-controls { grid-template-columns: minmax(0, 1fr); }
+      #collect-controls { grid-template-columns: minmax(0, 1fr); }
+      #demo-s-buttons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       #top-row { flex-direction: column; }
       #model-box, #scheme-box { flex: none; }
       /* One column, with the answers after the plots they are worked out from */
@@ -559,14 +558,9 @@
       <section class="panel box" id="experiment-box" aria-labelledby="experiment-title">
         <h2 class="panel-section-title" id="experiment-title">Experiment</h2>
         <div id="demo-controls">
-          <div>
-            <span class="control-label">Selected starting [S]</span>
-            <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
-          </div>
-          <div>
-            <p class="readout" id="demo-readout" aria-live="polite"></p>
-            <p class="note">One data point on the M-M plot represents the initial rate (rate of product formation over time, before the reaction slows down) at a specific [Substrate].</p>
-          </div>
+          <span class="control-label">Selected starting [S]</span>
+          <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
+          <p class="readout" id="demo-readout" aria-live="polite"></p>
         </div>
         <div id="collect-controls">
           <div>
@@ -615,7 +609,7 @@
         <div class="panel-body">
           <div class="legend" id="product-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="product-canvas" role="img"></canvas></div>
-          <p class="note" id="product-note">As the substrate runs out, the curve bends indicating a decrease in the rate as the reaction approaches equilibrium.</p>
+          <p class="note" id="product-note">Initial rate is measured because the rate decreases as substrate is consumed.</p>
         </div>
       </section>
       <section class="panel plot-card" data-panel="mm" aria-labelledby="mm-title">
@@ -629,6 +623,7 @@
         <div class="panel-body">
           <div class="legend" id="mm-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
+          <p class="note" id="mm-note">One data point on the plot represents the initial rate at a particular [S].</p>
           <div class="plot-tools"><button type="button" id="guides" aria-pressed="false">Show Guides</button></div>
         </div>
       </section>
@@ -2354,6 +2349,7 @@ function syncFieldStates() {
   $('demo-controls').hidden = collect;
   $('collect-controls').hidden = !collect;
   $('product-note').hidden = collect;
+  $('mm-note').hidden = !rates;
   $('product-card').hidden = !rates;
   $('lb-card').hidden = rates;
   $('rates-settings').hidden = !rates;
@@ -2497,7 +2493,7 @@ document.querySelectorAll('[data-type]').forEach(button => button.addEventListen
 
 const QUIZ_TITLES = { rates: 'Measuring Rates', kinetics: 'Kinetics', inhibition: 'Inhibition' };
 // Everything the quiz hides from the normal tab while it runs.
-const QUIZ_HIDDEN = ['rates-view-buttons', 'type-buttons', 'difference-buttons', 'rates-settings', 'inhib-box', 'experiment-box', 'entry-box', 'errors', 'product-note', 'guides'];
+const QUIZ_HIDDEN = ['rates-view-buttons', 'type-buttons', 'difference-buttons', 'rates-settings', 'inhib-box', 'experiment-box', 'entry-box', 'errors', 'product-note', 'mm-note', 'guides'];
 
 function quizItemHtml(item) {
   const id = `quiz-${item.key}`;

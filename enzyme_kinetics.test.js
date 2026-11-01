@@ -853,3 +853,34 @@ test('every displayed value, typed back in, is accepted as correct', () => {
     }
   }
 });
+
+// ── Measuring Rates text and layout ────────────────────────────
+const DEMO_S_COUNT = () => HTML.match(/const DEMO_S_FACTORS = \[([^\]]*)\]/)[1].split(',').length;
+
+test('the product vs. time note says why the initial rate is measured', () => {
+  assert.ok(HTML.includes('id="product-note">Initial rate is measured because the rate decreases as substrate is consumed.<'));
+  assert.ok(!HTML.includes('approaches equilibrium'));
+});
+
+test('the data point note moved from the Experiment box to below the M-M plot', () => {
+  const experiment = HTML.slice(HTML.indexOf('id="experiment-box"'), HTML.indexOf('id="collect-controls"'));
+  assert.ok(!experiment.includes('One data point'));
+  assert.ok(!experiment.includes('class="note"'));
+  assert.equal(HTML.split('One data point').length, 2, 'it appears once');
+  const canvas = HTML.indexOf('id="mm-canvas"'), note = HTML.indexOf('id="mm-note">One data point on the plot represents the initial rate at a particular [S].<');
+  assert.ok(canvas > 0 && note > canvas, 'below the plot');
+  assert.ok(note < HTML.indexOf('id="lb-canvas"'), 'still in the M-M card');
+});
+
+test('the note shows only on Measuring Rates, and not during a quiz', () => {
+  assert.ok(HTML.includes("$('mm-note').hidden = !rates;"));
+  assert.match(HTML, /const QUIZ_HIDDEN = \[[^\]]*'mm-note'/);
+});
+
+test('the six starting [S] buttons share one row, with the readout below them', () => {
+  assert.equal(DEMO_S_COUNT(), 6);
+  assert.match(HTML, /#demo-s-buttons \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
+  const box = HTML.slice(HTML.indexOf('<div id="demo-controls">'), HTML.indexOf('id="collect-controls"'));
+  assert.ok(box.indexOf('id="demo-s-buttons"') > 0 && box.indexOf('id="demo-s-buttons"') < box.indexOf('id="demo-readout"'));
+  assert.doesNotMatch(HTML, /#demo-controls, #collect-controls/, 'the box is no longer two columns');
+});
