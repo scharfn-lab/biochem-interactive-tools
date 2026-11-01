@@ -347,7 +347,9 @@ test('random enzymes can share the same units', () => {
 
 // ── Quiz Mode ─────────────────────────────────────────────────
 const { gradeQuestion, quizCredit, correctAnswerText, fmtSig: fmt } = page;
-const buildQuizSet = (mode, rand) => page.buildQuizSet(mode, rand);
+const buildQuizSet = (mode, rand, hard) => page.buildQuizSet(mode, rand, hard);
+const amountInVolume = (conc, unit, rand) => page.amountInVolume(conc, unit, rand);
+const inPage = name => vm.runInContext(name, page);   // top-level consts aren't properties of the context
 const QUIZ_MODES = {
   rates: ['initialRate', 'runExperiments', 'predictRate', 'whyInitial'],
   kinetics: ['whatChanged', 'fromLine', 'efficiency', 'predictEffect'],
@@ -355,14 +357,15 @@ const QUIZ_MODES = {
 };
 const SETS = 400;
 
-function eachQuestion(check) {
+function eachQuestion(check, hard = false) {
   const rand = seededRandom(2024);
   for (const mode of Object.keys(QUIZ_MODES)) {
     for (let i = 0; i < SETS; i++) {
-      for (const q of buildQuizSet(mode, rand)) check(q, mode);
+      for (const q of buildQuizSet(mode, rand, hard)) check(q, mode);
     }
   }
 }
+const eachHardQuestion = check => eachQuestion(check, true);
 
 const rightValues = q => Object.fromEntries([...q.items].map(item => [item.key, item.kind === 'number' ? String(item.truth) : item.answer]));
 
@@ -392,35 +395,36 @@ test('order varies between sets', () => {
   assert.ok(orders.size > 5);
 });
 
-test('every question grades its own answer as correct and is well formed', () => {
-  eachQuestion(q => {
-    assert.ok(q.prompt && q.hint && q.explanation && q.title, q.type);
-    assert.ok(q.items.length > 0, q.type);
-    const { correct, complete } = gradeQuestion(q, rightValues(q));
-    assert.ok(correct && complete, q.type);
-    for (const item of q.items) {
-      if (item.kind === 'number') {
-        assert.ok(Number.isFinite(item.truth) && item.truth > 0 && item.tolerance > 0 && item.unit, `${q.type} ${item.key}`);
-      } else {
-        assert.ok(item.options.includes(item.answer), `${q.type} ${item.key}`);
-        assert.equal(new Set(item.options).size, item.options.length);
+for (const hard of [false, true]) {
+  test(`every ${hard ? 'hard' : 'easy'} question grades its own answer as correct and is well formed`, () => {
+    eachQuestion(q => {
+      assert.ok(q.prompt && q.hint && q.explanation && q.title, q.type);
+      assert.ok(q.items.length > 0, q.type);
+      assert.ok(gradeQuestion(q, rightValues(q)).correct, q.type);
+      for (const item of q.items) {
+        if (item.kind === 'number') {
+          assert.ok(Number.isFinite(item.truth) && item.truth > 0 && item.tolerance > 0 && item.unit, `${q.type} ${item.key}`);
+        } else {
+          assert.ok(item.options.includes(item.answer), `${q.type} ${item.key}`);
+          assert.equal(new Set(item.options).size, item.options.length);
+        }
       }
-    }
-    assert.ok(!/NaN|undefined|Infinity/.test(q.prompt + q.explanation + q.hint), q.type);
+      assert.ok(!/NaN|undefined|Infinity/.test(q.prompt + q.explanation + q.hint), q.prompt + q.explanation);
+    }, hard);
   });
-});
 
-test('numbers well outside the allowance are wrong, and the allowance is stated', () => {
-  eachQuestion(q => {
-    for (const item of q.items) {
-      if (item.kind !== 'number') continue;
-      const off = rightValues(q);
-      off[item.key] = String(item.truth * (1 + item.tolerance * 1.5));
-      assert.equal(gradeQuestion(q, off).results[item.key], false, q.type);
-      assert.ok(q.prompt.includes(`±${Math.round(item.tolerance * 100)}%`), q.type);
-    }
+  test(`${hard ? 'hard' : 'easy'} numbers outside the allowance are wrong, and prompts don't state it`, () => {
+    eachQuestion(q => {
+      assert.ok(!/Answers count|within ±/.test(q.prompt), q.prompt);
+      for (const item of q.items) {
+        if (item.kind !== 'number') continue;
+        const off = rightValues(q);
+        off[item.key] = String(item.truth * (1 + item.tolerance * 1.5));
+        assert.equal(gradeQuestion(q, off).results[item.key], false, q.type);
+      }
+    }, hard);
   });
-});
+}
 
 test('tolerance follows how the value is found', () => {
   const expected = { initialRate: 0.1, runExperiments: 0.1, predictRate: 0.02, fromLine: 0.02, efficiency: 0.02, findKi: 0.05, apparent: 0.02 };
@@ -429,25 +433,26 @@ test('tolerance follows how the value is found', () => {
   });
 });
 
-test('blank parts make a question incomplete, and a wrong choice is marked wrong', () => {
+test('a blank part is unmarked and not correct, and a wrong choice is marked wrong', () => {
   const q = [...buildQuizSet('kinetics', seededRandom(3))].find(x => x.type === 'efficiency');
   const values = rightValues(q);
   values.higher = null;
   const blank = gradeQuestion(q, values);
-  assert.equal(blank.complete, false);
   assert.equal(blank.correct, false);
   assert.equal(blank.results.higher, null);
+  assert.equal(blank.results.kcat, true);
   values.higher = 'They are equal';
   const wrong = gradeQuestion(q, values);
-  assert.equal(wrong.complete, true);
   assert.equal(wrong.results.higher, false);
+  assert.equal(gradeQuestion(q, {}).correct, false);
 });
 
-test('credit: 1 on the first try, ½ on the second, none if wrong', () => {
+test('credit: 1 on the first try, ½ on any later try, none if the answer is shown', () => {
   assert.equal(quizCredit(1, true), 1);
   assert.equal(quizCredit(2, true), 0.5);
+  assert.equal(quizCredit(5, true), 0.5);
   assert.equal(quizCredit(1, false), 0);
-  assert.equal(quizCredit(2, false), 0);
+  assert.equal(quizCredit(3, false), 0);
 });
 
 // What a student has: three significant figures from each line equation on the plot.
@@ -598,6 +603,158 @@ test('correctAnswerText lists every part', () => {
   assert.ok(correctAnswerText(effect).startsWith('V<sub>max</sub>: '), correctAnswerText(effect));
   const type = [...buildQuizSet('inhibition', seededRandom(4))].find(x => x.type === 'identifyType');
   assert.equal(correctAnswerText(type), type.items[0].answer);
+});
+
+// ── Quiz Hard Mode ────────────────────────────────────────────
+const CONC_M = { M: 1, mM: 1e-3, 'µM': 1e-6, nM: 1e-9 };
+const TIME_S = { s: 1, min: 60, h: 3600 };
+const AMOUNT_MOL = { mol: 1, 'µmol': 1e-6, nmol: 1e-9 };
+const VOLUME_L = { L: 1, mL: 1e-3, 'µL': 1e-6 };
+
+test('unit conversions match hand calculations', () => {
+  near(inPage('convertConc')(1, 'mM', 'µM'), 1000);
+  near(inPage('convertConc')(500, 'nM', 'µM'), 0.5);
+  near(inPage('convertPerTime')(60, 'min', 's'), 1);
+  near(inPage('convertPerTime')(1, 's', 'h'), 3600);
+  near(inPage('convertRate')(60, 'µM', 'min', 'µM', 's'), 1);
+  near(inPage('convertRate')(1, 'mM', 's', 'µM', 'min'), 60000);
+});
+
+test('an amount in a volume gives back the stated concentration, in units that do not match', () => {
+  const rand = seededRandom(21);
+  const seen = new Set();
+  for (let i = 0; i < 5000; i++) {
+    const unit = ['nM', 'µM', 'mM'][i % 3];
+    const conc = Number((10 ** (rand() * 3 - 1)).toPrecision(2));
+    const a = amountInVolume(conc, unit, rand);
+    seen.add(a.amountUnit);
+    const molar = a.amount * AMOUNT_MOL[a.amountUnit] / (a.volume * VOLUME_L[a.volumeUnit]);
+    near(molar / CONC_M[unit], a.conc, 1e-9);
+    assert.ok(Math.abs(a.conc - conc) / conc < 0.06, JSON.stringify([conc, a]));   // rounded to 2 figures
+    const direct = AMOUNT_MOL[a.amountUnit] / VOLUME_L[a.volumeUnit];
+    assert.ok(Math.abs(direct / CONC_M[unit] - 1) > 1e-6, `${a.amountUnit}/${a.volumeUnit} is simply ${unit}`);
+    assert.ok(a.of('enzyme').includes(`${a.amountUnit} of enzyme in ${a.volume} ${a.volumeUnit}`), a.of('enzyme'));
+  }
+  assert.equal(seen.size, 3);
+});
+
+test('hand calculation: 0.1 nmol in 2 mL is 0.05 µM', () => {
+  near(0.1 * AMOUNT_MOL.nmol / (2 * VOLUME_L.mL) / CONC_M['µM'], 0.05);
+});
+
+test('every hard numeric question makes the student convert something', () => {
+  eachHardQuestion(q => {
+    const numbers = [...q.items].filter(i => i.kind === 'number');
+    if (!numbers.length) return;
+    const { conc, time } = q.scene.units;
+    const plain = new Set([conc, `${conc}/${time}`, `${time}⁻¹`, `${conc}⁻¹ ${time}⁻¹`]);
+    const usesAmount = /mol of \w+ in /.test(q.prompt);
+    const changedUnit = numbers.some(i => !plain.has(i.unit));
+    const predictHasMismatch = q.type === 'predictRate' && /Give your answer/.test(q.prompt);
+    assert.ok(usesAmount || changedUnit || predictHasMismatch, q.type + ' ' + q.prompt);
+  });
+});
+
+test('hard questions that use [E]total or [I] give an amount and a volume', () => {
+  const needs = ['runExperiments', 'whatChanged', 'efficiency', 'findKi'];
+  const seen = new Set();
+  eachHardQuestion(q => {
+    if (!needs.includes(q.type)) return;
+    seen.add(q.type);
+    assert.ok(/mol of (enzyme|inhibitor) in \S+ (L|mL|µL)/.test(q.prompt), q.prompt);
+    assert.ok(!q.prompt.includes('[E]<sub>total</sub> ='), q.prompt);
+  });
+  assert.equal(seen.size, needs.length);
+});
+
+test('easy questions keep one set of units, and give no amounts', () => {
+  eachQuestion(q => {
+    assert.ok(!/mol of /.test(q.prompt), q.prompt);
+    const { conc, time } = q.scene.units;
+    for (const item of q.items) {
+      if (item.kind === 'number') assert.ok(item.unit.includes(conc) || item.unit.includes(time), item.unit);
+    }
+  });
+});
+
+test('units vary between easy questions', () => {
+  const concs = new Set(), times = new Set();
+  eachQuestion(q => { concs.add(q.scene.units.conc); times.add(q.scene.units.time); });
+  assert.equal(concs.size, 3);
+  assert.equal(times.size, 3);
+});
+
+// Converts a value in plot units to the unit an answer is asked in.
+function toItemUnit(value, item, { conc, time }) {
+  const parts = item.unit.split('/');
+  if (item.unit === 'M⁻¹ s⁻¹') return value * (1 / TIME_S[time]) / CONC_M[conc];
+  if (item.unit.endsWith('⁻¹')) return value * TIME_S[item.unit.replace('⁻¹', '')] / TIME_S[time];
+  if (parts.length === 2) return value * (CONC_M[conc] / CONC_M[parts[0]]) * (TIME_S[parts[1]] / TIME_S[time]);
+  return value * CONC_M[conc] / CONC_M[item.unit];
+}
+
+test('hard answers worked from the rounded equations and shown amounts pass', () => {
+  const seen = new Set();
+  eachHardQuestion(q => {
+    if (!['fromLine', 'efficiency', 'apparent', 'findKi'].includes(q.type)) return;
+    seen.add(q.type);
+    const curves = lines(q);
+    const { m, b } = curves[1];
+    const values = rightValues(q);
+    const units = q.scene.units;
+    const worked = {
+      Vmax: 1 / b, Km: m / b, VmaxApp: 1 / b, KmApp: m / b,
+      kcat: (1 / b) / q.scene.params.Etot2,
+      ratio: ((1 / b) / q.scene.params.Etot2) / (m / b),
+      Ki: q.scene.params.I / (m / curves[0].m - 1),
+      KiP: q.scene.params.I / (b / curves[0].b - 1),
+    };
+    for (const item of q.items) {
+      if (item.kind === 'number') {
+        const inPlotUnits = worked[item.key];
+        values[item.key] = String(q.type === 'findKi' ? inPlotUnits : toItemUnit(inPlotUnits, item, units));
+      }
+    }
+    const { correct, results } = gradeQuestion(q, values);
+    assert.ok(correct, JSON.stringify([q.type, q.scene.params, values, results, [...q.items].map(i => i.truth)]));
+  });
+  assert.equal(seen.size, 4);
+});
+
+test('hard "what changed": equal concentrations from different amounts and volumes', () => {
+  eachHardQuestion(q => {
+    if (q.type !== 'whatChanged') return;
+    const by = differingParameter(q.scene.params);
+    const match = q.prompt.match(/A contains (\S+(?: × \S+)?) (\S+) of enzyme in (\S+) (\S+), and Conditions B contains (\S+(?: × \S+)?) (\S+) of enzyme in (\S+) (\S+)\./);
+    assert.ok(match, q.prompt);
+    assert.equal(match[2], match[6]);                 // same amount unit
+    assert.equal(match[4], match[8]);                 // same volume unit
+    assert.notEqual(match[3], match[7]);              // but a different volume, so they must be worked out
+    assert.equal(q.scene.params.Etot === q.scene.params.Etot2, by !== 'Etot');
+  });
+});
+
+test('hard "predict the effect" sometimes dilutes the enzyme, halving [E]total', () => {
+  let diluted = 0;
+  const up = 'Increases', down = 'Decreases', same = 'No change';
+  eachHardQuestion(q => {
+    if (q.type !== 'predictEffect' || !/diluted/.test(q.prompt)) return;
+    diluted += 1;
+    assert.deepEqual([...q.items].map(i => i.answer), [down, same, up, up]);
+    near(q.scene.params.Etot2, q.scene.params.Etot / 2);
+  });
+  assert.ok(diluted > 0);
+});
+
+test('hard kcat/Km is asked in M⁻¹ s⁻¹, and matches a hand conversion', () => {
+  eachHardQuestion(q => {
+    if (q.type !== 'efficiency') return;
+    const item = [...q.items].find(i => i.key === 'ratio');
+    assert.equal(item.unit, 'M⁻¹ s⁻¹');
+    const { kcat2, Km2 } = q.scene.params;
+    const { conc, time } = q.scene.units;
+    near(item.truth, (kcat2 / TIME_S[time]) / (Km2 * CONC_M[conc]), 1e-9);
+  });
 });
 
 // ── Validation ──────────────────────────────────────────────────

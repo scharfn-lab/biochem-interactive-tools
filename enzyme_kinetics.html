@@ -67,14 +67,14 @@
     }
 
     /* ── Buttons ── */
-    #action-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, .entry-tools {
+    #action-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons, .entry-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
     }
     #top-buttons { display: flex; flex-direction: column; gap: 8px; }
-    #action-buttons, #type-buttons, #difference-buttons, #rates-view-buttons { justify-content: center; }
+    #action-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons { justify-content: center; }
     #top-buttons button { padding: 7px 15px; }
     #topic-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
@@ -270,6 +270,16 @@
     #reaction-scheme { flex: 1; display: flex; align-items: center; }
     #reaction-scheme svg { max-width: 340px; }
 
+    /* Measuring Rates: full-width boxes on top, then the two plots side by side */
+    #workspace.rates-layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+    .rates-layout #sidebar { display: contents; }
+    .rates-layout #plot-column { order: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    .rates-layout #plot-hint { grid-column: 1 / -1; margin-top: 0; }
+    .rates-layout #entry-box { order: 2; }
+    #demo-controls, #collect-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; align-items: start; }
+    #collect-controls .note, #demo-controls .note { margin-top: 0; }
+    #demo-controls .readout { margin-bottom: 6px; }
+
     /* Measuring Rates controls */
     #rates-settings-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
     /* Up to 1 × Km on the first row, higher values on the second */
@@ -364,6 +374,8 @@
     .entry-cell.wrong .mark { color: var(--ut-crimson); }
 
     @media (max-width: 640px) {
+      .rates-layout #plot-column { grid-template-columns: minmax(0, 1fr); }
+      #demo-controls, #collect-controls { grid-template-columns: minmax(0, 1fr); }
       #top-row { flex-direction: column; }
       #model-box, #scheme-box { flex: none; }
       /* One column, with the answers after the plots they are worked out from */
@@ -420,6 +432,11 @@
         <div id="reaction-scheme"></div>
       </div>
     </section>
+  </div>
+
+  <div id="difficulty-buttons" role="group" aria-label="Quiz difficulty" hidden>
+    <button type="button" data-difficulty="easy">Easy Mode</button>
+    <button type="button" data-difficulty="hard">Hard Mode</button>
   </div>
 
   <div id="rates-view-buttons" role="group" aria-label="Measuring Rates view">
@@ -529,6 +546,7 @@
         </div>
         <div class="entry-tools" id="quiz-buttons">
           <button type="button" id="quiz-check">Check</button>
+          <button type="button" id="quiz-show" hidden>Show answer</button>
           <button type="button" id="quiz-next" hidden>Next</button>
         </div>
         <div id="quiz-feedback" role="status"></div>
@@ -541,21 +559,29 @@
       <section class="panel box" id="experiment-box" aria-labelledby="experiment-title">
         <h2 class="panel-section-title" id="experiment-title">Experiment</h2>
         <div id="demo-controls">
-          <span class="control-label">Selected starting [S]</span>
-          <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
-          <p class="readout" id="demo-readout" aria-live="polite"></p>
-          <p class="note">One data point on the M-M plot represents the initial rate (slope of product formation over time, before the reaction slows down) at a specific [Substrate].</p>
+          <div>
+            <span class="control-label">Selected starting [S]</span>
+            <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
+          </div>
+          <div>
+            <p class="readout" id="demo-readout" aria-live="polite"></p>
+            <p class="note">One data point on the M-M plot represents the initial rate (rate of product formation over time, before the reaction slows down) at a specific [Substrate].</p>
+          </div>
         </div>
         <div id="collect-controls">
-          <div id="run-row">
-            <div class="field"><label for="runS">Starting [S] (<span data-u="conc">µM</span>)</label><input type="number" id="runS" step="any" min="0"></div>
-            <button type="button" id="run-experiment">Run Experiment</button>
+          <div>
+            <div id="run-row">
+              <div class="field"><label for="runS">Starting [S] (<span data-u="conc">µM</span>)</label><input type="number" id="runS" step="any" min="0"></div>
+              <button type="button" id="run-experiment">Run Experiment</button>
+            </div>
+            <p id="run-message" role="status"></p>
+            <label class="control-label" for="measure-window" id="window-readout"></label>
+            <input type="range" id="measure-window" min="1" max="100" step="1">
           </div>
-          <p id="run-message" role="status"></p>
-          <label class="control-label" for="measure-window" id="window-readout"></label>
-          <input type="range" id="measure-window" min="1" max="100" step="1">
-          <p class="note">Each run adds one point, using the slope over this window. Try a wide range of [S], until the rate levels off, then widen the window and watch the points fall as substrate runs out.</p>
-          <ul id="run-list"></ul>
+          <div>
+            <p class="note">Each run adds one point, using the slope over this window. Try a wide range of [S], until the rate levels off, then widen the window and watch the points fall as substrate runs out.</p>
+            <ul id="run-list"></ul>
+          </div>
         </div>
       </section>
 
@@ -679,6 +705,7 @@ const quiz = {
   finished: false,  // this question has been answered or used up its tries
   credits: [],      // points for each question so far
   hideSlope: false,
+  hard: false,      // Hard Mode
   saved: null,      // what the quiz borrows from the page
 };
 
@@ -1072,9 +1099,60 @@ function quizUnits(r) {
   return { conc: r.concUnit, time: r.timeUnit, rate: `${r.concUnit}/${r.timeUnit}`, perTime: `${r.timeUnit}⁻¹` };
 }
 
-function allowance(tolerance) {
-  return `Answers count within ±${Math.round(tolerance * 100)}%.`;
+// ── Unit conversions for Hard Mode ──
+
+const CONC_IN_M = { M: 1, mM: 1e-3, 'µM': 1e-6, nM: 1e-9 };
+const TIME_IN_S = { s: 1, min: 60, h: 3600 };
+const AMOUNT_IN_MOL = { mol: 1, 'µmol': 1e-6, nmol: 1e-9 };
+const VOLUME_IN_L = { L: 1, mL: 1e-3, 'µL': 1e-6 };
+const VOLUME_VALUES = { L: [0.5, 1, 2], mL: [1, 2, 5, 10, 25, 50, 100, 250], 'µL': [50, 100, 200, 500, 1000] };
+const CONC_LADDER = ['nM', 'µM', 'mM', 'M'];
+
+const convertConc = (value, from, to) => value * CONC_IN_M[from] / CONC_IN_M[to];
+const convertRate = (value, fromConc, fromTime, toConc, toTime) => value * (CONC_IN_M[fromConc] / CONC_IN_M[toConc]) * (TIME_IN_S[toTime] / TIME_IN_S[fromTime]);
+const convertPerTime = (value, from, to) => value * TIME_IN_S[to] / TIME_IN_S[from];
+
+// A neighboring concentration unit, so that answers stay readable.
+function otherConcUnit(unit, rand) {
+  const i = CONC_LADDER.indexOf(unit);
+  const neighbors = [CONC_LADDER[i - 1], CONC_LADDER[i + 1]].filter(Boolean);
+  return neighbors[Math.floor(rand() * neighbors.length)];
 }
+
+function otherTimeUnit(unit, rand) {
+  const others = Object.keys(TIME_IN_S).filter(u => u !== unit);
+  return others[Math.floor(rand() * others.length)];
+}
+
+// Describes a concentration as an amount in a volume, in units that don't simply divide into the
+// page's concentration unit (nmol in mL is µM, so that pair is never used with µM). The amount is
+// rounded for display, so the exact concentration it gives is returned with it.
+function amountInVolume(conc, unit, rand) {
+  const molar = conc * CONC_IN_M[unit];
+  const options = [];
+  for (const amountUnit of Object.keys(AMOUNT_IN_MOL)) {
+    for (const volumeUnit of Object.keys(VOLUME_IN_L)) {
+      const ratio = AMOUNT_IN_MOL[amountUnit] / VOLUME_IN_L[volumeUnit];
+      if (Math.abs(ratio / CONC_IN_M[unit] - 1) < 1e-9) continue;
+      for (const volume of VOLUME_VALUES[volumeUnit]) {
+        const amount = molar * volume * VOLUME_IN_L[volumeUnit] / AMOUNT_IN_MOL[amountUnit];
+        // Moles of enzyme are tiny, so they are allowed in scientific notation.
+        if (amountUnit === 'mol' || (amount >= 0.01 && amount < 10000)) options.push({ amountUnit, volumeUnit, volume, amount });
+      }
+    }
+  }
+  const pick = options[Math.floor(rand() * options.length)];
+  const amount = Number(pick.amount.toPrecision(2));
+  return {
+    amount, amountUnit: pick.amountUnit, volume: pick.volume, volumeUnit: pick.volumeUnit,
+    conc: amount * AMOUNT_IN_MOL[pick.amountUnit] / (pick.volume * VOLUME_IN_L[pick.volumeUnit]) / CONC_IN_M[unit],
+    text: `${fmtCompact(amount)} ${pick.amountUnit} in ${pick.volume} ${pick.volumeUnit}`,
+    of: what => `${fmtCompact(amount)} ${pick.amountUnit} of ${what} in ${pick.volume} ${pick.volumeUnit}`,
+  };
+}
+
+const CONVERT_HINT = 'Convert to matching units first: 1 M = 1000 mM = 10⁶ µM = 10⁹ nM, and 1 h = 60 min = 3600 s.';
+const AMOUNT_HINT = 'Concentration = amount/volume, with amount in mol and volume in L to give M.';
 
 function ratesScene(r, extra) {
   return {
@@ -1130,52 +1208,68 @@ const CONCEPT_POOL = [
 ];
 
 const QUESTION_BUILDERS = {
-  initialRate(rand) {
+  initialRate(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
     const S0 = Number((r.Km * [0.5, 1, 2, 5][Math.floor(rand() * 4)]).toPrecision(3));
     const k = constants(r.kcat * r.Etot, r.Km, 1, 1);
-    const truth = v0(k, S0);
+    const onPlot = v0(k, S0);
+    const toConc = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const toTime = hard ? otherTimeUnit(u.time, rand) : u.time;
+    const truth = convertRate(onPlot, u.conc, u.time, toConc, toTime);
+    const unit = `${toConc}/${toTime}`;
     return {
       type: 'initialRate', title: 'Initial rate from a curve',
-      prompt: `This reaction starts at [S] = ${fmtCompact(S0)} ${u.conc}. Find the initial rate, v₀, from the early, straight part of the curve. Hover or tap the plot to read points. ${allowance(READ_FROM_PLOT_TOLERANCE)}`,
-      items: [numberItem('v0', 'v₀', u.rate, truth, READ_FROM_PLOT_TOLERANCE)],
-      hint: 'Pick a point early on the curve and divide [P] by t. A later point gives too low a slope.',
-      explanation: `The dashed line is the initial slope: v₀ = ${fmtSig(truth)} ${u.rate}.`,
+      prompt: `This reaction starts at [S] = ${fmtCompact(S0)} ${u.conc}. Find the initial rate, v₀, from the early, straight part of the curve. Hover or tap the plot to read points.${hard ? ` Give your answer in ${unit}.` : ''}`,
+      items: [numberItem('v0', 'v₀', unit, truth, READ_FROM_PLOT_TOLERANCE)],
+      hint: `Pick a point early on the curve and divide [P] by t. A later point gives too low a slope.${hard ? ` ${CONVERT_HINT}` : ''}`,
+      explanation: `The dashed line is the initial slope: v₀ = ${fmtSig(onPlot)} ${u.rate}${hard ? ` = ${fmtSig(truth)} ${unit}` : ''}.`,
       scene: ratesScene(r, { plots: ['product'], rates: { runs: [S0], windowPct: 1 }, hideSlope: true }),
     };
   },
 
-  runExperiments(rand) {
+  runExperiments(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
-    const Vmax = r.kcat * r.Etot;
+    const given = hard ? amountInVolume(r.Etot, u.conc, rand) : null;
+    const Etot = given ? given.conc : r.Etot;
+    const Vmax = r.kcat * Etot;
+    const kcatTime = hard ? otherTimeUnit(u.time, rand) : u.time;
+    const kcatUnit = `${kcatTime}⁻¹`;
+    const kcatTruth = convertPerTime(r.kcat, u.time, kcatTime);
+    const enzymeText = hard ? `The reaction contains ${given.of('enzyme')}.` : `${NAME.Et} = ${fmtCompact(Etot)} ${u.conc}.`;
     return {
       type: 'runExperiments', title: 'V<sub>max</sub>, K<sub>m</sub> and k<sub>cat</sub> from your data',
-      prompt: `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc}. Run experiments over a wide range of [S], until the rate stops rising, then find ${NAME.Vmax}, ${NAME.Km} and ${NAME.kcat}. ${allowance(READ_FROM_PLOT_TOLERANCE)}`,
+      prompt: `${enzymeText} Run experiments over a wide range of [S], until the rate stops rising, then find ${NAME.Vmax}, ${NAME.Km} and ${NAME.kcat}.`,
       items: [
         numberItem('Vmax', NAME.Vmax, u.rate, Vmax, READ_FROM_PLOT_TOLERANCE),
         numberItem('Km', NAME.Km, u.conc, r.Km, READ_FROM_PLOT_TOLERANCE),
-        numberItem('kcat', NAME.kcat, u.perTime, r.kcat, READ_FROM_PLOT_TOLERANCE),
+        numberItem('kcat', NAME.kcat, kcatUnit, kcatTruth, READ_FROM_PLOT_TOLERANCE),
       ],
-      hint: `${NAME.Vmax} is where the rate levels off, ${NAME.Km} is the [S] at ½${NAME.Vmax}, and ${NAME.kcat} = ${NAME.Vmax}/${NAME.Et}.`,
-      explanation: `${NAME.Vmax} = ${fmtSig(Vmax)} ${u.rate} and ${NAME.Km} = ${fmtSig(r.Km)} ${u.conc}. ${NAME.kcat} = ${fmtSig(Vmax)}/${fmtCompact(r.Etot)} = ${fmtSig(r.kcat)} ${u.perTime}.`,
-      scene: ratesScene(r, { plots: ['product', 'mm'], rates: { runs: [], windowPct: 1 }, run: true, revealTruth: true }),
+      hint: `${NAME.Vmax} is where the rate levels off, ${NAME.Km} is the [S] at ½${NAME.Vmax}, and ${NAME.kcat} = ${NAME.Vmax}/${NAME.Et}.${hard ? ` ${AMOUNT_HINT} ${CONVERT_HINT}` : ''}`,
+      explanation: `${NAME.Vmax} = ${fmtSig(Vmax)} ${u.rate} and ${NAME.Km} = ${fmtSig(r.Km)} ${u.conc}.${hard ? ` ${given.text} is ${NAME.Et} = ${fmtSig(Etot)} ${u.conc}.` : ''} ${NAME.kcat} = ${fmtSig(Vmax)}/${fmtSig(Etot)} = ${fmtSig(r.kcat)} ${u.perTime}${hard ? ` = ${fmtSig(kcatTruth)} ${kcatUnit}` : ''}.`,
+      scene: ratesScene({ ...r, Etot }, { plots: ['product', 'mm'], rates: { runs: [], windowPct: 1 }, run: true, revealTruth: true }),
     };
   },
 
-  predictRate(rand) {
+  predictRate(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
     const k = constants(r.kcat * r.Etot, r.Km, 1, 1);
     const S = Number((r.Km * [0.25, 0.5, 1, 2, 3, 9][Math.floor(rand() * 6)]).toPrecision(3));
-    const truth = v0(k, S);
+    const onPlot = v0(k, S);
+    const kmUnit = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const sUnit = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const toConc = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const toTime = hard ? otherTimeUnit(u.time, rand) : u.time;
+    const truth = convertRate(onPlot, u.conc, u.time, toConc, toTime);
+    const unit = `${toConc}/${toTime}`;
     return {
       type: 'predictRate', title: 'Predict a rate',
-      prompt: `An enzyme has ${NAME.Vmax} = ${fmtSig(k.Vmax)} ${u.rate} and ${NAME.Km} = ${fmtCompact(r.Km)} ${u.conc}. What is v₀ at [S] = ${fmtCompact(S)} ${u.conc}? ${allowance(CALCULATED_TOLERANCE)}`,
-      items: [numberItem('v0', 'v₀', u.rate, truth, CALCULATED_TOLERANCE)],
-      hint: `Use v₀ = ${NAME.Vmax}[S]/(${NAME.Km} + [S]).`,
-      explanation: `v₀ = ${fmtSig(k.Vmax)} × ${fmtCompact(S)}/(${fmtCompact(r.Km)} + ${fmtCompact(S)}) = ${fmtSig(truth)} ${u.rate}.`,
+      prompt: `An enzyme has ${NAME.Vmax} = ${fmtSig(k.Vmax)} ${u.rate} and ${NAME.Km} = ${fmtCompact(convertConc(r.Km, u.conc, kmUnit))} ${kmUnit}. What is v₀ at [S] = ${fmtCompact(convertConc(S, u.conc, sUnit))} ${sUnit}?${hard ? ` Give your answer in ${unit}.` : ''}`,
+      items: [numberItem('v0', 'v₀', unit, truth, CALCULATED_TOLERANCE)],
+      hint: `Use v₀ = ${NAME.Vmax}[S]/(${NAME.Km} + [S]).${hard ? ` ${CONVERT_HINT}` : ''}`,
+      explanation: `v₀ = ${fmtSig(k.Vmax)} × ${fmtCompact(S)}/(${fmtCompact(r.Km)} + ${fmtCompact(S)}) = ${fmtSig(onPlot)} ${u.rate}${hard ? `, with [S] and ${NAME.Km} both in ${u.conc}. That is ${fmtSig(truth)} ${unit}` : ''}.`,
       scene: ratesScene(r),
     };
   },
@@ -1193,86 +1287,118 @@ const QUESTION_BUILDERS = {
     };
   },
 
-  whatChanged(rand) {
+  whatChanged(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
     const by = differingParameter(r);
     const options = { Etot: `Only ${NAME.Et}`, Km: `Only ${NAME.Km}`, kcat: `Only ${NAME.kcat}` };
     const why = {
-      Etot: `The listed ${NAME.Et} values differ. More enzyme raises ${NAME.Vmax} and leaves ${NAME.Km} unchanged.`,
+      Etot: `${NAME.Et} differs between the two. More enzyme raises ${NAME.Vmax} and leaves ${NAME.Km} unchanged.`,
       Km: `${NAME.Vmax} is the same for both, so the L-B lines share a y-intercept, and only the slope changes.`,
       kcat: `${NAME.Et} is the same for both, yet ${NAME.Vmax} differs. Only ${NAME.kcat} can explain that, with ${NAME.Km} unchanged.`,
     };
+    let enzymeText = `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc} in Conditions A and ${fmtCompact(r.Etot2)} ${u.conc} in Conditions B.`;
+    let scene = kineticsScene(r);
+    if (hard) {
+      // Different amounts and volumes, so the concentrations have to be worked out to compare them.
+      const a = amountInVolume(r.Etot, u.conc, rand);
+      const ratio = r.Etot2 / r.Etot;
+      const scale = [2, 5][Math.floor(rand() * 2)];
+      const amountB = Number((a.amount * ratio * scale).toPrecision(12));
+      enzymeText = `Conditions A contains ${a.of('enzyme')}, and Conditions B contains ${fmtCompact(amountB)} ${a.amountUnit} of enzyme in ${Number((a.volume * scale).toPrecision(12))} ${a.volumeUnit}.`;
+      scene = kineticsScene({ ...r, Etot: a.conc, Etot2: a.conc * ratio });
+    }
     return {
       type: 'whatChanged', title: 'What changed?',
-      prompt: `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc} in Conditions A and ${fmtCompact(r.Etot2)} ${u.conc} in Conditions B. Exactly one parameter differs between them.`,
+      prompt: `${enzymeText} Exactly one parameter differs between them.`,
       items: [choiceItem('changed', 'Which parameter differs?', Object.values(options), options[by])],
-      hint: `Compare the y-intercepts, which show ${NAME.Vmax}, and use the listed ${NAME.Et} values.`,
+      hint: `Compare the y-intercepts, which show ${NAME.Vmax}, and compare ${NAME.Et} in each condition.${hard ? ` ${AMOUNT_HINT}` : ''}`,
       explanation: why[by],
-      scene: kineticsScene(r),
+      scene,
     };
   },
 
-  fromLine(rand) {
+  fromLine(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
     const k = constants(r.kcat2 * r.Etot2, r.Km2, 1, 1);
+    const toConc = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const toTime = hard ? otherTimeUnit(u.time, rand) : u.time;
+    const kmUnit = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const rateUnit = `${toConc}/${toTime}`;
+    const VmaxTruth = convertRate(k.Vmax, u.conc, u.time, toConc, toTime);
+    const KmTruth = convertConc(k.Km, u.conc, kmUnit);
     return {
       type: 'fromLine', title: 'Constants from a line',
-      prompt: `Use the Lineweaver–Burk equation for <b>Conditions B</b> to find ${NAME.Vmax} and ${NAME.Km}. ${allowance(CALCULATED_TOLERANCE)}`,
+      prompt: `Use the Lineweaver–Burk equation for <b>Conditions B</b> to find ${NAME.Vmax} and ${NAME.Km}.${hard ? ' Give your answers in the units shown.' : ''}`,
       items: [
-        numberItem('Vmax', NAME.Vmax, u.rate, k.Vmax, CALCULATED_TOLERANCE),
-        numberItem('Km', NAME.Km, u.conc, k.Km, CALCULATED_TOLERANCE),
+        numberItem('Vmax', NAME.Vmax, rateUnit, VmaxTruth, CALCULATED_TOLERANCE),
+        numberItem('Km', NAME.Km, kmUnit, KmTruth, CALCULATED_TOLERANCE),
       ],
-      hint: `For y = mx + b, ${NAME.Vmax} = 1/b and ${NAME.Km} = m/b.`,
-      explanation: `${NAME.Vmax} = 1/${fmtSig(k.yInt)} = ${fmtSig(k.Vmax)} ${u.rate}. ${NAME.Km} = ${fmtSig(k.slope)}/${fmtSig(k.yInt)} = ${fmtSig(k.Km)} ${u.conc}.`,
+      hint: `For y = mx + b, ${NAME.Vmax} = 1/b and ${NAME.Km} = m/b.${hard ? ` ${CONVERT_HINT}` : ''}`,
+      explanation: `${NAME.Vmax} = 1/${fmtSig(k.yInt)} = ${fmtSig(k.Vmax)} ${u.rate}${hard ? ` = ${fmtSig(VmaxTruth)} ${rateUnit}` : ''}. ${NAME.Km} = ${fmtSig(k.slope)}/${fmtSig(k.yInt)} = ${fmtSig(k.Km)} ${u.conc}${hard ? ` = ${fmtSig(KmTruth)} ${kmUnit}` : ''}.`,
       scene: kineticsScene(r),
     };
   },
 
-  efficiency(rand) {
+  efficiency(rand, hard) {
     // [E]total doesn't change kcat/Km, so these two conditions always differ in Km or kcat.
     let r;
     do { r = randomParameters(rand); } while (differingParameter(r) === 'Etot');
     const u = quizUnits(r);
+    const given = hard ? amountInVolume(r.Etot, u.conc, rand) : null;
+    const Etot = given ? given.conc : r.Etot;
     const ratioA = r.kcat / r.Km, ratioB = r.kcat2 / r.Km2;
-    const kB = constants(r.kcat2 * r.Etot2, r.Km2, 1, 1);
-    const ratioUnit = `${u.conc}⁻¹ ${u.time}⁻¹`;
+    const kB = constants(r.kcat2 * Etot, r.Km2, 1, 1);
     const higher = ratioB > ratioA ? 'Conditions B' : 'Conditions A';
+    // Hard Mode asks for kcat/Km in the units journals use, M⁻¹ s⁻¹.
+    const ratioUnit = hard ? 'M⁻¹ s⁻¹' : `${u.conc}⁻¹ ${u.time}⁻¹`;
+    const ratioFactor = hard ? 1 / TIME_IN_S[u.time] / CONC_IN_M[u.conc] : 1;
+    const ratioTruth = ratioB * ratioFactor;
+    const kcatTime = hard ? otherTimeUnit(u.time, rand) : u.time;
+    const kcatUnit = `${kcatTime}⁻¹`;
+    const kcatTruth = convertPerTime(r.kcat2, u.time, kcatTime);
+    const enzymeText = hard ? `Each condition contains ${given.of('enzyme')}.` : `${NAME.Et} = ${fmtCompact(Etot)} ${u.conc} in both conditions.`;
     return {
       type: 'efficiency', title: 'Catalytic efficiency',
-      prompt: `${NAME.Et} = ${fmtCompact(r.Etot)} ${u.conc} in both conditions. Use the Lineweaver–Burk equations to find these for <b>Conditions B</b>, then compare the two. ${allowance(CALCULATED_TOLERANCE)}`,
+      prompt: `${enzymeText} Use the Lineweaver–Burk equations to find these for <b>Conditions B</b>, then compare the two.`,
       items: [
-        numberItem('kcat', NAME.kcat, u.perTime, r.kcat2, CALCULATED_TOLERANCE),
-        numberItem('ratio', `${NAME.kcat}/${NAME.Km}`, ratioUnit, ratioB, CALCULATED_TOLERANCE),
+        numberItem('kcat', NAME.kcat, kcatUnit, kcatTruth, CALCULATED_TOLERANCE),
+        numberItem('ratio', `${NAME.kcat}/${NAME.Km}`, ratioUnit, ratioTruth, CALCULATED_TOLERANCE),
         choiceItem('higher', 'Which is the more efficient enzyme?', ['Conditions A', 'Conditions B', 'They are equal'], higher),
       ],
-      hint: `${NAME.kcat} = ${NAME.Vmax}/${NAME.Et}, where ${NAME.Vmax} = 1/b and ${NAME.Km} = m/b. A higher ${NAME.kcat}/${NAME.Km} is more efficient.`,
-      explanation: `${NAME.kcat} = (1/${fmtSig(kB.yInt)})/${fmtCompact(r.Etot2)} = ${fmtSig(r.kcat2)} ${u.perTime}, so ${NAME.kcat}/${NAME.Km} = ${fmtSig(ratioB)} ${ratioUnit} for B, against ${fmtSig(ratioA)} for A.`,
-      scene: kineticsScene(r),
+      hint: `${NAME.kcat} = ${NAME.Vmax}/${NAME.Et}, where ${NAME.Vmax} = 1/b and ${NAME.Km} = m/b. A higher ${NAME.kcat}/${NAME.Km} is more efficient.${hard ? ` ${AMOUNT_HINT} ${CONVERT_HINT}` : ''}`,
+      explanation: `${NAME.kcat} = (1/${fmtSig(kB.yInt)})/${fmtSig(Etot)} = ${fmtSig(r.kcat2)} ${u.perTime}${hard ? ` = ${fmtSig(kcatTruth)} ${kcatUnit}` : ''}, so ${NAME.kcat}/${NAME.Km} = ${fmtSig(ratioTruth)} ${ratioUnit} for B, against ${fmtSig(ratioA * ratioFactor)} for A.`,
+      scene: kineticsScene({ ...r, Etot, Etot2: Etot }),
     };
   },
 
-  predictEffect(rand) {
+  predictEffect(rand, hard) {
     const r = randomParameters(rand);
     const by = ['Etot', 'Km', 'kcat'][Math.floor(rand() * 3)];
-    const doubled = { Km: r.Km, kcat: r.kcat, Etot: r.Etot, [by]: Number((r[by] * 2).toPrecision(12)) };
+    // Hard Mode also dilutes the enzyme, which halves [E]total though the amount stays the same.
+    const dilute = hard && by === 'Etot' && rand() < 0.5;
+    const factor = dilute ? 0.5 : 2;
+    const changed = { Km: r.Km, kcat: r.kcat, Etot: r.Etot, [by]: Number((r[by] * factor).toPrecision(12)) };
     const before = constants(r.kcat * r.Etot, r.Km, 1, 1);
-    const after = constants(doubled.kcat * doubled.Etot, doubled.Km, 1, 1);
+    const after = constants(changed.kcat * changed.Etot, changed.Km, 1, 1);
     const options = Object.values(TREND);
     const names = { Etot: NAME.Et, Km: NAME.Km, kcat: NAME.kcat };
+    const change = dilute
+      ? 'the same amount of enzyme is diluted into twice the volume'
+      : `${hard && by === 'Etot' ? 'the amount of enzyme' : names[by]} doubles${hard && by === 'Etot' ? ' in the same volume' : ''}`;
     return {
       type: 'predictEffect', title: 'Predict the effect',
-      prompt: `Predict what happens if ${names[by]} doubles while everything else stays the same. The plots show the enzyme now.`,
+      prompt: `Predict what happens if ${change}, while everything else stays the same. The plots show the enzyme now.`,
       items: [
         choiceItem('Vmax', NAME.Vmax, options, trend(before.Vmax, after.Vmax), true),
         choiceItem('Km', NAME.Km, options, trend(before.Km, after.Km), true),
         choiceItem('slope', 'L-B slope', options, trend(before.slope, after.slope), true),
         choiceItem('yInt', 'L-B y-intercept', options, trend(before.yInt, after.yInt), true),
       ],
-      hint: `${NAME.Vmax} = ${NAME.kcat}${NAME.Et}. The L-B slope is ${NAME.Km}/${NAME.Vmax} and the y-intercept is 1/${NAME.Vmax}.`,
-      explanation: `Conditions B on the plots now shows ${names[by]} doubled.`,
-      scene: kineticsScene({ ...r, Km2: doubled.Km, kcat2: doubled.kcat, Etot2: doubled.Etot }, { hideB: true }),
+      hint: `${NAME.Vmax} = ${NAME.kcat}${NAME.Et}. The L-B slope is ${NAME.Km}/${NAME.Vmax} and the y-intercept is 1/${NAME.Vmax}.${dilute ? ` ${NAME.Et} is amount/volume.` : ''}`,
+      explanation: `Conditions B on the plots now shows ${names[by]} ${dilute ? 'halved' : 'doubled'}.`,
+      scene: kineticsScene({ ...r, Km2: changed.Km, kcat2: changed.kcat, Etot2: changed.Etot }, { hideB: true }),
     };
   },
 
@@ -1294,33 +1420,37 @@ const QUESTION_BUILDERS = {
     };
   },
 
-  findKi(rand) {
+  findKi(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
-    const scene = inhibitionScene(r);
-    const { alpha, alphaP } = factors(r.type, r.I, r.Ki, scene.params.KiP);
+    // Hard Mode gives the inhibitor as an amount in a volume, so [I] has to be worked out first.
+    const given = hard ? amountInVolume(r.I, u.conc, rand) : null;
+    const I = given ? given.conc : r.I;
+    const scene = inhibitionScene({ ...r, I });
+    const { alpha, alphaP } = factors(r.type, I, r.Ki, scene.params.KiP);
     const used = ACTIVE_FIELDS[r.type];
     const items = [];
     const steps = [];
     if (used.Ki) {
       items.push(numberItem('Ki', NAME.Ki, u.conc, r.Ki, KI_TOLERANCE));
-      steps.push(`α = ${fmtSig(alpha)} from the ratio of slopes, so ${NAME.Ki} = ${fmtCompact(r.I)}/(α − 1) = ${fmtSig(r.Ki)} ${u.conc}.`);
+      steps.push(`α = ${fmtSig(alpha)} from the ratio of slopes, so ${NAME.Ki} = ${fmtSig(I)}/(α − 1) = ${fmtSig(r.Ki)} ${u.conc}.`);
     }
     if (used.KiP) {
       items.push(numberItem('KiP', NAME.KiP, u.conc, r.KiP, KI_TOLERANCE));
-      steps.push(`α' = ${fmtSig(alphaP)} from the ratio of y-intercepts, so ${NAME.KiP} = ${fmtCompact(r.I)}/(α' − 1) = ${fmtSig(r.KiP)} ${u.conc}.`);
+      steps.push(`α' = ${fmtSig(alphaP)} from the ratio of y-intercepts, so ${NAME.KiP} = ${fmtSig(I)}/(α' − 1) = ${fmtSig(r.KiP)} ${u.conc}.`);
     }
+    const iText = hard ? `the reaction contains ${given.of('inhibitor')}` : `[I] = ${fmtCompact(I)} ${u.conc}`;
     return {
       type: 'findKi', title: 'Find the inhibition constant',
-      prompt: `This is <b>${INHIBITION_NAMES[r.type].toLowerCase()}</b> inhibition with [I] = ${fmtCompact(r.I)} ${u.conc}. Use the Lineweaver–Burk equations to find the constant${items.length > 1 ? 's' : ''} below. ${allowance(KI_TOLERANCE)}`,
+      prompt: `This is <b>${INHIBITION_NAMES[r.type].toLowerCase()}</b> inhibition, and ${iText}. Use the Lineweaver–Burk equations to find the constant${items.length > 1 ? 's' : ''} below.`,
       items,
-      hint: "The slope rises by α = 1 + [I]/K<sub>i</sub> and the y-intercept rises by α' = 1 + [I]/K<sub>i</sub>'.",
-      explanation: steps.join(' '),
+      hint: `The slope rises by α = 1 + [I]/K<sub>i</sub> and the y-intercept rises by α' = 1 + [I]/K<sub>i</sub>'.${hard ? ` ${AMOUNT_HINT} ${CONVERT_HINT}` : ''}`,
+      explanation: `${hard ? `${given.text} is [I] = ${fmtSig(I)} ${u.conc}. ` : ''}${steps.join(' ')}`,
       scene,
     };
   },
 
-  apparent(rand) {
+  apparent(rand, hard) {
     const r = randomParameters(rand);
     const u = quizUnits(r);
     const scene = inhibitionScene(r);
@@ -1328,17 +1458,23 @@ const QUESTION_BUILDERS = {
     const plain = constants(r.kcat * r.Etot, r.Km, 1, 1);
     const k = constants(plain.Vmax, r.Km, alpha, alphaP);
     const options = Object.values(TREND);
+    const toConc = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const toTime = hard ? otherTimeUnit(u.time, rand) : u.time;
+    const kmUnit = hard ? otherConcUnit(u.conc, rand) : u.conc;
+    const rateUnit = `${toConc}/${toTime}`;
+    const VTruth = convertRate(k.appVmax, u.conc, u.time, toConc, toTime);
+    const KTruth = convertConc(k.appKm, u.conc, kmUnit);
     return {
       type: 'apparent', title: 'Apparent values',
-      prompt: `Use the equation for the inhibited line to find the apparent values, and compare each with the uninhibited enzyme. ${allowance(CALCULATED_TOLERANCE)}`,
+      prompt: `Use the equation for the inhibited line to find the apparent values, and compare each with the uninhibited enzyme.${hard ? ' Give your answers in the units shown.' : ''}`,
       items: [
-        numberItem('VmaxApp', NAME.VmaxApp, u.rate, k.appVmax, CALCULATED_TOLERANCE),
-        numberItem('KmApp', NAME.KmApp, u.conc, k.appKm, CALCULATED_TOLERANCE),
+        numberItem('VmaxApp', NAME.VmaxApp, rateUnit, VTruth, CALCULATED_TOLERANCE),
+        numberItem('KmApp', NAME.KmApp, kmUnit, KTruth, CALCULATED_TOLERANCE),
         choiceItem('VmaxTrend', `${NAME.Vmax} with inhibitor`, options, trend(plain.Vmax, k.appVmax), true),
         choiceItem('KmTrend', `${NAME.Km} with inhibitor`, options, trend(plain.Km, k.appKm), true),
       ],
-      hint: `${NAME.VmaxApp} = 1/b and ${NAME.KmApp} = m/b for the inhibited line. Do the same for the uninhibited line to compare.`,
-      explanation: `${NAME.VmaxApp} = 1/${fmtSig(k.yInt)} = ${fmtSig(k.appVmax)} ${u.rate}, compared with ${fmtSig(plain.Vmax)}. ${NAME.KmApp} = ${fmtSig(k.slope)}/${fmtSig(k.yInt)} = ${fmtSig(k.appKm)} ${u.conc}, compared with ${fmtSig(plain.Km)}.`,
+      hint: `${NAME.VmaxApp} = 1/b and ${NAME.KmApp} = m/b for the inhibited line. Do the same for the uninhibited line to compare.${hard ? ` ${CONVERT_HINT}` : ''}`,
+      explanation: `${NAME.VmaxApp} = 1/${fmtSig(k.yInt)} = ${fmtSig(k.appVmax)} ${u.rate}${hard ? ` = ${fmtSig(VTruth)} ${rateUnit}` : ''}, compared with ${fmtSig(plain.Vmax)} ${u.rate}. ${NAME.KmApp} = ${fmtSig(k.slope)}/${fmtSig(k.yInt)} = ${fmtSig(k.appKm)} ${u.conc}${hard ? ` = ${fmtSig(KTruth)} ${kmUnit}` : ''}, compared with ${fmtSig(plain.Km)} ${u.conc}.`,
       scene,
     };
   },
@@ -1368,14 +1504,15 @@ const QUESTION_BUILDERS = {
 };
 
 // One question of each type plus one extra, in random order.
-function buildQuizSet(mode, rand = Math.random) {
+function buildQuizSet(mode, rand = Math.random, hard = false) {
   const types = QUIZ_TYPES[mode];
   const extras = types.filter(type => !CONCEPT_TYPES.includes(type));
   const chosen = shuffled([...types, extras[Math.floor(rand() * extras.length)]], rand);
-  return chosen.map(type => QUESTION_BUILDERS[type](rand));
+  return chosen.map(type => QUESTION_BUILDERS[type](rand, hard));
 }
 
-// values holds each item's typed text or chosen option. results[key] is true, false or null if blank.
+// values holds each item's typed text or chosen option. results[key] is true, false or null if blank,
+// and a blank part simply isn't correct yet.
 function gradeQuestion(question, values) {
   const results = {};
   for (const item of question.items) {
@@ -1384,11 +1521,10 @@ function gradeQuestion(question, values) {
     else if (item.kind === 'number') results[item.key] = isCorrect(parseAnswer(value), item.truth, item.tolerance);
     else results[item.key] = value === item.answer;
   }
-  const marks = Object.values(results);
-  return { results, complete: !marks.includes(null), correct: marks.every(mark => mark === true) };
+  return { results, correct: Object.values(results).every(mark => mark === true) };
 }
 
-// 1 point on the first try, ½ on the second, none after that.
+// 1 point on the first try and ½ on any later one. Showing the answer earns nothing.
 function quizCredit(attempt, correct) {
   if (!correct) return 0;
   return attempt === 1 ? 1 : 0.5;
@@ -2221,6 +2357,7 @@ function syncFieldStates() {
   $('product-card').hidden = !rates;
   $('lb-card').hidden = rates;
   $('rates-settings').hidden = !rates;
+  $('workspace').classList.toggle('rates-layout', rates);
   document.querySelector('[data-panel="enzyme"]').hidden = rates;
   placeSharedFields(rates);
   $('entry-note-rates').hidden = !rates;
@@ -2430,6 +2567,7 @@ function showQuizQuestion() {
   $('quiz-question').innerHTML = `<p class="readout">${question.prompt}</p>` + question.items.map(quizItemHtml).join('');
   $('quiz-feedback').innerHTML = '';
   $('quiz-check').hidden = false;
+  $('quiz-show').hidden = true;
   $('quiz-next').hidden = true;
   $('quiz-buttons').hidden = false;
   $('quiz-end-buttons').hidden = true;
@@ -2456,33 +2594,38 @@ function finishQuizQuestion(question, correct) {
   quiz.finished = true;
   quiz.keepRuns = true;
   const verdict = correct
-    ? (quiz.attempt === 1 ? '<b>✓ Correct.</b>' : '<b>✓ Correct on the second try</b> (½ point).')
-    : `<b>✗ Not quite.</b> Correct answer: ${correctAnswerText(question)}.`;
+    ? (quiz.attempt === 1 ? '<b>✓ Correct.</b>' : '<b>✓ Correct on a later try</b> (½ point).')
+    : `<b>Answer:</b> ${correctAnswerText(question)}.`;
   $('quiz-feedback').innerHTML = `${verdict} ${question.explanation}`;
   $('quiz-question').querySelectorAll('input').forEach(input => { input.disabled = true; });
   $('quiz-run').hidden = true;
   $('quiz-check').hidden = true;
+  $('quiz-show').hidden = true;
   $('quiz-next').hidden = false;
   $('quiz-next').textContent = quiz.index + 1 < quiz.set.length ? 'Next' : 'See Score';
   drawQuizScene(question);
   $('quiz-next').focus();
 }
 
+// Any part can be left blank. Until everything is right, Check gives a hint and offers the answer.
 function checkQuizAnswer() {
   if (quiz.finished) return;
   const question = quiz.set[quiz.index];
-  const { results, complete, correct } = gradeQuestion(question, readQuizValues(question));
-  if (!complete) {
-    $('quiz-feedback').textContent = 'Answer every part first.';   // doesn't use a try
-    return;
-  }
+  const { results, correct } = gradeQuestion(question, readQuizValues(question));
   markQuizItems(results);
-  if (correct || quiz.attempt === 2) {
-    finishQuizQuestion(question, correct);
+  if (correct) {
+    finishQuizQuestion(question, true);
     return;
   }
-  quiz.attempt = 2;
-  $('quiz-feedback').innerHTML = `<b>✗ Try once more.</b> ${question.hint}`;
+  quiz.attempt += 1;
+  $('quiz-show').hidden = false;
+  $('quiz-feedback').innerHTML = `<b>Hint:</b> ${question.hint}`;
+}
+
+function showQuizAnswer() {
+  if (quiz.finished) return;
+  const question = quiz.set[quiz.index];
+  finishQuizQuestion(question, false);
 }
 
 function showQuizScore() {
@@ -2501,11 +2644,24 @@ function showQuizScore() {
 }
 
 function startQuizSet() {
-  quiz.set = buildQuizSet(state.mode);
+  quiz.set = buildQuizSet(state.mode, Math.random, quiz.hard);
   quiz.index = 0;
   quiz.credits = [];
   showQuizQuestion();
 }
+
+function syncDifficultyButtons() {
+  document.querySelectorAll('[data-difficulty]').forEach(b => setPressed(b, (b.dataset.difficulty === 'hard') === quiz.hard));
+}
+
+// Changing difficulty starts a new set, since the current questions were written for the old one.
+document.querySelectorAll('[data-difficulty]').forEach(button => button.addEventListener('click', () => {
+  const hard = button.dataset.difficulty === 'hard';
+  if (hard === quiz.hard) return;
+  quiz.hard = hard;
+  syncDifficultyButtons();
+  startQuizSet();
+}));
 
 function startQuiz() {
   quiz.saved = { rates: state.rates, params: state.params, revealed: entry.revealed };
@@ -2516,6 +2672,9 @@ function startQuiz() {
   $('quiz-box').hidden = false;
   document.querySelector('[data-panel="enzyme"]').hidden = true;
   QUIZ_HIDDEN.forEach(id => { $(id).hidden = true; });
+  $('workspace').classList.remove('rates-layout');
+  $('difficulty-buttons').hidden = false;
+  syncDifficultyButtons();
   $('random').disabled = true;
   $('reset').disabled = true;
   renderModel();
@@ -2532,6 +2691,7 @@ function exitQuiz() {
   entry.revealed = quiz.saved.revealed;
   state.signature = '';
   $('quiz-box').hidden = true;
+  $('difficulty-buttons').hidden = true;
   $('plot-column').hidden = false;
   $('workspace').classList.remove('quiz-wide');
   ['mm', 'errors', 'guides'].forEach(id => {
@@ -2549,6 +2709,7 @@ $('quiz-toggle').addEventListener('click', () => {
   else startQuiz();
 });
 $('quiz-check').addEventListener('click', checkQuizAnswer);
+$('quiz-show').addEventListener('click', showQuizAnswer);
 $('quiz-next').addEventListener('click', () => {
   quiz.index += 1;
   if (quiz.index < quiz.set.length) showQuizQuestion();
