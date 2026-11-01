@@ -221,20 +221,10 @@ test('sliders run pH, pCO₂, then 2,3-BPG side by side, below the O₂ delivery
   assert.ok(at('id="pH-range"') < at('id="pco2-range"') && at('id="pco2-range"') < at('id="bpg-range"'));
 });
 
-test('Reset to Normal sits beside the Conditions title', () => {
-  assert.match(HTML, /id="controls-title">Conditions<\/h2>\s*<button type="button" id="reset">Reset to Normal<\/button>/);
-  assert.doesNotMatch(HTML, /physiological conditions/i);
-});
-
 test('O₂ delivery has only Rest and Exercise, with no marker toggle', () => {
   assert.doesNotMatch(HTML, /Lung\/tissue|data-toggle="markers"|show\.markers|Tissue pO₂/);
   assert.match(HTML, /id="activity-label">O₂ delivery:</);
   assert.equal(HTML.match(/data-activity="/g).length, 2);
-});
-
-test('the carbon monoxide button is grayed out', () => {
-  assert.match(HTML, /data-toggle="co" disabled>Carbon monoxide/);
-  assert.match(HTML, /button:disabled \{ background: #E4E4E4; border-color: #BFBFBF; color: #404040;/);
 });
 
 test('P₅₀, the pink band and the old results text are gone', () => {
@@ -283,11 +273,6 @@ test('the label reads Adjusted Hb, never Adjustable', () => {
   assert.ok(HTML.includes("'Adjusted Hb'"));
 });
 
-test('the note says observe, not see', () => {
-  assert.ok(HTML.includes('so you can observe each effect on its own.'));
-  assert.doesNotMatch(HTML, /see each effect/);
-});
-
 // ── Layout ─────────────────────────────────────────────────────
 test('Results sits right of Conditions, and the schematic left of the curve', () => {
   const at = marker => HTML.indexOf(marker);
@@ -305,7 +290,6 @@ test('the pO₂ slider sits at the bottom of the schematic and runs 0 to 120 tor
   const box = HTML.slice(HTML.indexOf('id="schematic-panel"'), HTML.indexOf('id="plot-panel"'));
   assert.ok(box.indexOf('</svg>') < box.indexOf('id="po2-range"'));
   assert.match(box, /id="po2-range" min="0" max="120"/);
-  assert.match(HTML, /#schematic \{[^}]*margin-block: auto;/, 'the drawing centers in the space above it');
 });
 
 test('the schematic has its name for screen readers and moves gently', () => {
@@ -482,12 +466,16 @@ test('the concerted model fills one molecule before the next', () => {
   for (let bound = 0; bound <= 48; bound++) assert.equal(partial(bound), bound % 4 ? 1 : 0, `${bound} bound`);
 });
 
-test('the two model buttons sit above the schematic, with a T and R key below', () => {
+test('the two model buttons sit under hemoglobin, with a plain T and R key', () => {
   const box = HTML.slice(HTML.indexOf('id="schematic-panel"'), HTML.indexOf('id="plot-panel"'));
   assert.ok(box.indexOf('data-model="concerted">Concerted Model') > 0);
   assert.ok(box.indexOf('data-model="concerted"') < box.indexOf('data-model="sequential">Sequential Model'));
-  assert.ok(box.indexOf('data-model="sequential"') < box.indexOf('id="schematic"'));
-  assert.ok(box.includes('T state (low affinity)') && box.includes('R state (high affinity)'));
+  const lastCaption = box.indexOf('id="hb-percent"');
+  assert.ok(lastCaption > 0 && lastCaption < box.indexOf('</svg>'), 'the saturation caption is in the drawing');
+  assert.ok(box.indexOf('</svg>') < box.indexOf('data-model="concerted"'), 'below the drawing and its caption');
+  assert.match(HTML, /#model-buttons \{[^}]*width: 50%; margin: 4px 0 0 50%;/, 'on the hemoglobin half');
+  assert.ok(box.includes('>T state<') && box.includes('>R state<'));
+  assert.doesNotMatch(box, /low affinity|high affinity/);
   assert.ok(HTML.includes("hbModel: 'concerted',"), 'starts on concerted');
 });
 
@@ -822,4 +810,52 @@ test('a blank Check Answer reveals the answer and leaves the score alone', () =>
 
 test('a revealed answer has its own neutral style, not right or wrong', () => {
   assert.match(HTML, /#quiz-feedback\.revealed \{ background: #FFFFFF;/);
+});
+
+// ── Layout of the controls ─────────────────────────────────────
+test('Reset to Normal sits right of Quiz Mode, and leaves during a quiz', () => {
+  const bar = HTML.slice(HTML.indexOf('<div id="quiz-bar">'), HTML.indexOf('id="controls-row"'));
+  assert.ok(bar.indexOf('id="quiz-toggle"') >= 0 && bar.indexOf('id="quiz-toggle"') < bar.indexOf('id="reset">Reset to Normal'));
+  assert.equal(HTML.split('id="reset"').length, 2, 'only once');
+  assert.ok(HTML.includes("$('reset').hidden = on;"));
+});
+
+test('the Conditions box says Curves, with no Show heading, reference or carbon monoxide', () => {
+  const box = HTML.slice(HTML.indexOf('id="controls-title"'), HTML.indexOf('id="results-title"'));
+  assert.doesNotMatch(box, />Show</);
+  const at = text => box.indexOf(text);
+  assert.ok(at('>Curves:<') > 0 && at('>Curves:<') < at('data-toggle="myoglobin">Myoglobin<') && at('data-toggle="myoglobin"') < at('data-toggle="fetal">Fetal Hb<'));
+  assert.doesNotMatch(HTML, /Myoglobin reference/);
+});
+
+test('carbon monoxide is gone from the page, with its model kept', () => {
+  const page = HTML.slice(0, HTML.indexOf('// ═══ 2.'));
+  assert.doesNotMatch(page, /Carbon monoxide|COHb|co-control|coh-/i);
+  const after = HTML.slice(HTML.indexOf('// ═══ 3.'));
+  assert.doesNotMatch(after, /withCarbonMonoxide|show\.co|state\.coh|co-results|'coh'/);
+  assert.ok(HTML.includes('function withCarbonMonoxide'));
+});
+
+test('the Conditions note reads as asked', () => {
+  assert.ok(HTML.includes('In the body, CO₂ lowers pH. The sliders are kept separate to observe each effect individually.'));
+  assert.doesNotMatch(HTML, /observe each effect on its own|see each effect/);
+});
+
+test('pO₂ has its box beside the header and a slider only that wide, with the key to the right', () => {
+  const box = HTML.slice(HTML.indexOf('<div id="po2-row">'), HTML.indexOf('id="plot-panel"'));
+  const head = box.slice(box.indexOf('<div id="po2-head">'), box.indexOf('id="po2-range"'));
+  assert.ok(head.indexOf('for="po2-number"') > 0 && head.indexOf('for="po2-number"') < head.indexOf('id="po2-number"'));
+  assert.match(HTML, /#po2-head \{ display: flex;/);
+  assert.match(HTML, /#po2-control \{ flex: none; \}/, 'as wide as the header and box');
+  assert.match(HTML, /#po2-control input\[type=range\] \{ display: block; width: 100%; \}/);
+  assert.ok(box.indexOf('id="po2-control"') < box.indexOf('id="schematic-key"'), 'the key follows, to the right');
+  assert.match(HTML, /#schematic-panel \{[^}]*align-self: start;/, 'the box takes only the height it needs');
+});
+
+test('the curve legend has line keys on the first row and markings on the second', () => {
+  const fn = HTML.slice(HTML.indexOf('function renderLegend'), HTML.indexOf('const fmtPercent'));
+  assert.ok(fn.includes("const LINE_ORDER = ['adjustable', 'normal', 'fetal', 'myoglobin'];"));
+  const rows = fn.slice(fn.lastIndexOf("$('legend').innerHTML"));
+  assert.equal(rows.split('legend-row').length - 1, 2, 'two rows');
+  assert.ok(rows.indexOf('entries.map') < rows.indexOf('${dots}${selected}${arrow}'), 'lines first');
 });
