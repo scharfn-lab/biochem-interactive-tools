@@ -13,6 +13,7 @@ const page = vm.createContext({});
 vm.runInContext(SCRIPT, page);
 const TOOLS = [...vm.runInContext('TOOLS', page)];
 const TOPICS = [...vm.runInContext('TOPICS', page)];
+const TOPIC_GROUPS = [...vm.runInContext('TOPIC_GROUPS', page)];
 const LOGO_FILE = vm.runInContext('LOGO_FILE', page);
 const LAST_UPDATED = vm.runInContext('LAST_UPDATED', page);
 
@@ -43,6 +44,29 @@ test('the topics are in the requested order', () => {
     'Acid-Base Chemistry', 'Amino Acids', 'Peptide Properties', 'Peptide Folding',
     'Protein Structure', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics',
   ]);
+});
+
+test('the button rows have the requested headings and topics', () => {
+  assert.deepEqual(TOPIC_GROUPS.map(g => [g.heading, [...g.topics]]), [
+    ['Amino Acids + Peptides', ['Acid-Base Chemistry', 'Amino Acids', 'Peptide Properties', 'Peptide Folding']],
+    ['Proteins + Enzymes', ['Protein Structure', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics']],
+  ]);
+});
+
+test('each tool has the requested description, one sentence or less', () => {
+  const wanted = {
+    'Acid-Base Chemistry': 'Evaluate buffer composition and effect of adding acid or base to buffer solution',
+    'Amino Acids': 'Practice naming the 20 amino acids and their properties',
+    'Peptide Properties': 'Evaluate pH, charge, and pI of peptide structures',
+    'Peptide Folding': 'Adjust dihedral angles to visualize folding patterns',
+    'Hemoglobin + Myoglobin': 'Evaluate effect of pH, CO₂, and 2,3-BPG on O₂ binding curves',
+    'Enzyme Kinetics': 'Evaluate effect of Km, kcat, [E] and inhibitors on kinetics plots',
+  };
+  assert.equal(TOOLS.length, Object.keys(wanted).length);
+  for (const tool of TOOLS) {
+    assert.equal(tool.description, wanted[tool.topic]);
+    assert.ok(!/[.!?]\s/.test(tool.description), tool.description);
+  }
 });
 
 test('every topic has an icon', () => {

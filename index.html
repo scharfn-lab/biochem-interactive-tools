@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Biochemistry</title>
+  <title>Biochemistry Concept Tools</title>
   <!-- An empty icon, so browsers don't request a favicon.ico that doesn't exist. -->
   <link rel="icon" href="data:,">
   <style>
@@ -20,11 +20,6 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-    }
 
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -78,16 +73,16 @@
       color: var(--ut-crimson);
     }
 
-    /* ── Jump links ── */
-    #jump-links {
-      list-style: none;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
+    /* ── Tool buttons, in labeled rows ── */
+    #tool-links {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 10px 14px;
+      align-items: center;
       margin-bottom: 18px;
     }
-    #jump-links a {
+    .pill-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
       display: block;
       padding: 7px 14px;
       border-radius: 999px;
@@ -98,7 +93,17 @@
       text-decoration: none;
       transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
-    #jump-links a:hover { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    a.pill:hover { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    .pill.unavailable { background: var(--bg-muted); border-color: #BFBFBF; color: var(--text-muted); }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
 
     /* ── How-to note ── */
     #how-to { margin-bottom: 26px; }
@@ -106,22 +111,12 @@
     #how-to ul { padding-left: 18px; font-size: 0.92em; }
     #how-to li { margin-top: 3px; }
 
-    /* ── Topic sections ── */
+    /* ── Tool cards, one per tool ── */
     #topics {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
-      column-gap: 24px;
-    }
-    .topic { margin-bottom: 28px; scroll-margin-top: 16px; min-width: 0; }
-    .topic:focus { outline: none; }
-    .topic-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .topic-header svg { width: 40px; height: 40px; flex-shrink: 0; }
-    .topic-header .section-title { font-size: 0.95em; }
-
-    .tool-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
-      gap: 14px;
+      gap: 14px 24px;
+      margin-bottom: 24px;
     }
 
     /* ── Tool cards ── */
@@ -142,18 +137,16 @@
     a.tool-card:focus-visible { border-color: var(--ut-crimson); }
     .card-top { display: flex; align-items: center; gap: 8px; }
     .card-top svg { width: 28px; height: 28px; flex-shrink: 0; }
-    .card-title { font-weight: 600; font-size: 1.02em; line-height: 1.25; }
-    .card-description { font-size: 0.88em; flex: 1; }
+    .card-title { font-weight: 600; font-size: 1.02em; line-height: 1.25; flex: 1; min-width: 0; }
+    .card-description { font-size: 0.88em; }
 
+    .open-tool, .soon-label { flex-shrink: 0; white-space: nowrap; font-size: 0.85em; }
     .open-tool {
-      align-self: flex-start;
-      margin-top: 4px;
       padding: 5px 12px;
       border-radius: 6px;
       border: 1px solid var(--ut-taupe);
       background: #FFFFFF;
       color: var(--ut-taupe);
-      font-size: 0.85em;
       transition: color 0.2s, border-color 0.2s;
     }
     a.tool-card:hover .open-tool, a.tool-card:focus-visible .open-tool { border-color: var(--ut-crimson); color: #000000; }
@@ -174,6 +167,10 @@
       font-size: 0.8em;
     }
 
+    @media (max-width: 640px) {
+      #tool-links { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+      .pill-list { margin-bottom: 8px; }
+    }
     @media (max-width: 480px) {
       h1 { font-size: 1.8em; }
       #site-header { padding: 22px 16px; }
@@ -185,7 +182,7 @@
 <header id="site-header">
   <div id="header-inner">
     <div>
-      <h1>Biochemistry</h1>
+      <h1>Biochemistry Concept Tools</h1>
       <p id="subtitle">Dr. Nathan Scharf</p>
     </div>
     <!-- The logo goes here when LOGO_FILE is set below. -->
@@ -193,15 +190,12 @@
 </header>
 
 <main>
-  <nav aria-label="Topics"><ul id="jump-links"></ul></nav>
+  <nav id="tool-links" aria-label="Tools"></nav>
 
   <section class="panel" id="how-to" aria-labelledby="how-to-title">
     <h2 class="section-title" id="how-to-title">How to use these tools</h2>
     <ul>
-      <li>Each tool opens in a new tab, so this page stays open.</li>
-      <li>Tools work best on a laptop or desktop, in Chrome, Edge, Firefox or Safari. They also work on tablets and phones, with smaller plots.</li>
-      <li>No login or install needed.</li>
-      <li>Hover over plots to read values, and drag the 3D models to rotate them.</li>
+      <li>Each tool opens in a new tab, so this page stays open (tools work best on laptop or desktop).</li>
     </ul>
   </section>
 
@@ -216,39 +210,36 @@
 
 // ═══ EDIT HERE ════════════════════════════════════════════════
 
-const LAST_UPDATED = 'October 2026';   // Shown in the footer.
+const LAST_UPDATED = 'November 2026';   // Shown in the footer.
 
 // To show a logo, add the file to this folder and set this to its name, such as 'ut_logo.png'.
 // It stays null while there is no file, so that visitors' browsers never ask for a missing one.
 const LOGO_FILE = null;
 
-// The topics, in page order. A topic with no tools below shows a "Coming soon" card.
-const TOPICS = [
-  'Acid-Base Chemistry',
-  'Amino Acids',
-  'Peptide Properties',
-  'Peptide Folding',
-  'Protein Structure',
-  'Hemoglobin + Myoglobin',
-  'Enzymes',
-  'Enzyme Kinetics',
+// The topics, in page order, under the headings of the button rows. A topic with no tools below
+// shows a greyed-out button and a "Coming soon" card.
+const TOPIC_GROUPS = [
+  { heading: 'Amino Acids + Peptides', topics: ['Acid-Base Chemistry', 'Amino Acids', 'Peptide Properties', 'Peptide Folding'] },
+  { heading: 'Proteins + Enzymes', topics: ['Protein Structure', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics'] },
 ];
+const TOPICS = TOPIC_GROUPS.flatMap(group => group.topics);
 
-// THE TOOLS. To add one, copy a line and change it. "topic" must match a name in TOPICS exactly,
-// and "file" must match the file's name in this folder exactly, including capitals.
+// THE TOOLS. To add one, copy a line and change it. "topic" must match a name in TOPIC_GROUPS exactly,
+// and "file" must match the file's name in this folder exactly, including capitals. A card shows
+// its topic as its title, and adds the tool's "title" only when a topic has more than one tool.
 const TOOLS = [
   { topic: 'Acid-Base Chemistry', title: 'Buffers & Titration', file: 'buffers.html',
-    description: 'Set pH, add acid or base, and dilute a buffer while watching HA and A⁻ change in the container and on the titration curve.' },
+    description: 'Evaluate buffer composition and effect of adding acid or base to buffer solution' },
   { topic: 'Amino Acids', title: 'Amino Acid Explorer', file: 'amino_acids.html',
-    description: 'Practice naming the 20 amino acids and their side-chain types, see their forms at different pH values, and explore how pairs of side chains interact.' },
+    description: 'Practice naming the 20 amino acids and their properties' },
   { topic: 'Peptide Properties', title: 'Peptide Charge & pI', file: 'peptide_charge.html',
-    description: 'Enter a short peptide to see its structure at any pH, its net charge curve, and its isoelectric point.' },
+    description: 'Evaluate pH, charge, and pI of peptide structures' },
   { topic: 'Peptide Folding', title: 'Ramachandran Plot', file: 'ramachandran.html',
-    description: 'Adjust ϕ and ψ to see allowed conformations and build helices and β turns in 3D.' },
+    description: 'Adjust dihedral angles to visualize folding patterns' },
   { topic: 'Hemoglobin + Myoglobin', title: 'Oxygen Binding', file: 'oxygen_binding.html',
-    description: "Change pH, 2,3-BPG and CO₂ to see how hemoglobin's O₂ binding curve shifts compared with myoglobin." },
+    description: 'Evaluate effect of pH, CO₂, and 2,3-BPG on O₂ binding curves' },
   { topic: 'Enzyme Kinetics', title: 'Michaelis–Menten & Lineweaver–Burk', file: 'enzyme_kinetics.html',
-    description: 'Change Km, kcat, [E] and inhibitors to see their effects on M-M and L-B plots.' },
+    description: 'Evaluate effect of Km, kcat, [E] and inhibitors on kinetics plots' },
 ];
 
 
@@ -311,44 +302,61 @@ function escapeHtml(text) {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
-// "Hemoglobin + Myoglobin" becomes "hemoglobin-myoglobin".
-function topicId(topic) {
-  return topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
 function toolsFor(topic) {
   return TOOLS.filter(tool => tool.topic === topic);
 }
 
+const NEW_TAB = '<span class="visually-hidden"> (opens in a new tab)</span>';
+
+function toolLink(tool, className, content) {
+  return `<a class="${className}" href="${escapeHtml(tool.file)}" target="_blank" rel="noopener">${content}</a>`;
+}
+
+// A button at the top opens the topic's first tool.
+function topicButton(topic) {
+  const name = escapeHtml(topic);
+  const [tool] = toolsFor(topic);
+  const button = tool
+    ? toolLink(tool, 'pill', `${name}${NEW_TAB}`)
+    : `<span class="pill unavailable">${name}<span class="visually-hidden"> (coming soon)</span></span>`;
+  return `<li>${button}</li>`;
+}
+
+function buttonRow(group, i) {
+  const id = `tool-group-${i}`;
+  return `<h2 class="section-title" id="${id}">${escapeHtml(group.heading)}:</h2>
+    <ul class="pill-list" aria-labelledby="${id}">${group.topics.map(topicButton).join('')}</ul>`;
+}
+
 function toolCard(tool) {
-  const title = escapeHtml(tool.title);
-  return `<a class="tool-card" href="${escapeHtml(tool.file)}" target="_blank" rel="noopener" aria-label="${title} (opens in a new tab)">
-    <span class="card-top">${iconSvg(tool.topic)}<span class="card-title">${title}</span></span>
-    <span class="card-description">${escapeHtml(tool.description)}</span>
-    <span class="open-tool" aria-hidden="true">Open tool →</span>
-  </a>`;
+  const name = toolsFor(tool.topic).length > 1 ? `${tool.topic}: ${tool.title}` : tool.topic;
+  return toolLink(tool, 'tool-card', `
+    <span class="card-top">
+      ${iconSvg(tool.topic)}
+      <span class="card-title">${escapeHtml(name)}${NEW_TAB}</span>
+      <span class="open-tool" aria-hidden="true">Open tool →</span>
+    </span>
+    <span class="card-description">${escapeHtml(tool.description)}</span>`);
 }
 
 function comingSoonCard(topic) {
   return `<div class="tool-card coming-soon">
-    <div class="card-top">${iconSvg(topic)}<span class="card-title">Coming soon</span></div>
+    <div class="card-top">
+      ${iconSvg(topic)}
+      <span class="card-title">${escapeHtml(topic)}</span>
+      <span class="soon-label">Coming soon</span>
+    </div>
   </div>`;
 }
 
-function topicSection(topic) {
-  const id = topicId(topic);
+function topicCards(topic) {
   const tools = toolsFor(topic);
-  const cards = tools.length ? tools.map(toolCard).join('') : comingSoonCard(topic);
-  return `<section class="topic" id="${id}" aria-labelledby="${id}-title" tabindex="-1">
-    <div class="topic-header">${iconSvg(topic)}<h2 class="section-title" id="${id}-title">${escapeHtml(topic)}</h2></div>
-    <div class="tool-grid">${cards}</div>
-  </section>`;
+  return tools.length ? tools.map(toolCard).join('') : comingSoonCard(topic);
 }
 
 function renderPage() {
-  document.getElementById('jump-links').innerHTML = TOPICS
-    .map(topic => `<li><a href="#${topicId(topic)}">${escapeHtml(topic)}</a></li>`).join('');
-  document.getElementById('topics').innerHTML = TOPICS.map(topicSection).join('');
+  document.getElementById('tool-links').innerHTML = TOPIC_GROUPS.map(buttonRow).join('');
+  document.getElementById('topics').innerHTML = TOPICS.map(topicCards).join('');
   document.getElementById('site-footer').textContent = `Last updated: ${LAST_UPDATED}`;
 
   if (LOGO_FILE) {
@@ -361,7 +369,7 @@ function renderPage() {
 
   // A mistyped topic would otherwise hide its tool without any sign of why.
   TOOLS.filter(tool => !TOPICS.includes(tool.topic))
-    .forEach(tool => console.error(`"${tool.title}" has a topic that isn't in TOPICS: "${tool.topic}"`));
+    .forEach(tool => console.error(`"${tool.title}" has a topic that isn't in TOPIC_GROUPS: "${tool.topic}"`));
 }
 
 renderPage();
