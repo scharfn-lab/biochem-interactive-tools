@@ -244,7 +244,7 @@
 
     <section class="panel" id="quiz-panel" aria-labelledby="quiz-title" hidden>
       <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
-      <p id="quiz-intro">The structure is drawn uncharged. Identify the peptide from its N-terminus on the left, then work out its charge and pI.</p>
+      <p id="quiz-intro">The structure is shown uncharged, determine its sequence, charge, and pI</p>
       <div id="quiz-fields">
         <div class="quiz-field">
           <label for="quiz-seq" id="quiz-seq-label"></label>
@@ -550,8 +550,21 @@ function labelSVG(point, text, anchor = 'middle', shift = 0) {
   return `<text class="atom" text-anchor="${anchor}" x="${(point[0] + shift).toFixed(1)}" y="${point[1].toFixed(1)}">${text}</text>`;
 }
 
-// Draws one peptide. Returns { svg, width, height } for buildStructure's caller.
-function buildStructure(seq) {
+// How a label reads once the drawing is rotated, so it still starts at the atom its bond reaches
+const ROTATED_LABELS = {
+  OH: 'HO', SH: 'HS', NH: 'HN', HN: 'NH', 'NH₂': 'H₂N', 'H₂N': 'NH₂',
+  'NH₃⁺': '⁺H₃N', 'H₃N⁺': 'NH₃⁺', 'NH₂⁺': '⁺H₂N', 'H₂N⁺': 'NH₂⁺', 'NH⁺': '⁺HN'
+};
+
+// Draws one peptide. Rotated turns it 180°, with the C-terminus on the left. Returns { svg, width, height }.
+function buildStructure(seq, rotated = false) {
+  const turn = p => (rotated ? [-p[0], -p[1]] : p);
+  const line = (a, b, trimA, trimB, order, toward) =>
+    lineSVG(turn(a), turn(b), trimA, trimB, order, toward ? turn(toward) : toward);
+  // Labels stay upright, and read from the atom outward on their new side
+  const label = (point, text, anchor = 'middle', shift = 0) => (rotated
+    ? labelSVG(turn(point), ROTATED_LABELS[text] || text, { start: 'end', end: 'start', middle: 'middle' }[anchor], -shift)
+    : labelSVG(point, text, anchor, shift));
   const residues = seq.split('');
   const groups = ionizableGroups(seq);
   const statics = [];   // bonds and labels that never change
@@ -573,9 +586,10 @@ function buildStructure(seq) {
     track(box.x - box.w / 2, box.y - box.h / 2 - 12);
     track(box.x + box.w / 2, box.y + box.h / 2 + 12);
     // The ≈50/50 label goes just past the group, on the side facing away from the backbone
-    const labelY = box.y < 0 ? box.y - box.h / 2 - 5 : box.y + box.h / 2 + 11;
+    const [labelX, boxY] = turn([box.x, box.y]);
+    const labelY = boxY < 0 ? boxY - box.h / 2 - 5 : boxY + box.h / 2 + 11;
     ions.push(`<g class="ion-group" data-group="${group.id}">${stateSVG('prot')}${stateSVG('deprot')}` +
-      `<text class="half-label" x="${box.x.toFixed(1)}" y="${labelY.toFixed(1)}">≈50/50</text></g>`);
+      `<text class="half-label" x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}">≈50/50</text></g>`);
   };
 
   residues.forEach((code, i) => {
@@ -587,45 +601,45 @@ function buildStructure(seq) {
     const isPro = code === 'P';
 
     // Backbone
-    statics.push(lineSVG(N, CA, i === 0 ? N_TERMINUS_TRIM : LABEL_TRIM, 0));
-    statics.push(lineSVG(CA, C, 0, 0));
+    statics.push(line(N, CA, i === 0 && !rotated ? N_TERMINUS_TRIM : LABEL_TRIM, 0));
+    statics.push(line(CA, C, 0, 0));
     track(N[0], N[1], 16); track(CA[0], CA[1], 16); track(C[0], C[1], 16);
 
     if (i > 0) {
-      if (isPro) statics.push(labelSVG(N, 'N'));
+      if (isPro) statics.push(label(N, 'N'));
       else {
         const hDir = N[1] === 0 ? 1 : -1;
         const H = [N[0], N[1] + hDir * NH_LENGTH];
-        statics.push(lineSVG(N, H, LABEL_TRIM, 7));
-        statics.push(labelSVG(N, 'N'));
-        statics.push(labelSVG(H, 'H'));
+        statics.push(line(N, H, LABEL_TRIM, 7));
+        statics.push(label(N, 'N'));
+        statics.push(label(H, 'H'));
         track(H[0], H[1], 12);
       }
     } else {
       const g = groups.find(x => x.id === 'nterm');
       const box = { x: N[0] - 11, y: N[1], w: 60, h: 24 };
       const text = form => (isPro ? (form === 'prot' ? 'H₂N⁺' : 'HN') : (form === 'prot' ? 'H₃N⁺' : 'H₂N'));
-      ionGroupSVG(g, box, form => labelSVG(N, text(form), 'end', form === 'prot' ? 13 : 6));
+      ionGroupSVG(g, box, form => label(N, text(form), 'end', form === 'prot' && !rotated ? 13 : 6));
     }
 
     // Carbonyl, or the C-terminal carboxyl
     const O = [C[0], C[1] + carbonylDir * CO_LENGTH];
     track(O[0], O[1], 12);
     if (!last) {
-      statics.push(lineSVG(C, O, 0, 8, 2));
-      statics.push(labelSVG(O, 'O'));
+      statics.push(line(C, O, 0, 8, 2));
+      statics.push(label(O, 'O'));
       const nextN = backbone(3 * (i + 1));
-      statics.push(lineSVG(C, nextN, 0, LABEL_TRIM));
+      statics.push(line(C, nextN, 0, LABEL_TRIM));
     } else {
       const OT = [C[0] + STEP_X, C[1] - carbonylDir * STEP_Y];
       track(OT[0], OT[1], 16);
-      statics.push(lineSVG(C, O, 0, 8, 2));
-      statics.push(labelSVG(O, 'O'));
-      statics.push(lineSVG(C, OT, 0, LABEL_TRIM));
+      statics.push(line(C, O, 0, 8, 2));
+      statics.push(label(O, 'O'));
+      statics.push(line(C, OT, 0, LABEL_TRIM));
       const g = groups.find(x => x.id === 'cterm');
       // Encloses the carboxyl carbon and its oxygens, stopping short of the α-carbon
       const box = { x: C[0] + 15, y: C[1] + carbonylDir * 8, w: 64, h: 68 };
-      ionGroupSVG(g, box, form => labelSVG(OT, form === 'prot' ? 'OH' : 'O⁻'));
+      ionGroupSVG(g, box, form => label(OT, form === 'prot' ? 'OH' : 'O⁻'));
     }
 
     // Side chain
@@ -633,7 +647,7 @@ function buildStructure(seq) {
     const world = { CA };
     Object.entries(template.atoms).forEach(([name, atom]) => { world[name] = toWorld(atom); track(world[name][0], world[name][1], 12); });
     const atomLabel = name => (template.atoms[name] ? template.atoms[name][2] : undefined);
-    const bondSVG = ([a, b, order, toward]) => lineSVG(
+    const bondSVG = ([a, b, order, toward]) => line(
       world[a], world[b],
       has(atomLabel(a)) ? LABEL_TRIM : 0,
       has(atomLabel(b)) ? LABEL_TRIM : 0,
@@ -641,7 +655,7 @@ function buildStructure(seq) {
     );
     template.bonds.forEach(bond => statics.push(bondSVG(bond)));
     Object.entries(template.atoms).forEach(([name, atom]) => {
-      if (atom[2] && atom[2] !== '~') statics.push(labelSVG(world[name], atom[2], atom[3], atom[4] || 0));
+      if (atom[2] && atom[2] !== '~') statics.push(label(world[name], atom[2], atom[3], atom[4] || 0));
     });
     if (template.ion) {
       const g = groups.find(x => x.id === 'side' + i);
@@ -651,14 +665,15 @@ function buildStructure(seq) {
         const state = template.ion[form];
         const bonds = (state.bonds || []).map(bondSVG).join('');
         const labels = Object.entries(state.labels).map(([name, [text, anchor, shift]]) =>
-          labelSVG(world[name], text, anchor, shift || 0)).join('');
+          label(world[name], text, anchor, shift || 0)).join('');
         return bonds + labels;
       });
     }
   });
 
   const padding = 10;
-  const left = minX - padding, right = maxX + padding, top = minY - padding, bottom = maxY + padding;
+  const left = (rotated ? -maxX : minX) - padding, right = (rotated ? -minX : maxX) + padding;
+  const top = (rotated ? -maxY : minY) - padding, bottom = (rotated ? -minY : maxY) + padding;
   const width = right - left, height = bottom - top;
   const svg = `<svg id="structure" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="${left.toFixed(1)} ${top.toFixed(1)} ${width.toFixed(1)} ${height.toFixed(1)}" ` +
     `style="width:${Math.round(width * 1.04)}px">${statics.join('')}${ions.join('')}</svg>`;
@@ -671,6 +686,7 @@ let pH = 7;
 let activePHPreset = 7;
 let quizOn = false;
 let quizRevealed = false;
+let structureRotated = false;   // true when the C-terminus is drawn on the left
 let quizFormat = 'one';        // the quiz asks for the sequence in 'one'- or 'three'-letter codes
 let phBeforeQuiz = null;       // restored when the quiz ends
 let piWrongGuesses = 0;        // outside the quiz, for the Check pI hint
@@ -682,15 +698,15 @@ const $ = id => document.getElementById(id);
 const answersHidden = () => quizOn && !quizRevealed;
 const currentGroups = () => ionizableGroups(sequence);
 
-// The termini, then every ionizable side chain in alphabetical order. The table never changes,
-// so it doesn't give away which residues are in the peptide.
+// The termini and every ionizable side chain, low pKa to high with ties alphabetical. The table
+// never changes, so it doesn't give away which residues are in the peptide.
 function pKaTableRows() {
-  const sideChains = Object.keys(PKA).filter(name => !name.startsWith('alpha')).sort();
+  const sideChains = Object.keys(PKA).filter(name => !name.startsWith('alpha'));
   return [
     { short: 'N-term', pKa: PKA.alphaNH3 },
     { short: 'C-term', pKa: PKA.alphaCOOH },
     ...sideChains.map(name => ({ short: `${name} R group`, pKa: PKA[name] })),
-  ];
+  ].sort((a, b) => a.pKa - b.pKa || a.short.localeCompare(b.short));
 }
 
 // The groups in this peptide: termini first, then R groups by name, so the order stays hidden
@@ -722,10 +738,11 @@ function clearAnswers() {
   quizRevealed = false;
 }
 
-function setSequence(seq) {
+function setSequence(seq, rotated = false) {
   if (seq !== sequence) clearAnswers();
   sequence = seq;
-  $('structure-box').innerHTML = buildStructure(sequence).svg;
+  structureRotated = rotated;
+  $('structure-box').innerHTML = buildStructure(sequence, rotated).svg;
   refresh();
 }
 
@@ -783,8 +800,8 @@ function refresh() {
   $('pi-title').textContent = quizOn ? 'pKa values' : 'Determining pI';
   $('quiz-ph').textContent = `pH ${pH}`;
   $('quiz-seq-label').textContent = quizFormat === 'one'
-    ? 'Sequence in 1-letter codes (like AKD)'
-    : 'Sequence in 3-letter codes (like Ala-Lys-Asp)';
+    ? 'Sequence in 1-letter codes (N- to C-terminal)'
+    : 'Sequence in 3-letter codes (N- to C-terminal)';
   $('structure-legend').style.display = neutral ? 'none' : '';
 
   $('pka-rows').innerHTML = pKaTableRows().map(g =>
@@ -1023,7 +1040,10 @@ function randomSequence() {
   return seq;
 }
 
-// Leaves the entry box empty: showing the sequence would give away what the structure asks
+const ROTATION_CHANCE = 0.3;
+
+// Leaves the entry box empty: showing the sequence would give away what the structure asks.
+// Some come out rotated, so students have to find the N-terminus rather than assume it's on the left.
 function generateRandomPeptide() {
   let seq = randomSequence();
   while (seq === sequence) seq = randomSequence();
@@ -1031,7 +1051,7 @@ function generateRandomPeptide() {
   $('seq-input').removeAttribute('aria-invalid');
   $('seq-message').textContent = 'Random peptide. Work out its residues from the structure.';
   $('seq-message').className = 'note';
-  setSequence(seq);
+  setSequence(seq, Math.random() < ROTATION_CHANCE);
 }
 
 const onEnter = (id, action) => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') action(); });

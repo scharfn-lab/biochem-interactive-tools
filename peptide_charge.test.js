@@ -291,6 +291,129 @@ test('internal proline has no N-H, and other internal residues do', () => {
   assert.equal(hs('PPP'), 0);
 });
 
+// ── Rotated structures ─────────────────────────────────────────
+const rotatedOf = seq => page0.run(`buildStructure('${seq}', true).svg`);
+const bondCoords = svg => [...svg.matchAll(/<line class="bond" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"/g)].map(m => m.slice(1).map(Number));
+const labelsOf = svg => [...svg.matchAll(/<text class="atom"[^>]*x="([^"]+)"[^>]*>([^<]+)</g)].map(m => [Number(m[1]), m[2]]);
+
+test('a rotated structure is the same drawing turned 180°, with every bond in place', () => {
+  for (const seq of ['G', 'AK', 'ADEHKR', 'FWMSTN', 'QPYPWP', 'PCYDEK', 'GAVLIR']) {
+    const plain = bondCoords(svgOf(seq));
+    const turned = bondCoords(rotatedOf(seq));
+    assert.equal(turned.length, plain.length, seq);
+    // Bond 0 leaves the N-terminal label, which needs less room rotated since its charge moves away
+    plain.forEach((bond, i) => {
+      if (i === 0) return;
+      bond.forEach((value, j) => close(turned[i][j], -value, 0.11, `${seq} bond ${i}`));
+    });
+    close(turned[0][2], -plain[0][2], 0.11, `${seq} bond 0 still reaches the α-carbon`);
+    close(turned[0][3], -plain[0][3], 0.11, `${seq} bond 0 still reaches the α-carbon`);
+  }
+});
+
+test('the viewBox turns with the drawing, so nothing is cut off', () => {
+  for (const seq of ['G', 'ADEHKR', 'WWWWWW', 'RRRRRR', 'YWRYWR']) {
+    const box = svg => svg.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number);
+    const [x, y, w, h] = box(svgOf(seq));
+    const [rx, ry, rw, rh] = box(rotatedOf(seq));
+    close(rw, w, 0.11, seq);
+    close(rh, h, 0.11, seq);
+    close(rx, -(x + w), 0.11, seq);
+    close(ry, -(y + h), 0.11, seq);
+    for (const [x1, y1, x2, y2] of bondCoords(rotatedOf(seq))) {
+      assert.ok(Math.min(x1, x2) >= rx && Math.max(x1, x2) <= rx + rw, seq);
+      assert.ok(Math.min(y1, y2) >= ry && Math.max(y1, y2) <= ry + rh, seq);
+    }
+  }
+});
+
+test('rotating puts the C-terminus on the left and the N-terminus on the right', () => {
+  const where = (svg, text) => labelsOf(svg).find(l => l[1] === text)[0];
+  assert.ok(where(svgOf('AK'), 'H₃N⁺') < where(svgOf('AK'), 'O⁻'), 'normally N is on the left');
+  assert.ok(where(rotatedOf('AK'), 'NH₃⁺') > where(rotatedOf('AK'), 'O⁻'), 'rotated, N is on the right');
+});
+
+test('rotated labels stay upright and read from the atom outward', () => {
+  const texts = svg => labelsOf(svg).map(l => l[1]);
+  const turned = texts(rotatedOf('K'));
+  assert.ok(turned.includes('NH₃⁺') && turned.includes('⁺H₃N'), 'N-terminus and Lys');
+  assert.ok(turned.includes('H₂N') && turned.includes('NH₂'), 'neutral forms');
+  assert.ok(turned.includes('HO'), 'carboxyl');
+  assert.ok(texts(rotatedOf('C')).includes('HS'));
+  assert.ok(texts(rotatedOf('Y')).includes('HO'));
+  assert.ok(texts(rotatedOf('P')).includes('NH₂⁺'), 'N-terminal proline');
+  assert.ok(texts(rotatedOf('H')).includes('⁺HN'), 'imidazolium');
+  assert.doesNotMatch(rotatedOf('K'), /transform=|rotate\(/, 'the text itself is not turned upside down');
+  const anchor = rotatedOf('A').match(/text-anchor="start"[^>]*>NH₃⁺</);
+  assert.ok(anchor, 'the N-terminal label grows away from its bond');
+});
+
+test('every amino acid draws rotated in every position', () => {
+  for (const a of ALL) {
+    for (const seq of [a, `${a}G`, `G${a}G`, `GG${a}`]) {
+      const svg = rotatedOf(seq);
+      assert.doesNotMatch(svg, /NaN|undefined/, seq);
+      assert.equal(ionCount(svg), page0.run(`ionizableGroups('${seq}').length`), seq);
+    }
+  }
+});
+
+test('about 30% of random peptides come out rotated, in and out of the quiz', () => {
+  const rate = action => {
+    const page = loadPage();
+    if (action === 'quiz-next') page.el('quiz-toggle').fire('click');
+    let rotated = 0;
+    const n = 3000;
+    for (let i = 0; i < n; i++) {
+      page.el(action === 'quiz-next' ? 'quiz-next' : 'random-btn').fire('click');
+      if (page.run('structureRotated')) rotated++;
+    }
+    return rotated / n;
+  };
+  close(rate('quiz-next'), 0.3, 0.05, 'quiz');
+  close(rate('random-btn'), 0.3, 0.05, 'Randomly Generate');
+});
+
+test('the drawing on screen matches the rotation', () => {
+  const page = loadPage();
+  page.run(`Math.random = () => 0.1`);
+  page.el('random-btn').fire('click');
+  assert.equal(page.run('structureRotated'), true);
+  assert.equal(page.el('structure-box').innerHTML, page.run('buildStructure(sequence, true).svg'));
+  page.run(`Math.random = () => 0.9`);
+  page.el('random-btn').fire('click');
+  assert.equal(page.run('structureRotated'), false);
+  assert.equal(page.el('structure-box').innerHTML, page.run('buildStructure(sequence).svg'));
+});
+
+test('a typed peptide always reads N-terminus first', () => {
+  const page = loadPage();
+  page.run(`Math.random = () => 0.1`);
+  page.el('random-btn').fire('click');
+  enterSeq(page, 'AK');
+  assert.equal(page.run('structureRotated'), false);
+  assert.equal(page.el('structure-box').innerHTML, page.run(`buildStructure('AK').svg`));
+});
+
+test('the quiz grades the sequence N- to C-terminal even when the drawing is rotated', () => {
+  const page = loadPage();
+  page.el('quiz-toggle').fire('click');
+  page.run(`quizFormat = 'one'; setSequence('AK', true); clearAnswers(); refresh();`);
+  page.el('quiz-seq').value = 'KA';
+  page.el('quiz-seq-check').fire('click');
+  assert.match(page.el('quiz-seq-result').textContent, /try once more/, 'left to right is wrong here');
+  page.el('quiz-seq').value = 'AK';
+  page.el('quiz-seq-check').fire('click');
+  assert.match(page.el('quiz-seq-result').textContent, /^✓/);
+});
+
+test('the quiz instructions and sequence label use the agreed wording', () => {
+  assert.match(MARKUP, />The structure is shown uncharged, determine its sequence, charge, and pI</);
+  const page = loadPage();
+  page.el('quiz-toggle').fire('click');
+  assert.match(page.el('quiz-seq-label').textContent, /^Sequence in [13]-letter codes \(N- to C-terminal\)$/);
+});
+
 test('nothing in the drawing marks where one residue ends and the next begins', () => {
   for (const seq of ['ADEHKR', 'GAVLIP', 'WWWWWW', 'G']) {
     const svg = svgOf(seq);
@@ -436,17 +559,19 @@ test('pH presets set the slider, and moving the slider deselects them', () => {
 const pkaTable = page => [...page.el('pka-rows').innerHTML.matchAll(/<tr><td>([^<]+)<\/td><td class="num">([^<]+)<\/td><\/tr>/g)].map(m => [m[1], m[2]]);
 
 const FULL_PKA_TABLE = [
-  ['N-term', '8.0'], ['C-term', '3.1'], ['Arg R group', '12.5'], ['Asp R group', '4.1'], ['Cys R group', '8.3'],
-  ['Glu R group', '4.1'], ['His R group', '6.0'], ['Lys R group', '10.8'], ['Tyr R group', '10.9'],
+  ['C-term', '3.1'], ['Asp R group', '4.1'], ['Glu R group', '4.1'], ['His R group', '6.0'], ['N-term', '8.0'],
+  ['Cys R group', '8.3'], ['Lys R group', '10.8'], ['Tyr R group', '10.9'], ['Arg R group', '12.5'],
 ];
 
-test('the box lists the termini and every ionizable side chain alphabetically', () => {
+test('the box lists every ionizable group from low pKa to high, with ties alphabetical', () => {
   const page = loadPage();
   enterSeq(page, 'ADEHKR');
   assert.deepEqual(pkaTable(page), FULL_PKA_TABLE);
   assert.match(MARKUP, /<th scope="col">Ionizable group<\/th><th scope="col" class="num">pKa<\/th>/);
-  const sideChains = pkaTable(page).slice(2).map(r => r[0]);
-  assert.deepEqual(sideChains, [...sideChains].sort(), 'alphabetical');
+  const values = pkaTable(page).map(r => Number(r[1]));
+  assert.deepEqual(values, [...values].sort((a, b) => a - b), 'low to high');
+  const names = pkaTable(page).map(r => r[0]);
+  assert.ok(names.indexOf('Asp R group') + 1 === names.indexOf('Glu R group'), 'the 4.1 tie is alphabetical');
 });
 
 test('the table does not change with the peptide, so it cannot give away the residues', () => {
@@ -695,7 +820,7 @@ test('Quiz Mode draws the structure uncharged and leaving it restores the pH', (
 test('each question randomly asks for 1-letter or 3-letter codes', () => {
   const page = loadPage();
   page.el('quiz-toggle').fire('click');
-  const seen = { 'Sequence in 1-letter codes (like AKD)': 0, 'Sequence in 3-letter codes (like Ala-Lys-Asp)': 0 };
+  const seen = { 'Sequence in 1-letter codes (N- to C-terminal)': 0, 'Sequence in 3-letter codes (N- to C-terminal)': 0 };
   for (let i = 0; i < 200; i++) {
     page.el('quiz-next').fire('click');
     const label = page.el('quiz-seq-label').textContent;
