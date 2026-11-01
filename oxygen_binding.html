@@ -227,6 +227,9 @@
     .o2-site { fill: var(--ut-crimson); stroke: #FFFFFF; stroke-width: 0.6; opacity: 0; transition: opacity 0.25s; }
     .o2-site.on { opacity: 1; }
     #schematic-key { justify-content: center; margin: 2px 0 0; }
+    .subunit-off { display: none; }
+    #model-buttons { display: flex; justify-content: flex-end; gap: 3px; margin-bottom: 4px; }
+    #model-buttons button { padding: 3px 5px; font-size: 0.68em; }
  padding-top: 10px; }
     @media (prefers-reduced-motion: reduce) { .o2-site { transition: none; } }
 
@@ -334,6 +337,10 @@
   <div id="plot-row">
     <section class="panel" id="schematic-panel" aria-labelledby="schematic-title">
       <h2 class="panel-section-title" id="schematic-title">O₂ binding to myoglobin and hemoglobin</h2>
+      <div id="model-buttons" role="group" aria-label="Hemoglobin model">
+        <button type="button" data-model="concerted">Concerted Model</button>
+        <button type="button" data-model="sequential">Sequential Model</button>
+      </div>
       <svg id="schematic" viewBox="0 0 402 268" role="img">
         <text x="98" y="14" font-size="13" font-weight="600">Myoglobin</text>
         <text class="cell-name" x="98" y="29">in a cardiac muscle cell</text>
@@ -361,7 +368,7 @@
         <text id="hb-bound" x="304" y="244" font-size="12" font-weight="600"></text>
         <text id="hb-percent" x="304" y="260" font-size="12"></text>
       </svg>
-      <div class="legend" id="schematic-key"><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="#C8102E"/></svg>O₂ bound</span></div>
+      <div class="legend" id="schematic-key"><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="#C8102E"/></svg>O₂ bound</span><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="1" fill="#FFFFFF" stroke="#685C53" stroke-width="1.2"/></svg>T state (low affinity)</span><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="#FFFFFF" stroke="#685C53" stroke-width="1.2"/></svg>R state (high affinity)</span></div>
       <div class="slider-control" id="po2-control">
         <label for="po2-number">pO₂ (torr)</label>
         <div class="slider-row">
@@ -396,6 +403,7 @@ const state = {
   pH: 7.4, bpg: 5, pco2: 40, coh: 20, po2: 30,
   show: { myoglobin: true, normal: true, fetal: false, co: false },
   activity: 'rest',   // 'rest', 'exercise', or null when no delivery is shown
+  hbModel: 'concerted',   // 'concerted' or 'sequential'
   hover: null,
 };
 
@@ -515,29 +523,48 @@ function boundSites(curve, pO2, sites) {
 
 // The schematic: 12 molecules in each cell, placed on a grid.
 const SCHEMATIC_MOLECULES = {
-  mb: { perMolecule: 1, xs: [38, 78, 118, 158], ys: [76, 134, 192] },
-  hb: { perMolecule: 4, xs: [253, 287, 321, 355], ys: [84, 134, 184] },
+  mb: { xs: [38, 78, 118, 158], ys: [76, 134, 192] },
+  hb: { xs: [253, 287, 321, 355], ys: [84, 134, 184] },
 };
-// The order molecules take up O₂, scattered so that filling doesn't read as top to bottom. Each
-// fills completely before the next, since hemoglobin's cooperativity makes part-filled ones rare.
+// The order molecules take up O₂, scattered so that filling doesn't read as top to bottom.
 const MOLECULE_FILL_RANK = [5, 0, 9, 3, 10, 7, 1, 11, 2, 8, 4, 6];
 
-// SVG for one molecule. A site's number is its place in the filling order.
-function moleculeMarkup(key, x, y, firstSite) {
+// What each Hb subunit is doing, listed by grid position: 12 molecules of 4 subunits, as
+// { bound, relaxed }. Both models hold the same number of O₂, since the curve sets that number.
+//   Concerted: a molecule fills before the next starts, and any O₂ turns all four subunits to R.
+//   Sequential: O₂ spreads across the molecules, and only a subunit holding O₂ is in R, so T and R mix.
+function subunitStates(model, bound) {
+  const molecules = MOLECULE_FILL_RANK.map(() => [0, 1, 2, 3].map(() => ({ bound: false, relaxed: false })));
+  const positionOfRank = rank => MOLECULE_FILL_RANK.indexOf(rank);
+  for (let i = 0; i < bound; i++) {
+    const [rank, subunit] = model === 'concerted' ? [Math.floor(i / 4), i % 4] : [i % 12, Math.floor(i / 12)];
+    molecules[positionOfRank(rank)][subunit].bound = true;
+  }
+  for (const molecule of molecules) {
+    const anyBound = molecule.some(s => s.bound);
+    for (const s of molecule) s.relaxed = model === 'concerted' ? anyBound : s.bound;
+  }
+  return molecules;
+}
+
+// SVG for one molecule. Myoglobin's site number is its place in the filling order; hemoglobin's
+// subunits are numbered by grid position.
+function moleculeMarkup(key, x, y, position) {
   if (key === 'mb') {
-    return `<circle class="globin alpha" cx="${x}" cy="${y}" r="9"/><circle class="o2-site" id="mb-site-${firstSite}" cx="${x}" cy="${y}" r="4"/>`;
+    return `<circle class="globin alpha" cx="${x}" cy="${y}" r="9"/><circle class="o2-site" id="mb-site-${MOLECULE_FILL_RANK[position]}" cx="${x}" cy="${y}" r="4"/>`;
   }
   const lobes = [[-5.5, -5.5, 'alpha'], [5.5, -5.5, 'beta'], [-5.5, 5.5, 'beta'], [5.5, 5.5, 'alpha']];
-  return lobes.map(([dx, dy, kind]) => `<circle class="globin ${kind}" cx="${x + dx}" cy="${y + dy}" r="6"/>`).join('') +
-    lobes.map(([dx, dy], i) => `<circle class="o2-site" id="hb-site-${firstSite + i}" cx="${x + dx}" cy="${y + dy}" r="2.8"/>`).join('');
+  return lobes.map(([dx, dy, kind], i) => {
+    const n = position * 4 + i;
+    return `<rect class="globin ${kind}" id="hb-t-${n}" x="${x + dx - 5}" y="${y + dy - 5}" width="10" height="10" rx="1"/>` +
+      `<circle class="globin ${kind} subunit-off" id="hb-r-${n}" cx="${x + dx}" cy="${y + dy}" r="5.5"/>`;
+  }).join('') + lobes.map(([dx, dy], i) => `<circle class="o2-site" id="hb-site-${position * 4 + i}" cx="${x + dx}" cy="${y + dy}" r="2.8"/>`).join('');
 }
 
 function schematicMarkup(key) {
-  const { perMolecule, xs, ys } = SCHEMATIC_MOLECULES[key];
+  const { xs, ys } = SCHEMATIC_MOLECULES[key];
   let markup = '', position = 0;
-  for (const y of ys) for (const x of xs) {
-    markup += moleculeMarkup(key, x, y, MOLECULE_FILL_RANK[position++] * perMolecule);
-  }
+  for (const y of ys) for (const x of xs) markup += moleculeMarkup(key, x, y, position++);
   return markup;
 }
 
@@ -956,7 +983,7 @@ function renderLegend() {
   // The adjustable curve first, whatever the drawing order.
   const entries = visibleCurves().sort((a, b) => (b.key === 'adjustable') - (a.key === 'adjustable'));
   const dots = state.activity
-    ? `<span class="legend-item"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="${COLORS.blue}"/></svg>O₂ delivery points</span>`
+    ? `<span class="legend-item"><svg width="22" height="14" aria-hidden="true"><path d="M6 7 H16" stroke="${COLORS.blue}" stroke-width="2"/><path d="M1 7 L7 2 V12 Z M21 7 L15 2 V12 Z" fill="${COLORS.blue}"/></svg>O₂ delivery</span>`
     : '';
   const selected = `<span class="legend-item"><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="${COLORS.crimson}"/></svg>Selected pO₂</span>`;
   const arrow = state.show.normal
@@ -987,7 +1014,7 @@ function renderResults() {
     row('% Saturation (lung)', `${MODEL.tissue.lung} torr`, d => fmtPercent(d.lung)) +
     row('% Saturation (tissue)', tissueP ? `${tissueP} torr` : 'Select an O₂ delivery', d => (tissueP ? fmtPercent(d.tissue) : '—')) +
     row('% O₂ delivered', '', d => (tissueP ? fmtPercent(d.delivered) : '—')) +
-    row('Hill coefficient, n', 'Measures cooperativity: values above 1 mean cooperative binding', d => d.curve.n.toFixed(2)) +
+    row('Hill coefficient, n', 'Measures cooperativity (>1 is cooperative)', d => d.curve.n.toFixed(2)) +
     '</tbody></table>';
   $('co-results-note').hidden = !state.show.co;
 }
@@ -1011,18 +1038,30 @@ const SCHEMATIC = [
   { key: 'hb', name: 'Hemoglobin', sites: 48, curve: currentCurve },
 ];
 
+function showHemoglobinStates(bound) {
+  subunitStates(state.hbModel, bound).flat().forEach((subunit, n) => {
+    $(`hb-site-${n}`).classList.toggle('on', subunit.bound);
+    $(`hb-t-${n}`).classList.toggle('subunit-off', subunit.relaxed);
+    $(`hb-r-${n}`).classList.toggle('subunit-off', !subunit.relaxed);
+  });
+}
+
 function renderSchematic() {
   const parts = SCHEMATIC.map(({ key, name, sites, curve }) => {
     const c = curve();
     const bound = boundSites(c, state.po2, sites);
-    for (let i = 0; i < sites; i++) $(`${key}-site-${i}`).classList.toggle('on', i < bound);
+    if (key === 'hb') showHemoglobinStates(bound);
+    else for (let i = 0; i < sites; i++) $(`${key}-site-${i}`).classList.toggle('on', i < bound);
     const sitesText = `${bound} of ${sites} sites bound`;
     const percent = fmtPercent(saturation(c, state.po2));
     $(`${key}-bound`).textContent = sitesText;
     $(`${key}-percent`).textContent = `${percent} saturation`;
     return `${name}: ${sitesText}, ${percent} saturation`;
   });
-  $('schematic').setAttribute('aria-label', `At a pO₂ of ${state.po2} torr. ${parts.join('. ')}.`);
+  const modelText = state.hbModel === 'concerted'
+    ? 'Concerted model: all four subunits of a molecule switch together'
+    : 'Sequential model: only subunits holding O₂ are in the R state';
+  $('schematic').setAttribute('aria-label', `At a pO₂ of ${state.po2} torr. ${parts.join('. ')}. ${modelText}.`);
 }
 
 
@@ -1053,6 +1092,7 @@ function render() {
   document.querySelectorAll('[data-toggle]').forEach(b => setPressed(b, state.show[b.dataset.toggle]));
   document.querySelectorAll('[data-activity]').forEach(b => setPressed(b, b.dataset.activity === state.activity));
   $('hide-normal').checked = !state.show.normal;
+  document.querySelectorAll('[data-model]').forEach(b => setPressed(b, b.dataset.model === state.hbModel));
   $('co-control').hidden = !state.show.co;
   state.hover = null;
   renderLegend();
@@ -1107,6 +1147,11 @@ document.querySelectorAll('[data-toggle]').forEach(button => button.addEventList
 document.querySelectorAll('[data-activity]').forEach(button => button.addEventListener('click', () => {
   // Pressing the selected button again turns the delivery markings off.
   state.activity = button.dataset.activity === state.activity ? null : button.dataset.activity;
+  render();
+}));
+
+document.querySelectorAll('[data-model]').forEach(button => button.addEventListener('click', () => {
+  state.hbModel = button.dataset.model;
   render();
 }));
 

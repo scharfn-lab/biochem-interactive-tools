@@ -11,7 +11,7 @@ const HTML = fs.readFileSync(path.join(__dirname, 'oxygen_binding.html'), 'utf8'
 const SECTION = HTML.slice(HTML.indexOf('// ═══ 2.'), HTML.indexOf('// ═══ 3.'));
 const page = vm.createContext({});
 vm.runInContext(SECTION, page);
-const { saturation, adultCurve, fetalCurve, withCarbonMonoxide, delivery, shiftFrom, bpgFactor, curvePoints, affinityText, boundSites, schematicMarkup } = page;
+const { saturation, adultCurve, fetalCurve, withCarbonMonoxide, delivery, shiftFrom, bpgFactor, curvePoints, affinityText, boundSites, schematicMarkup, subunitStates } = page;
 const myoglobinCurve = vm.runInContext('myoglobinCurve', page);
 const normalHbCurve = vm.runInContext('normalHbCurve', page);
 
@@ -333,7 +333,8 @@ test('each cell holds 12 molecules: 12 Mb sites and 48 Hb sites', () => {
   const mb = schematicMarkup('mb'), hb = schematicMarkup('hb');
   assert.equal(count(mb, /class="globin/g), 12);
   assert.equal(count(mb, /id="mb-site-/g), 12);
-  assert.equal(count(hb, /class="globin/g), 48, 'four subunits in each of 12');
+  assert.equal(count(hb, /<rect class="globin/g), 48, 'a T square for four subunits in each of 12');
+  assert.equal(count(hb, /<circle class="globin/g), 48, 'and an R circle for each');
   assert.equal(count(hb, /id="hb-site-/g), 48);
   for (const [markup, key, total] of [[mb, 'mb', 12], [hb, 'hb', 48]]) {
     const ids = [...markup.matchAll(new RegExp(`id="${key}-site-(\\d+)"`, 'g'))].map(m => Number(m[1])).sort((a, b) => a - b);
@@ -438,4 +439,62 @@ test('the plot draws the arrow and red point over the curves, and the blue point
   const places = steps.map(step => draw.indexOf(step));
   assert.ok(places.every(place => place >= 0), 'each is drawn');
   assert.deepEqual(places, [...places].sort((a, b) => a - b), steps.join(' < '));
+});
+
+// ── Wording ────────────────────────────────────────────────────
+test('the Hill coefficient descriptor and O₂ delivery legend read as asked', () => {
+  assert.ok(HTML.includes("'Measures cooperativity (>1 is cooperative)'"));
+  assert.doesNotMatch(HTML, /O₂ delivery points/);
+  const legend = HTML.slice(HTML.indexOf('function renderLegend'), HTML.indexOf('const fmtPercent'));
+  assert.match(legend, /stroke="\$\{COLORS\.blue\}"[^`]*fill="\$\{COLORS\.blue\}"[^`]*O₂ delivery</, 'a blue arrow, not a dot');
+  assert.doesNotMatch(legend, /<circle[^>]*COLORS\.blue/);
+});
+
+// ── Concerted and sequential ───────────────────────────────────
+const flatStates = (model, bound) => [...subunitStates(model, bound)].flatMap(m => [...m]);
+const boundCount = (model, bound) => flatStates(model, bound).filter(s => s.bound).length;
+
+test('both models hold exactly the sites the curve calls for', () => {
+  for (const model of ['concerted', 'sequential']) {
+    for (let bound = 0; bound <= 48; bound++) assert.equal(boundCount(model, bound), bound, `${model} ${bound}`);
+  }
+});
+
+test('in the concerted model every molecule is all T or all R', () => {
+  for (let bound = 0; bound <= 48; bound++) {
+    for (const molecule of subunitStates('concerted', bound)) {
+      assert.equal(new Set([...molecule].map(s => s.relaxed)).size, 1, `${bound} bound`);
+      assert.equal(molecule[0].relaxed, [...molecule].some(s => s.bound), 'R once any O₂ is bound');
+    }
+  }
+});
+
+test('in the sequential model a subunit is in R only while it holds O₂', () => {
+  for (let bound = 0; bound <= 48; bound++) {
+    for (const s of flatStates('sequential', bound)) assert.equal(s.relaxed, s.bound);
+  }
+  const mixed = [...subunitStates('sequential', 18)].filter(m => new Set([...m].map(s => s.relaxed)).size === 2);
+  assert.ok(mixed.length > 0, 'T and R share a molecule');
+});
+
+test('the concerted model fills one molecule before the next', () => {
+  const partial = bound => [...subunitStates('concerted', bound)].filter(m => [...m].some(s => s.bound) && ![...m].every(s => s.bound)).length;
+  for (let bound = 0; bound <= 48; bound++) assert.equal(partial(bound), bound % 4 ? 1 : 0, `${bound} bound`);
+});
+
+test('the two model buttons sit above the schematic, with a T and R key below', () => {
+  const box = HTML.slice(HTML.indexOf('id="schematic-panel"'), HTML.indexOf('id="plot-panel"'));
+  assert.ok(box.indexOf('data-model="concerted">Concerted Model') > 0);
+  assert.ok(box.indexOf('data-model="concerted"') < box.indexOf('data-model="sequential">Sequential Model'));
+  assert.ok(box.indexOf('data-model="sequential"') < box.indexOf('id="schematic"'));
+  assert.ok(box.includes('T state (low affinity)') && box.includes('R state (high affinity)'));
+  assert.ok(HTML.includes("hbModel: 'concerted',"), 'starts on concerted');
+});
+
+test('hemoglobin subunits are numbered once each, in all three layers', () => {
+  const hb = schematicMarkup('hb');
+  for (const layer of ['hb-t', 'hb-r', 'hb-site']) {
+    const ids = [...hb.matchAll(new RegExp(`id="${layer}-(\\d+)"`, 'g'))].map(m => Number(m[1])).sort((a, b) => a - b);
+    assert.deepEqual(ids, Array.from({ length: 48 }, (_, i) => i), layer);
+  }
 });
