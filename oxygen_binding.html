@@ -10,6 +10,7 @@
       --ut-taupe:    #685C53;
       --ut-lavender: #FFCDFF;
       --ut-purple:   #6A0DAD;
+      --blue:        #1565C0;
       --bg-page:     #FFFFFF;
       --bg-panel:    #FFF8FF;
       --bg-active:   #FFCDD2;
@@ -80,10 +81,25 @@
     }
 
     /* ── Controls ── */
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .panel-header .panel-section-title { margin-bottom: 0; }
+
+    #conditions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px 32px;
+    }
+
     #sliders {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px 24px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
     }
 
     .slider-control label {
@@ -129,9 +145,7 @@
     }
     .note b { color: var(--ut-crimson); font-weight: 600; }
 
-    #toggle-section { margin-top: 16px; }
-
-    #toggles, #activity-buttons, #bottom-actions {
+    #toggles, #activity-buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -149,25 +163,40 @@
       cursor: pointer;
       transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
-    button:hover { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
     button.active { background: var(--bg-active); border-color: var(--ut-crimson); color: #000000; }
+    button:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; cursor: not-allowed; }
 
-    #activity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.88em; font-weight: 600; }
+    #activity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 0.88em; font-weight: 600; }
     #activity button { font-weight: 400; padding: 4px 12px; }
 
-    #co-control { margin-top: 14px; max-width: 420px; }
-
-    #bottom-actions { margin-top: 16px; }
+    #co-control { margin-top: 14px; }
 
     /* ── Plot and results ── */
     #plot-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
+      grid-template-columns: minmax(0, 588px) minmax(0, 1fr);
       gap: 18px;
       align-items: start;
     }
 
     #plot-panel { min-width: 0; }
+    #plot-wrap { max-width: 552px; margin: 0 auto; }
+
+    /* Keeps its space when empty, so the plot doesn't jump as a slider crosses normal. */
+    #affinity-box {
+      min-height: 36px;
+      margin-bottom: 10px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      color: #FFFFFF;
+      font-size: 0.9em;
+      font-weight: 600;
+      text-align: center;
+      visibility: hidden;
+    }
+    #affinity-box.left { background: var(--ut-crimson); visibility: visible; }
+    #affinity-box.right { background: var(--blue); visibility: visible; }
 
     .legend {
       display: flex;
@@ -197,17 +226,15 @@
     tbody th { text-align: left; font-weight: 600; }
     th .unit { display: block; font-weight: 400; font-size: 0.9em; color: var(--text-secondary); }
 
-    .shift { margin-top: 10px; font-size: 0.88em; line-height: 1.4; }
-    .shift b { font-weight: 600; }
-
     @media (max-width: 960px) {
       #plot-row { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 720px) {
-      #sliders { grid-template-columns: minmax(0, 1fr); }
+      #conditions { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 480px) {
       .panel { padding: 12px; }
+      #affinity-box { min-height: 54px; }
     }
   </style>
 </head>
@@ -219,74 +246,77 @@
 <main id="main-layout">
 
   <section class="panel" aria-labelledby="controls-title">
-    <h2 class="panel-section-title" id="controls-title">Conditions</h2>
-    <div id="sliders">
-      <div class="slider-control">
-        <label for="pH-number">pH</label>
-        <div class="slider-row">
-          <input type="range" id="pH-range" min="6.8" max="7.8" step="0.01" aria-label="pH slider">
-          <input type="number" id="pH-number" min="6.8" max="7.8" step="0.01">
-        </div>
-        <p class="field-error" id="pH-error" role="status"></p>
-      </div>
-      <div class="slider-control">
-        <label for="bpg-number">[2,3-BPG] (mM)</label>
-        <div class="slider-row">
-          <input type="range" id="bpg-range" min="0" max="8" step="0.1" aria-label="2,3-BPG slider">
-          <input type="number" id="bpg-number" min="0" max="8" step="0.1">
-        </div>
-        <p class="field-error" id="bpg-error" role="status"></p>
-      </div>
-      <div class="slider-control">
-        <label for="pco2-number">pCO₂ (torr)</label>
-        <div class="slider-row">
-          <input type="range" id="pco2-range" min="20" max="80" step="1" aria-label="pCO₂ slider">
-          <input type="number" id="pco2-number" min="20" max="80" step="1">
-        </div>
-        <p class="field-error" id="pco2-error" role="status"></p>
-      </div>
+    <div class="panel-header">
+      <h2 class="panel-section-title" id="controls-title">Conditions</h2>
+      <button type="button" id="reset">Reset to Normal</button>
     </div>
-    <p class="note">In the body, CO₂ also lowers pH, but the sliders are kept separate so you can see each effect on its own.</p>
-
-    <div id="toggle-section">
-      <h2 class="panel-section-title">Show</h2>
-      <div id="toggles" role="group" aria-label="Curves and markers to show">
-        <button type="button" data-toggle="myoglobin">Myoglobin reference</button>
-        <button type="button" data-toggle="normal">Normal Hb reference</button>
-        <button type="button" data-toggle="markers">Lung/tissue markers</button>
-        <button type="button" data-toggle="fetal">Fetal Hb</button>
-        <button type="button" data-toggle="co">Carbon monoxide</button>
-      </div>
-
-      <div id="activity" hidden>
-        <span id="activity-label">Tissue pO₂:</span>
-        <div id="activity-buttons" role="group" aria-labelledby="activity-label">
-          <button type="button" data-activity="rest">Rest (40 torr)</button>
-          <button type="button" data-activity="exercise">Exercise (20 torr)</button>
+    <div id="conditions">
+      <div id="toggle-section">
+        <h3 class="panel-section-title">Show</h3>
+        <div id="toggles" role="group" aria-label="Curves to show">
+          <button type="button" data-toggle="myoglobin">Myoglobin reference</button>
+          <button type="button" data-toggle="normal">Normal Hb reference</button>
+          <button type="button" data-toggle="fetal">Fetal Hb</button>
+          <button type="button" data-toggle="co" disabled>Carbon monoxide</button>
         </div>
-      </div>
 
-      <div id="co-control" hidden>
-        <div class="slider-control">
-          <label for="coh-number">COHb (%)</label>
-          <div class="slider-row">
-            <input type="range" id="coh-range" min="0" max="50" step="1" aria-label="COHb slider">
-            <input type="number" id="coh-number" min="0" max="50" step="1">
+        <div id="activity">
+          <span id="activity-label">O₂ delivery:</span>
+          <div id="activity-buttons" role="group" aria-labelledby="activity-label">
+            <button type="button" data-activity="rest">Rest (40 torr)</button>
+            <button type="button" data-activity="exercise">Exercise (20 torr)</button>
           </div>
-          <p class="field-error" id="coh-error" role="status"></p>
         </div>
-        <p class="note"><b>Why CO is doubly harmful:</b> less capacity to carry O₂, and the remaining O₂ is released less readily.</p>
-      </div>
-    </div>
 
-    <div id="bottom-actions">
-      <button type="button" id="reset">Reset to normal physiological conditions</button>
+        <div id="co-control" hidden>
+          <div class="slider-control">
+            <label for="coh-number">COHb (%)</label>
+            <div class="slider-row">
+              <input type="range" id="coh-range" min="0" max="50" step="1" aria-label="COHb slider">
+              <input type="number" id="coh-number" min="0" max="50" step="1">
+            </div>
+            <p class="field-error" id="coh-error" role="status"></p>
+          </div>
+          <p class="note"><b>Why CO is doubly harmful:</b> less capacity to carry O₂, and the remaining O₂ is released less readily.</p>
+        </div>
+      </div>
+
+      <div id="slider-section">
+        <div id="sliders">
+          <div class="slider-control">
+            <label for="pH-number">pH</label>
+            <div class="slider-row">
+              <input type="range" id="pH-range" min="6.8" max="7.8" step="0.01" aria-label="pH slider">
+              <input type="number" id="pH-number" min="6.8" max="7.8" step="0.01">
+            </div>
+            <p class="field-error" id="pH-error" role="status"></p>
+          </div>
+          <div class="slider-control">
+            <label for="pco2-number">pCO₂ (torr)</label>
+            <div class="slider-row">
+              <input type="range" id="pco2-range" min="20" max="80" step="1" aria-label="pCO₂ slider">
+              <input type="number" id="pco2-number" min="20" max="80" step="1">
+            </div>
+            <p class="field-error" id="pco2-error" role="status"></p>
+          </div>
+          <div class="slider-control">
+            <label for="bpg-number">[2,3-BPG] (mM)</label>
+            <div class="slider-row">
+              <input type="range" id="bpg-range" min="0" max="8" step="0.1" aria-label="2,3-BPG slider">
+              <input type="number" id="bpg-number" min="0" max="8" step="0.1">
+            </div>
+            <p class="field-error" id="bpg-error" role="status"></p>
+          </div>
+        </div>
+        <p class="note">In the body, CO₂ also lowers pH, but the sliders are kept separate so you can see each effect on its own.</p>
+      </div>
     </div>
   </section>
 
   <div id="plot-row">
     <section class="panel" id="plot-panel" aria-labelledby="plot-title">
       <h2 class="panel-section-title" id="plot-title">O₂ saturation curve</h2>
+      <p id="affinity-box" role="status"></p>
       <div class="legend" id="legend"></div>
       <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
       <p class="plot-hint">Hover or tap the plot to read the nearest curve.</p>
@@ -295,8 +325,7 @@
     <section class="panel" aria-labelledby="results-title">
       <h2 class="panel-section-title" id="results-title">Results</h2>
       <div id="results-table"></div>
-      <div id="results-shift"></div>
-      <p class="note" id="co-results-note" hidden>With CO, Y is a fraction of all Hb, and P<sub>50</sub> describes the sites still free. The fetal curve is shown without CO.</p>
+      <p class="note" id="co-results-note" hidden>With CO, Y is a fraction of all Hb. The fetal curve is shown without CO.</p>
     </section>
   </div>
 </main>
@@ -310,7 +339,7 @@ const $ = id => document.getElementById(id);
 
 const state = {
   pH: 7.4, bpg: 5, pco2: 40, coh: 20,
-  show: { myoglobin: true, normal: true, markers: true, fetal: false, co: false },
+  show: { myoglobin: true, normal: true, fetal: false, co: false },
   activity: 'rest',
   hover: null,
 };
@@ -417,6 +446,13 @@ function shiftFrom(p50, normalP50 = MODEL.hemoglobin.p50) {
   return 'none';
 }
 
+// What the box above the plot says. Normal Hb needs no box, so it says nothing.
+function affinityText(shift) {
+  if (shift === 'left') return 'Higher O₂ affinity (curve shifted to the left)';
+  if (shift === 'right') return 'Lower O₂ affinity (curve shifted to the right)';
+  return '';
+}
+
 function curvePoints(curve, step = 0.25, max = 120) {
   const pts = [];
   for (let p = 0; p <= max + 1e-9; p += step) pts.push({ x: p, y: saturation(curve, p) });
@@ -427,7 +463,7 @@ function curvePoints(curve, step = 0.25, max = 120) {
 // ═══ 3. PLOTTING ══════════════════════════════════════════════
 
 // All colors match the :root tokens above.
-const COLORS = { crimson: '#C8102E', taupe: '#685C53', purple: '#6A0DAD', gray: '#828282', grid: '#BFBFBF', text: '#000000', band: 'rgba(255, 205, 255, 0.55)' };
+const COLORS = { crimson: '#C8102E', taupe: '#685C53', purple: '#6A0DAD', gray: '#828282', grid: '#BFBFBF', text: '#000000', blue: '#1565C0' };
 const FONT = "'Segoe UI', Arial, sans-serif";
 
 // Each curve differs by line style or markers as well as color.
@@ -437,7 +473,7 @@ const STYLES = {
   normal:     { color: COLORS.gray, dash: [3, 3], width: 2 },
   fetal:      { color: COLORS.purple, dash: [], width: 2.25, diamonds: true },
 };
-const PLOT = { xMax: 120, aspect: 450 / 700, minHeight: 300, left: 58, right: 58, top: 24, bottom: 46, diamonds: 9 };
+const PLOT = { xMax: 120, aspect: 450 / 700, minHeight: 240, left: 58, right: 58, top: 12, bottom: 62, diamonds: 9 };
 
 const plot = { canvas: $('plot'), cssWidth: 0, cssHeight: 0, dpr: 1 };
 
@@ -543,15 +579,33 @@ function labelWithHalo(ctx, text, x, y) {
   ctx.fillText(text, x, y);
 }
 
+// A vertical arrow with a head at each end, since it measures the gap between two lines.
+function drawDeliveryArrow(ctx, x, yTop, yBottom) {
+  const head = 6;
+  ctx.strokeStyle = COLORS.blue;
+  ctx.fillStyle = COLORS.blue;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, yTop + head);
+  ctx.lineTo(x, yBottom - head);
+  ctx.stroke();
+  for (const [tip, base] of [[yTop, yTop + head + 2], [yBottom, yBottom - head - 2]]) {
+    ctx.beginPath();
+    ctx.moveTo(x, tip);
+    ctx.lineTo(x - head, base);
+    ctx.lineTo(x + head, base);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+const ARROW_INSET = 14;
+
 function drawMarkers(ctx, g, curve) {
   const tissueP = MODEL.tissue[state.activity];
-  const { lung, tissue, delivered } = delivery(curve, tissueP);
+  const { lung, tissue } = delivery(curve, tissueP);
   const xLung = g.sx(MODEL.tissue.lung), xTissue = g.sx(tissueP);
   const yLung = g.sy(lung), yTissue = g.sy(tissue);
-
-  // The band of O₂ handed over between lung and tissue
-  ctx.fillStyle = COLORS.band;
-  ctx.fillRect(g.left, yLung, xLung - g.left, yTissue - yLung);
 
   ctx.strokeStyle = COLORS.text;
   ctx.lineWidth = 1.25;
@@ -561,23 +615,41 @@ function drawMarkers(ctx, g, curve) {
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // Below the x-axis numbers
   ctx.fillStyle = COLORS.text;
   ctx.font = `600 12px ${FONT}`;
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText('Lung', xLung, g.top - 4);
-  ctx.fillText(state.activity === 'rest' ? 'Tissue (rest)' : 'Tissue (exercise)', xTissue, g.top - 4);
+  ctx.textBaseline = 'top';
+  const labelY = g.top + g.plotH + 22;
+  ctx.fillText('Lung', xLung, labelY);
+  ctx.fillText(state.activity === 'rest' ? 'Tissue (rest)' : 'Tissue (exercise)', xTissue, labelY);
 
-  // Named in the plot, since the band's fill alone wouldn't say what it is. Just left of the lung
-  // line the curve runs along the top of the band, which leaves the middle of the band clear.
+  // The O₂ handed over: the saturation at the lung and at the tissue, and the gap between them
+  ctx.strokeStyle = COLORS.blue;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (const y of [yLung, yTissue]) { ctx.moveTo(g.left, y); ctx.lineTo(xLung, y); }
+  ctx.stroke();
+
+  // Just left of the lung line, the curve runs along the top line and leaves this gap clear.
+  if (yTissue - yLung >= 16) drawDeliveryArrow(ctx, xLung - ARROW_INSET, yLung, yTissue);
+}
+
+// Drawn after the curves, so that none of them runs through the words.
+function drawDeliveryLabel(ctx, g, curve) {
+  const tissueP = MODEL.tissue[state.activity];
+  const { lung, tissue, delivered } = delivery(curve, tissueP);
+  const yLung = g.sy(lung), yTissue = g.sy(tissue);
+  const arrowX = g.sx(MODEL.tissue.lung) - ARROW_INSET, xTissue = g.sx(tissueP);
   if (yTissue - yLung >= 18) {
+    ctx.fillStyle = COLORS.text;
     ctx.font = `600 11px ${FONT}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     const percent = `${(delivered * 100).toFixed(1)}%`;
     const full = `O₂ delivered: ${percent}`;
-    const room = (xLung - xTissue) * 0.75;   // the left of that span is where the curve still climbs
-    labelWithHalo(ctx, ctx.measureText(full).width <= room ? full : `${percent} O₂`, xLung - 6, (yLung + yTissue) / 2);
+    const room = (arrowX - xTissue) * 0.75;   // the left of that span is where the curve still climbs
+    labelWithHalo(ctx, ctx.measureText(full).width <= room ? full : `${percent} O₂`, arrowX - 10, (yLung + yTissue) / 2);
   }
 }
 
@@ -618,32 +690,6 @@ function drawDiamond(ctx, x, y, color) {
   ctx.lineWidth = 1.5;
   ctx.fill();
   ctx.stroke();
-}
-
-// P50 marked on the adjustable curve. With CO, half of the free sites means Y = cap/2.
-function drawP50(ctx, g, curve) {
-  if (curve.p50 > PLOT.xMax) return;
-  const x = g.sx(curve.p50), y = g.sy(curve.cap / 2);
-  ctx.strokeStyle = COLORS.crimson;
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([1.5, 3]);
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, g.top + g.plotH);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.arc(x, y, 5, 0, Math.PI * 2);
-  ctx.fillStyle = COLORS.crimson;
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 2;
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = COLORS.text;
-  ctx.font = `600 12px ${FONT}`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  labelWithHalo(ctx, 'P₅₀', x + 8, y + 12);
 }
 
 function nearestPoint(curves, g, px, py) {
@@ -714,11 +760,10 @@ function drawPlot() {
   ctx.fillRect(0, 0, plot.cssWidth, plot.cssHeight);
   const g = geometry();
   const curves = visibleCurves();
-  const adjustable = currentCurve();
-  if (state.show.markers) drawMarkers(ctx, g, adjustable);
   drawAxes(ctx, g);
+  drawMarkers(ctx, g, currentCurve());
   drawCurves(ctx, g, curves);
-  drawP50(ctx, g, adjustable);
+  drawDeliveryLabel(ctx, g, currentCurve());
   if (state.hover) drawHover(ctx, g, curves);
 }
 
@@ -748,27 +793,28 @@ function renderLegend() {
 
 const fmtY = y => `${y.toFixed(3)} (${(y * 100).toFixed(1)}%)`;
 
-const SHIFT_TEXT = {
-  right: '→ Shifted right (lower affinity)',
-  left: '← Shifted left (higher affinity)',
-  none: '= Same as normal Hb',
-};
+function renderAffinity() {
+  const shift = shiftFrom(currentCurve().p50);
+  const box = $('affinity-box');
+  box.textContent = affinityText(shift);
+  box.className = shift === 'none' ? '' : shift;
+}
 
 function renderResults() {
   const tissueP = MODEL.tissue[state.activity];
-  const columns = [{ name: 'Adjustable Hb', curve: currentCurve() }];
+  const columns = [{ name: 'Adult Hb', curve: currentCurve() }];
   if (state.show.fetal) columns.push({ name: 'Fetal Hb', curve: fetalCurve(state) });
   const data = columns.map(c => ({ ...c, ...delivery(c.curve, tissueP) }));
   const row = (label, unit, value) => `<tr><th scope="row">${label}${unit ? ` <span class="unit">${unit}</span>` : ''}</th>${data.map(d => `<td>${value(d)}</td>`).join('')}</tr>`;
+  // One column needs no heading. Two have to say which is which.
+  const head = data.length > 1 ? `<thead><tr><td></td>${data.map(d => `<th scope="col">${d.name}</th>`).join('')}</tr></thead>` : '';
 
-  $('results-table').innerHTML = `<table><thead><tr><td></td>${data.map(d => `<th scope="col">${d.name}</th>`).join('')}</tr></thead><tbody>` +
-    row('P<sub>50</sub>', 'torr', d => d.curve.p50.toFixed(1)) +
+  $('results-table').innerHTML = `<table>${head}<tbody>` +
     row('Hill coefficient, n', '', d => d.curve.n.toFixed(2)) +
     row('Y at lung', `${MODEL.tissue.lung} torr`, d => fmtY(d.lung)) +
     row('Y at tissue', `${tissueP} torr`, d => fmtY(d.tissue)) +
     row('% O₂ delivered', 'Y(lung) − Y(tissue)', d => `${(d.delivered * 100).toFixed(1)}%`) +
     '</tbody></table>';
-  $('results-shift').innerHTML = data.map(d => `<p class="shift"><b>${d.name}:</b> ${SHIFT_TEXT[shiftFrom(d.curve.p50)]}</p>`).join('');
   $('co-results-note').hidden = !state.show.co;
 }
 
@@ -777,7 +823,7 @@ function updateCanvasLabel() {
   const c = currentCurve();
   const { delivered } = delivery(c, MODEL.tissue[state.activity]);
   plot.canvas.setAttribute('aria-label',
-    `Fractional O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}. Adjustable Hb has P50 ${c.p50.toFixed(1)} torr and delivers ${(delivered * 100).toFixed(1)}% of its O₂ capacity. Values are in the results panel.`);
+    `Fractional O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}. Two blue lines mark the saturation of adjustable Hb at the lung and at the tissue, and an arrow between them shows that it delivers ${(delivered * 100).toFixed(1)}% of its O₂ capacity. Values are in the results panel.`);
 }
 
 
@@ -806,10 +852,10 @@ function render() {
   }
   document.querySelectorAll('[data-toggle]').forEach(b => setPressed(b, state.show[b.dataset.toggle]));
   document.querySelectorAll('[data-activity]').forEach(b => setPressed(b, b.dataset.activity === state.activity));
-  $('activity').hidden = !state.show.markers;
   $('co-control').hidden = !state.show.co;
   state.hover = null;
   renderLegend();
+  renderAffinity();
   renderResults();
   updateCanvasLabel();
   drawPlot();

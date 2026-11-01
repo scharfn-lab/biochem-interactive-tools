@@ -11,7 +11,7 @@ const HTML = fs.readFileSync(path.join(__dirname, 'oxygen_binding.html'), 'utf8'
 const SECTION = HTML.slice(HTML.indexOf('// ═══ 2.'), HTML.indexOf('// ═══ 3.'));
 const page = vm.createContext({});
 vm.runInContext(SECTION, page);
-const { saturation, adultCurve, fetalCurve, withCarbonMonoxide, delivery, shiftFrom, bpgFactor, curvePoints } = page;
+const { saturation, adultCurve, fetalCurve, withCarbonMonoxide, delivery, shiftFrom, bpgFactor, curvePoints, affinityText } = page;
 const myoglobinCurve = vm.runInContext('myoglobinCurve', page);
 const normalHbCurve = vm.runInContext('normalHbCurve', page);
 
@@ -194,4 +194,50 @@ test('all slider extremes stay finite', () => {
 // ── The page itself ─────────────────────────────────────────────
 test('the page names no specific course', () => {
   assert.ok(!/CHE ?317/.test(HTML));
+});
+
+test('the affinity box follows the shift, and says nothing at normal', () => {
+  assert.equal(affinityText(shiftFrom(adultCurve({ ...NORMAL, pH: 7.6 }).p50)), 'Higher O₂ affinity (curve shifted to the left)');
+  assert.equal(affinityText(shiftFrom(adultCurve({ ...NORMAL, pH: 7.2 }).p50)), 'Lower O₂ affinity (curve shifted to the right)');
+  assert.equal(affinityText(shiftFrom(adultCurve(NORMAL).p50)), '');
+});
+
+test('the affinity box is red for left, blue for right, and sits above the plot', () => {
+  assert.match(HTML, /#affinity-box\.left \{ background: var\(--ut-crimson\);/);
+  assert.match(HTML, /#affinity-box\.right \{ background: var\(--blue\);/);
+  assert.ok(HTML.indexOf('id="affinity-box"') < HTML.indexOf('<canvas id="plot"'));
+});
+
+test('sliders run pH, pCO₂, then 2,3-BPG, to the right of the buttons', () => {
+  const at = marker => HTML.indexOf(marker);
+  assert.ok(at('id="toggles"') < at('id="sliders"'));
+  assert.ok(at('id="pH-range"') < at('id="pco2-range"') && at('id="pco2-range"') < at('id="bpg-range"'));
+});
+
+test('Reset to Normal sits beside the Conditions title', () => {
+  assert.match(HTML, /id="controls-title">Conditions<\/h2>\s*<button type="button" id="reset">Reset to Normal<\/button>/);
+  assert.doesNotMatch(HTML, /physiological conditions/i);
+});
+
+test('O₂ delivery has only Rest and Exercise, with no marker toggle', () => {
+  assert.doesNotMatch(HTML, /Lung\/tissue|data-toggle="markers"|show\.markers|Tissue pO₂/);
+  assert.match(HTML, /id="activity-label">O₂ delivery:</);
+  assert.equal(HTML.match(/data-activity="/g).length, 2);
+});
+
+test('the carbon monoxide button is grayed out', () => {
+  assert.match(HTML, /data-toggle="co" disabled>Carbon monoxide/);
+  assert.match(HTML, /button:disabled \{ background: #E4E4E4; border-color: #BFBFBF; color: #404040;/);
+});
+
+test('P₅₀, the pink band and the Adjustable Hb results text are gone', () => {
+  assert.doesNotMatch(HTML, /drawP50|P₅₀|P<sub>50<\/sub>|COLORS\.band|results-shift|SHIFT_TEXT/);
+  const results = HTML.slice(HTML.indexOf('function renderResults'), HTML.indexOf('function updateCanvasLabel'));
+  assert.doesNotMatch(results, /Adjustable|p50/);
+  assert.doesNotMatch(HTML.slice(HTML.indexOf('function updateCanvasLabel'), HTML.indexOf('// ═══ 5.')), /P50|p50/);
+});
+
+test('the plot is 20% smaller: 552 px at most, from 690', () => {
+  assert.equal(690 * 0.8, 552);
+  assert.match(HTML, /#plot-wrap \{ max-width: 552px;/);
 });
