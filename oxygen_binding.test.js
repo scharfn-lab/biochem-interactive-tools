@@ -638,9 +638,10 @@ test('every lettered curve in a match or checkbox question is compared with a na
 });
 
 test('Normal Hb is named on the plot itself', () => {
-  const fn = HTML.slice(HTML.indexOf('function drawCurveLetters'), HTML.indexOf('function drawCurves'));
+  const fn = HTML.slice(HTML.indexOf('function drawNormalHbLabel'), HTML.indexOf('function drawCurves'));
   assert.ok(fn.includes("labelWithHalo(ctx, 'Normal Hb',"));
-  assert.ok(fn.includes("key === 'normal'"));
+  assert.ok(fn.includes("c.key === 'normal'"));
+  assert.match(HTML, /drawNormalHbLabel\(ctx, g, curves\);\s+drawCurves\(ctx, g, curves\);/, 'behind the curves, so it hides none of them');
 });
 
 test('checkbox questions: every option in the curve\'s direction is correct, and only those', () => {

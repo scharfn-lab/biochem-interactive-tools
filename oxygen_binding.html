@@ -1173,19 +1173,24 @@ function drawCurveLetters(ctx, g, curves) {
   ctx.font = `700 14px ${FONT}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  for (const { letter, key, curve, style } of curves) {
-    if (letter) {
-      ctx.fillStyle = style.color;
-      labelWithHalo(ctx, letter, g.sx(curve.p50) + 7, g.sy(0.5) + 7);
-    } else if (key === 'normal') {
-      // Higher up the curve than the letters, so that the name stays clear of them
-      const y = 0.72, pO2 = curve.p50 * (y / (1 - y)) ** (1 / curve.n);
-      ctx.fillStyle = COLORS.text;
-      ctx.font = `600 12px ${FONT}`;
-      labelWithHalo(ctx, 'Normal Hb', g.sx(pO2) + 8, g.sy(y) + 8);
-      ctx.font = `700 14px ${FONT}`;
-    }
+  for (const { letter, curve, style } of curves) {
+    if (!letter) continue;
+    ctx.fillStyle = style.color;
+    labelWithHalo(ctx, letter, g.sx(curve.p50) + 7, g.sy(0.5) + 7);
   }
+}
+
+// Names the reference curve, higher up than the letters. Drawn before the curves, so that its
+// outline can't hide part of a curve running through the words.
+function drawNormalHbLabel(ctx, g, curves) {
+  const normal = curves.find(c => c.key === 'normal');
+  if (!normal) return;
+  const y = 0.72, pO2 = normal.curve.p50 * (y / (1 - y)) ** (1 / normal.curve.n);
+  ctx.fillStyle = COLORS.text;
+  ctx.font = `600 12px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  labelWithHalo(ctx, 'Normal Hb', g.sx(pO2) + 8, g.sy(y) + 8);
 }
 
 function drawCurves(ctx, g, curves) {
@@ -1297,6 +1302,7 @@ function drawPlot() {
   const curves = visibleCurves();
   drawAxes(ctx, g);
   if (quiz.active) {
+    drawNormalHbLabel(ctx, g, curves);
     drawCurves(ctx, g, curves);
     drawCurveLetters(ctx, g, curves);
     if (state.hover) drawHover(ctx, g, curves);
