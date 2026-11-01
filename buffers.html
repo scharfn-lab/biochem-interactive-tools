@@ -81,8 +81,9 @@
     .input-row input[type=number] { flex: 1 1 auto; min-width: 0; width: 60px; }
     .input-row select { flex-shrink: 0; }
     .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-    .pka-and-ph { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; margin-bottom: 10px; }
-    .side-by-side > *, .pka-and-ph > * { min-width: 0; }
+    .pka-and-ph { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.2fr); gap: 8px; margin-bottom: 10px; }
+    .add-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+    .side-by-side > *, .pka-and-ph > *, .add-row > * { min-width: 0; }
     .side-by-side select { padding-inline: 4px; }
 
     input[type=number], select {
@@ -97,7 +98,7 @@
     }
     select { max-width: 100%; }
     input[type=number]:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; cursor: not-allowed; }
-    #pka-input, #temp-input { width: 100%; }
+    #pka-input, #ph-input, #temp-input, #stock-input { width: 100%; }
     #buffer-select { width: 100%; }
     input[type=range] { width: 100%; height: 24px; accent-color: var(--ut-crimson); cursor: pointer; }
 
@@ -204,6 +205,7 @@
               <option value="M">M</option>
             </select>
           </div>
+          <input type="range" id="conc-slider" min="0" max="1000" step="1" aria-label="Buffer concentration, 1 mM to 1 M">
         </div>
         <div>
           <label for="vol-input">Volume</label>
@@ -225,15 +227,14 @@
         </div>
         <div>
           <label for="ph-input">Set pH</label>
-          <div class="input-row">
-            <input type="range" id="ph-slider" min="0" max="14" step="0.01" aria-label="pH">
-            <input type="number" id="ph-input" min="0" max="14" step="0.01" style="flex:0 0 70px;">
-          </div>
+          <input type="number" id="ph-input" min="0" max="14" step="0.01">
+          <input type="range" id="ph-slider" min="0" max="14" step="0.01" aria-label="pH">
         </div>
-      </div>
-      <div class="field">
-        <label for="temp-input">Temperature (°C)</label>
-        <input type="number" id="temp-input" min="0" max="60" step="1" value="25" style="width:84px;">
+        <div>
+          <label for="temp-input">Temperature (°C)</label>
+          <input type="number" id="temp-input" min="0" max="60" step="1" value="25">
+          <input type="range" id="temp-slider" min="0" max="60" step="1" aria-label="Temperature, 0 to 60 °C">
+        </div>
       </div>
       <p class="error" id="buffer-error" role="alert"></p>
     </section>
@@ -246,20 +247,22 @@
           <button id="reagent-naoh" aria-pressed="false">NaOH</button>
         </div>
       </div>
-      <div class="field">
-        <label for="stock-input">Stock concentration (M)</label>
-        <input type="number" id="stock-input" min="0" step="any" value="5" style="width:100%;">
-      </div>
-      <div class="field">
-        <label for="add-vol-input">Volume added</label>
-        <div class="input-row">
-          <input type="number" id="add-vol-input" min="0" step="any" value="0.1">
-          <select id="add-vol-unit" aria-label="Volume added unit">
-            <option value="µL">µL</option>
-            <option value="mL" selected>mL</option>
-          </select>
-          <button id="add-button">Add</button>
+      <div class="add-row">
+        <div>
+          <label for="stock-input">Stock (M)</label>
+          <input type="number" id="stock-input" min="0" step="any" value="5">
         </div>
+        <div>
+          <label for="add-vol-input">Volume added</label>
+          <div class="input-row">
+            <input type="number" id="add-vol-input" min="0" step="any" value="0.1">
+            <select id="add-vol-unit" aria-label="Volume added unit">
+              <option value="µL">µL</option>
+              <option value="mL" selected>mL</option>
+            </select>
+          </div>
+        </div>
+        <button id="add-button">Add</button>
       </div>
       <p class="error" id="add-error" role="alert"></p>
     </section>
@@ -988,6 +991,10 @@ function setInput(id, value) {
 }
 
 const VOL_SLIDER_STEPS = 1000;
+const MIN_SLIDER_CONC = 1e-3, MAX_SLIDER_CONC = 1;    // M; the number field takes values beyond these
+const sliderToConc = pos => +(MIN_SLIDER_CONC * (MAX_SLIDER_CONC / MIN_SLIDER_CONC) ** (pos / VOL_SLIDER_STEPS)).toPrecision(3);
+const concToSlider = molar => Math.max(0, Math.min(VOL_SLIDER_STEPS,
+  Math.round(Math.log(molar / MIN_SLIDER_CONC) / Math.log(MAX_SLIDER_CONC / MIN_SLIDER_CONC) * VOL_SLIDER_STEPS)));
 const sliderToVolume = pos => +(MIN_VOLUME * (MAX_VOLUME / MIN_VOLUME) ** (pos / VOL_SLIDER_STEPS)).toPrecision(3);
 const volumeToSlider = litres => Math.round(Math.log(litres / MIN_VOLUME) / Math.log(MAX_VOLUME / MIN_VOLUME) * VOL_SLIDER_STEPS);
 
@@ -1002,6 +1009,8 @@ function updateControls() {
   document.getElementById('pka-input').disabled = !buffer.editablePKa;
   setInput('pka-input', state.pKa.toFixed(2));
   setInput('temp-input', String(state.temperature));
+  setInput('temp-slider', String(state.temperature));
+  setInput('conc-slider', concToSlider(totalConc()));
   setText('pkw-note', `All values assume ideal solutions, with pKw = ${pKwAt(state.temperature).toFixed(2)} at ${state.temperature} °C.`);
 
   setInput('conc-input', formatPlain(totalConc() * CONC_FACTOR[state.concUnit]));
@@ -1075,6 +1084,8 @@ document.getElementById('temp-input').addEventListener('change', e => {
   showError('buffer-error', setTemperature(parseFloat(e.target.value)));
   updateControls();
 });
+document.getElementById('temp-slider').addEventListener('input', e => { showError('buffer-error', setTemperature(+e.target.value)); });
+document.getElementById('conc-slider').addEventListener('input', e => { showError('buffer-error', setConcentration(sliderToConc(+e.target.value))); });
 document.getElementById('conc-input').addEventListener('change', e => {
   showError('buffer-error', setConcentration(parseFloat(e.target.value) / CONC_FACTOR[state.concUnit]));
   updateControls();

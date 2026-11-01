@@ -722,7 +722,7 @@ test('concentration and volume sit side by side, then pKa beside Set pH', () => 
   assert.ok(at('class="pka-and-ph"') < at('id="pka-input"') && at('id="pka-input"') < at('id="ph-input"'));
   assert.ok(at('id="ph-input"') < at('id="temp-input"'));
   assert.match(HTML, /\.side-by-side \{ display: grid; grid-template-columns: 1fr 1fr;/);
-  assert.match(HTML, /\.pka-and-ph \{ display: grid; grid-template-columns: 72px minmax\(0, 1fr\);/);
+  assert.match(HTML, /\.pka-and-ph \{ display: grid; grid-template-columns: 64px minmax\(0, 1fr\) minmax\(0, 1\.2fr\);/);
 });
 
 test('the pKa box always shows, editable only for the generic buffer', () => {
@@ -845,4 +845,63 @@ test('the markup starts with the same defaults as the script', () => {
 
 test('the subtitle no longer offers dilution', () => {
   assert.doesNotMatch(HTML.match(/class="subtitle">(.*?)</)[1], /dilute/i);
+});
+
+// ── Sliders and one-line rows ──────────────────────────────────
+test('each entry in the Buffer box has its slider directly underneath', () => {
+  for (const [input, slider] of [['conc-input', 'conc-slider'], ['vol-input', 'vol-slider'], ['ph-input', 'ph-slider'], ['temp-input', 'temp-slider']]) {
+    const i = HTML.indexOf(`id="${input}"`), s = HTML.indexOf(`id="${slider}"`);
+    assert.ok(i >= 0 && s > i, `${slider} comes after ${input}`);
+    const nextInput = HTML.slice(i + 1).search(/<input type="number"/);
+    assert.ok(nextInput < 0 || s < i + 1 + nextInput, `${slider} comes before the next entry`);
+  }
+});
+
+test('pKa, pH and temperature share one row, in that order', () => {
+  const row = HTML.slice(HTML.indexOf('class="pka-and-ph"'), HTML.indexOf('id="buffer-error"'));
+  const at = id => row.indexOf(`id="${id}"`);
+  assert.ok(at('pka-input') > 0 && at('pka-input') < at('ph-input') && at('ph-input') < at('temp-input'));
+});
+
+test('stock, volume added and Add share one row', () => {
+  const row = HTML.slice(HTML.indexOf('class="add-row"'), HTML.indexOf('id="add-error"'));
+  const at = id => row.indexOf(`id="${id}"`);
+  assert.ok(at('stock-input') > 0 && at('stock-input') < at('add-vol-input') && at('add-vol-input') < at('add-vol-unit') && at('add-vol-unit') < at('add-button'));
+});
+
+test('the concentration slider runs 1 mM to 1 M and follows the field', () => {
+  const page = loadFreshPage();
+  assert.equal(page.run('sliderToConc(0)'), 0.001);
+  assert.equal(page.run('sliderToConc(1000)'), 1);
+  assertClose(page.run('sliderToConc(concToSlider(0.05))'), 0.05, 0.001, 'round trip');
+  assert.equal(page.el('conc-slider').value, page.run('concToSlider(0.05)'));
+  const slider = page.el('conc-slider');
+  slider.value = 1000;
+  slider.fire('input');
+  assert.equal(page.el('conc-input').value, '1000');
+  assertClose(page.pH(), 4.76, 1e-6, 'the pH holds');
+  page.enter('conc-input', 100);
+  assert.equal(page.el('conc-slider').value, page.run('concToSlider(0.1)'));
+});
+
+test('a concentration typed beyond the slider pegs it at the end', () => {
+  const page = loadFreshPage();
+  page.run('setConcentration(2)');
+  assert.equal(page.el('conc-slider').value, 1000);
+  assertClose(page.run('totalConc()'), 2, 1e-9, 'the typed value stands');
+  page.run('setConcentration(1e-4)');
+  assert.equal(page.el('conc-slider').value, 0);
+});
+
+test('the temperature slider and field stay together', () => {
+  const page = loadFreshPage();
+  assert.equal(page.el('temp-slider').value, '25');
+  page.run("setBuffer('tris')");
+  const slider = page.el('temp-slider');
+  slider.value = 4;
+  slider.fire('input');
+  assert.equal(page.el('temp-input').value, '4');
+  assert.equal(page.el('pka-input').value, '8.66');
+  page.enter('temp-input', 37);
+  assert.equal(page.el('temp-slider').value, '37');
 });
