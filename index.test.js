@@ -60,13 +60,28 @@ test('each tool has the requested description, one sentence or less', () => {
     'Peptide Properties': 'Evaluate pH, charge, and pI of peptide structures',
     'Peptide Folding': 'Adjust dihedral angles to visualize folding patterns',
     'Hemoglobin + Myoglobin': 'Evaluate effect of pH, CO₂, and 2,3-BPG on O₂ binding curves',
-    'Enzyme Kinetics': 'Evaluate effect of Km, kcat, [E] and inhibitors on kinetics plots',
+    'Enzyme Kinetics': 'Evaluate effect of K<sub>m</sub>, k<sub>cat</sub>, [E] and inhibitors on kinetics plots',
   };
   assert.equal(TOOLS.length, Object.keys(wanted).length);
   for (const tool of TOOLS) {
     assert.equal(tool.description, wanted[tool.topic]);
     assert.ok(!/[.!?]\s/.test(tool.description), tool.description);
   }
+});
+
+test('descriptions are written as HTML, so their subscripts show as subscripts', () => {
+  assert.ok(HTML.includes('<span class="card-description">${tool.description}</span>'));
+  for (const tool of TOOLS) assert.ok(!/\bKm\b|\bkcat\b/.test(tool.description), tool.description);
+});
+
+test('the title and name are centered', () => {
+  assert.match(HTML, /#header-inner \{[^}]*justify-content: center;[^}]*text-align: center;/);
+});
+
+test('the top buttons and the how-to note are indented on both sides, narrower than the cards', () => {
+  assert.match(HTML, /#tool-links \{[^}]*margin: 0 64px 18px;/);
+  assert.match(HTML, /#how-to \{ margin: 0 64px 26px; \}/);
+  assert.doesNotMatch(HTML.match(/#topics \{[^}]*\}/)[0], /margin: 0 \d+px/);
 });
 
 test('every topic has an icon', () => {

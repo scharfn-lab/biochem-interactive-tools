@@ -173,6 +173,7 @@
     #conditions.single .condition-title { display: none; }
 
     sub, sup { line-height: 0; }   /* keeps labels with these level with those without */
+    .panel-section-title sub, .panel-section-title .symbol { text-transform: none; }   /* capitals would misprint Km and kcat */
 
     .field label {
       display: block;
@@ -912,8 +913,8 @@ function ratesTimeEnd(k) {
 }
 
 const FIELD_NAMES = {
-  Km: 'Km', kcat: 'kcat', Etot: '[E]total', I: '[I]', Ki: 'Ki', KiP: "Ki'", I2: 'Second [I]',
-  Km2: 'Km in Conditions B', kcat2: 'kcat in Conditions B', Etot2: '[E]total in Conditions B',
+  Km: 'K<sub>m</sub>', kcat: 'k<sub>cat</sub>', Etot: '[E]<sub>total</sub>', I: '[I]', Ki: 'K<sub>i</sub>', KiP: "K<sub>i</sub>'", I2: 'Second [I]',
+  Km2: 'K<sub>m</sub> in Conditions B', kcat2: 'k<sub>cat</sub> in Conditions B', Etot2: '[E]<sub>total</sub> in Conditions B',
 };
 
 function parseField(text) {
@@ -1896,23 +1897,30 @@ function drawGuides(ctx, g) {
   ctx.lineTo(xKm, g.top + g.plotH);
   ctx.stroke();
   ctx.setLineDash([]);
+  // A canvas has no <sub>, so the subscript is drawn smaller and lower, after its base.
   // A white outline keeps each label readable where it crosses a curve.
-  const label = (text, x, y) => {
-    ctx.strokeText(text, x, y);
-    ctx.fillText(text, x, y);
+  const baseFont = `600 10px ${FONT}`, subFont = `600 8px ${FONT}`;
+  const label = (base, sub, x, y, alignRight) => {
+    ctx.font = baseFont;
+    const baseW = ctx.measureText(base).width;
+    ctx.font = subFont;
+    const subW = ctx.measureText(sub).width;
+    const left = alignRight ? x - baseW - subW : x;
+    [[base, baseFont, left, y], [sub, subFont, left + baseW, y + 3]].forEach(([text, font, tx, ty]) => {
+      ctx.font = font;
+      ctx.strokeText(text, tx, ty);
+      ctx.fillText(text, tx, ty);
+    });
   };
   ctx.fillStyle = COLORS.text;
   ctx.strokeStyle = '#FFFFFF';
   ctx.lineWidth = 3;
   ctx.lineJoin = 'round';
-  ctx.font = `600 10px ${FONT}`;
-  ctx.textBaseline = 'bottom';
-  ctx.textAlign = 'right';
-  label('Vmax', right - 2, yV - 1);
   ctx.textAlign = 'left';
-  label('½Vmax', Math.max(g.left + 2, xKm + 3), yHalf - 1);
   ctx.textBaseline = 'alphabetic';
-  label('Km', xKm + 3, g.top + g.plotH - 3);
+  label('V', 'max', right - 2, yV - 5, true);
+  label('½V', 'max', Math.max(g.left + 2, xKm + 3), yHalf - 5);
+  label('K', 'm', xKm + 3, g.top + g.plotH - 6);
   ctx.restore();
 }
 
@@ -2442,7 +2450,7 @@ function syncFieldStates() {
   document.querySelector('[data-panel="enzyme"]').hidden = rates;
   placeSharedFields(rates);
   $('entry-title').innerHTML = rates
-    ? 'Determine V<sub>max</sub>, K<sub>m</sub>, k<sub>cat</sub> and catalytic efficiency'
+    ? 'Determine V<sub>max</sub>, K<sub>m</sub>, <span class="symbol">k</span><sub>cat</sub> and catalytic efficiency'
     : 'Determine V<sub>max</sub> and K<sub>m</sub>';
   $('entry-box').hidden = rates && !collect;
   document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === state.type));

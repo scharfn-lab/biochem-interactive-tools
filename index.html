@@ -44,7 +44,8 @@
       margin: 0 auto;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      text-align: center;
       gap: 16px;
     }
     h1 { font-size: 2.1em; font-weight: 600; letter-spacing: 0.5px; line-height: 1.2; }
@@ -79,7 +80,7 @@
       grid-template-columns: max-content minmax(0, 1fr);
       gap: 10px 14px;
       align-items: center;
-      margin-bottom: 18px;
+      margin: 0 64px 18px;
     }
     .pill-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
     .pill {
@@ -106,7 +107,7 @@
     }
 
     /* ── How-to note ── */
-    #how-to { margin-bottom: 26px; }
+    #how-to { margin: 0 64px 26px; }
     #how-to .section-title { margin-bottom: 8px; }
     #how-to ul { padding-left: 18px; font-size: 0.92em; }
     #how-to li { margin-top: 3px; }
@@ -139,6 +140,7 @@
     .card-top svg { width: 28px; height: 28px; flex-shrink: 0; }
     .card-title { font-weight: 600; font-size: 1.02em; line-height: 1.25; flex: 1; min-width: 0; }
     .card-description { font-size: 0.88em; }
+    sub { line-height: 0; }   /* keeps a line with a subscript level with those without */
 
     .open-tool, .soon-label { flex-shrink: 0; white-space: nowrap; font-size: 0.85em; }
     .open-tool {
@@ -168,7 +170,8 @@
     }
 
     @media (max-width: 640px) {
-      #tool-links { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+      #tool-links { grid-template-columns: minmax(0, 1fr); gap: 6px; margin-left: 12px; margin-right: 12px; }
+      #how-to { margin-left: 12px; margin-right: 12px; }
       .pill-list { margin-bottom: 8px; }
     }
     @media (max-width: 480px) {
@@ -227,6 +230,7 @@ const TOPICS = TOPIC_GROUPS.flatMap(group => group.topics);
 // THE TOOLS. To add one, copy a line and change it. "topic" must match a name in TOPIC_GROUPS exactly,
 // and "file" must match the file's name in this folder exactly, including capitals. A card shows
 // its topic as its title, and adds the tool's "title" only when a topic has more than one tool.
+// A "description" is written as HTML, so it can use <sub> for subscripts.
 const TOOLS = [
   { topic: 'Acid-Base Chemistry', title: 'Buffers & Titration', file: 'buffers.html',
     description: 'Evaluate buffer composition and addition of strong acid or base' },
@@ -239,7 +243,7 @@ const TOOLS = [
   { topic: 'Hemoglobin + Myoglobin', title: 'Oxygen Binding', file: 'oxygen_binding.html',
     description: 'Evaluate effect of pH, CO₂, and 2,3-BPG on O₂ binding curves' },
   { topic: 'Enzyme Kinetics', title: 'Michaelis–Menten & Lineweaver–Burk', file: 'enzyme_kinetics.html',
-    description: 'Evaluate effect of Km, kcat, [E] and inhibitors on kinetics plots' },
+    description: 'Evaluate effect of K<sub>m</sub>, k<sub>cat</sub>, [E] and inhibitors on kinetics plots' },
 ];
 
 
@@ -336,7 +340,7 @@ function toolCard(tool) {
       <span class="card-title">${escapeHtml(name)}${NEW_TAB}</span>
       <span class="open-tool" aria-hidden="true">Open tool →</span>
     </span>
-    <span class="card-description">${escapeHtml(tool.description)}</span>`);
+    <span class="card-description">${tool.description}</span>`);
 }
 
 function comingSoonCard(topic) {

@@ -174,9 +174,10 @@ test('Conditions B is validated only on the Kinetics tab', () => {
 
 test('error messages say which conditions a Kinetics field belongs to', () => {
   const message = raw => validate({ ...VALID, ...CONDITIONS, ...raw }).errors[0].message;
-  assert.equal(message({ Km: '-1' }), 'Km in Conditions A must be a positive number.');
-  assert.equal(message({ Etot2: '-1' }), '[E]total in Conditions B must be a positive number.');
-  assert.equal(validate({ ...VALID, Km: '-1' }).errors[0].message, 'Km must be a positive number.');
+  assert.equal(message({ Km: '-1' }), 'K<sub>m</sub> in Conditions A must be a positive number.');
+  assert.equal(message({ kcat2: '-1' }), 'k<sub>cat</sub> in Conditions B must be a positive number.');
+  assert.equal(message({ Etot2: '-1' }), '[E]<sub>total</sub> in Conditions B must be a positive number.');
+  assert.equal(validate({ ...VALID, Km: '-1' }).errors[0].message, 'K<sub>m</sub> must be a positive number.');
 });
 
 // ── Select Random Parameters ──────────────────────────────────
@@ -971,6 +972,17 @@ test('the rates answer box tells students nothing about how to find the values',
   assert.doesNotMatch(HTML, /entry-note-rates|Estimate from your M-M plot|Answers count within/);
   const hint = HTML.slice(HTML.indexOf('function methodHint'), HTML.indexOf('// The same method with this'));
   assert.match(hint, /if \(mode === 'rates'\) return '';/);
+});
+
+test('headings in capitals keep Km and kcat in their proper case', () => {
+  assert.match(HTML, /\.panel-section-title sub, \.panel-section-title \.symbol \{ text-transform: none; \}/);
+  assert.ok(HTML.includes('<span class="symbol">k</span><sub>cat</sub>'));
+});
+
+test('the plot guides draw their subscripts smaller and lower', () => {
+  const guides = HTML.slice(HTML.indexOf('function drawGuides'), HTML.indexOf('function equationEntries'));
+  assert.ok(guides.includes("label('V', 'max',") && guides.includes("label('½V', 'max',") && guides.includes("label('K', 'm',"));
+  assert.doesNotMatch(guides, /label\('(½?Vmax|Km)'/);
 });
 
 test('kcat and catalytic efficiency follow Vmax and Km on Measuring Rates', () => {
