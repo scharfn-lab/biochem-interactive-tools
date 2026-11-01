@@ -498,3 +498,273 @@ test('hemoglobin subunits are numbered once each, in all three layers', () => {
     assert.deepEqual(ids, Array.from({ length: 48 }, (_, i) => i), layer);
   }
 });
+
+// ── Quiz questions ─────────────────────────────────────────────
+// Repeatable random numbers (mulberry32), so a failure can be reproduced.
+function seeded(seed) {
+  return () => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const { buildQuizQuestion, createQuizDeck, gradeQuizAnswer, quizCurveEntries } = page;
+const plain = value => JSON.parse(JSON.stringify(value));
+const TOPICS = Object.keys(vm.runInContext('QUIZ_TOPICS', page));
+const CHANGES = plain(vm.runInContext('QUIZ_CHANGES', page));
+const manyOf = (topic, n = 300) => Array.from({ length: n }, (_, i) => buildQuizQuestion(topic, seeded(i + 1)));
+
+// By hand from the textbook, not from the page's model
+const EXPECTED_SHIFT = { pHDown: 'right', hUp: 'right', co2Up: 'right', bpgUp: 'right', pHUp: 'left', hDown: 'left', co2Down: 'left', bpgDown: 'left' };
+
+test('there are eight topics, and all of them build', () => {
+  assert.deepEqual([...TOPICS].sort(), ['causes', 'fetal', 'match', 'mbHb', 'models', 'predict', 'scenarios', 'twoChanges']);
+  for (const topic of TOPICS) assert.ok(manyOf(topic, 20).length);
+});
+
+test('every question has a valid answer among unique options, and an explanation', () => {
+  for (const topic of TOPICS) {
+    for (const q of manyOf(topic)) {
+      const options = [...q.options];
+      assert.equal(new Set(options).size, options.length, q.prompt);
+      assert.ok(q.prompt.length > 10 && q.explanation.length > 10, q.prompt);
+      assert.ok(['single', 'multi', 'match'].includes(q.format));
+      if (q.format === 'single') assert.ok(options.includes(q.answer), `${q.prompt}: ${q.answer}`);
+      if (q.format === 'multi') for (const a of q.answer) assert.ok(options.includes(a), a);
+      if (q.format === 'match') for (const row of q.rows) assert.ok(options.includes(q.answer[row]), row);
+    }
+  }
+});
+
+test('every change moves the curve the textbook way, by enough to see', () => {
+  const normalP50 = normalHbCurve().p50;
+  for (const [key, expected] of Object.entries(EXPECTED_SHIFT)) {
+    const p50 = adultCurve({ ...NORMAL, ...CHANGES[key].conditions }).p50;
+    assert.equal(p50 > normalP50 ? 'right' : 'left', expected, key);
+    assert.ok(Math.abs(p50 / normalP50 - 1) >= 0.05, `${key}: P50 ${p50}`);
+  }
+});
+
+test('[H⁺] questions go the opposite way from the same pH wording', () => {
+  const direction = key => EXPECTED_SHIFT[key];
+  assert.equal(direction('hUp'), direction('pHDown'));
+  assert.equal(direction('hDown'), direction('pHUp'));
+  assert.deepEqual(plain(CHANGES.hUp.conditions), plain(CHANGES.pHDown.conditions), 'the same solution, said two ways');
+  assert.deepEqual(plain(CHANGES.hDown.conditions), plain(CHANGES.pHUp.conditions));
+});
+
+test('predict answers agree with the model and the textbook', () => {
+  const seen = { shift: 0, affinity: 0, delivery: 0 };
+  for (const q of manyOf('predict', 600)) {
+    const key = Object.keys(CHANGES).find(k => q.curves[1].name === CHANGES[k].label);
+    const expected = EXPECTED_SHIFT[key];
+    if (/which way/i.test(q.prompt)) { seen.shift++; assert.equal(q.answer, expected === 'right' ? 'To the right' : 'To the left', q.prompt); }
+    if (/affinity/.test(q.prompt)) { seen.affinity++; assert.equal(q.answer, expected === 'left' ? 'It increases' : 'It decreases', q.prompt); }
+    if (/delivered/.test(q.prompt)) {
+      seen.delivery++;
+      const changed = delivery(adultCurve({ ...NORMAL, ...CHANGES[key].conditions }), 40).delivered, normal = delivery(normalHbCurve(), 40).delivered;
+      assert.equal(q.answer, changed > normal ? 'More O₂ is delivered' : 'Less O₂ is delivered', q.prompt);
+      assert.equal(q.answer, expected === 'right' ? 'More O₂ is delivered' : 'Less O₂ is delivered', `${key}: at rest, a right shift delivers more`);
+    }
+  }
+  assert.ok(seen.shift && seen.affinity && seen.delivery, JSON.stringify(seen));
+});
+
+test('explanations in [H⁺] terms talk about [H⁺]', () => {
+  for (const q of manyOf('predict', 400)) {
+    if (q.prompt.includes('[H⁺]') && q.format === 'single') assert.match(q.explanation, /\[H⁺\]/, q.prompt);
+  }
+});
+
+test('Mb vs Hb questions point at the right curve', () => {
+  for (const q of manyOf('mbHb')) {
+    const mb = q.curves.find(c => c.name === 'Myoglobin'), hb = q.curves.find(c => c.name === 'Normal Hb');
+    if (/is myoglobin/.test(q.prompt)) assert.equal(q.answer, `Curve ${mb.letter}`);
+    if (/cooperative/.test(q.prompt)) assert.equal(q.answer, `Curve ${hb.letter}`);
+    if (/holds more/.test(q.prompt)) assert.equal(q.answer, `Curve ${mb.letter}`, 'Mb holds its O₂ at tissue pO₂');
+    if (/four/.test(q.prompt)) assert.equal(q.answer, `Curve ${hb.letter}`);
+    assert.notEqual(mb.letter, hb.letter);
+  }
+});
+
+test('fetal questions point at the left-shifted curve', () => {
+  for (const q of manyOf('fetal')) {
+    const fetal = q.curves.find(c => c.name === 'Fetal Hb');
+    assert.ok(fetal.curve.p50 < q.curves.find(c => c.name === 'Adult Hb').curve.p50);
+    if (/is fetal/.test(q.prompt) || /more saturated/.test(q.prompt)) assert.equal(q.answer, `Curve ${fetal.letter}`);
+    if (/2,3-BPG|higher O₂ affinity than adult/.test(q.prompt)) assert.equal(q.answer, 'It binds 2,3-BPG less tightly');
+  }
+});
+
+test('match questions never pair two causes in the same direction', () => {
+  const rightLabels = new Set(Object.keys(EXPECTED_SHIFT).filter(k => EXPECTED_SHIFT[k] === 'right').map(k => CHANGES[k].label));
+  let two = 0, three = 0;
+  for (const q of manyOf('match')) {
+    const causes = [...q.options].filter(o => o !== 'No change');
+    assert.equal(causes.length, 2, q.prompt);
+    assert.equal(causes.filter(c => rightLabels.has(c)).length, 1, causes.join());
+    for (const row of q.rows) {
+      const letter = row.slice(-1), curve = q.curves.find(c => c.letter === letter);
+      const shift = shiftFrom(curve.curve.p50);
+      const label = q.answer[row];
+      if (label === 'No change') assert.equal(shift, 'none');
+      else assert.equal(shift, rightLabels.has(label) ? 'right' : 'left', `${row} ${label}`);
+    }
+    if (q.rows.length === 3) { three++; assert.ok([...q.options].includes('No change')); assert.ok(!q.curves.some(c => c.reference)); }
+    else { two++; assert.ok(q.curves.some(c => c.reference), 'Normal Hb shows for comparison'); }
+  }
+  assert.ok(two && three, 'both sizes appear');
+});
+
+test('checkbox questions: every option in the curve\'s direction is correct, and only those', () => {
+  const label = key => CHANGES[key].label;
+  for (const q of manyOf('causes')) {
+    assert.equal(q.format, 'multi');
+    assert.equal(q.options.length, 6);
+    assert.ok(q.answer.length >= 2 && q.answer.length <= 4, String(q.answer.length));
+    const shift = shiftFrom(q.curves.find(c => c.letter === 'A').curve.p50);
+    const expected = Object.keys(EXPECTED_SHIFT).filter(k => EXPECTED_SHIFT[k] === shift).map(label);
+    for (const option of q.options) assert.equal([...q.answer].includes(option), expected.includes(option), option);
+  }
+});
+
+test('two-change questions push the same way, and the curve goes that way', () => {
+  for (const q of manyOf('twoChanges')) {
+    const [first, second] = q.curves[1].name.split(', ');
+    const keys = [first, second].map(l => Object.keys(CHANGES).find(k => CHANGES[k].label === l));
+    assert.equal(EXPECTED_SHIFT[keys[0]], EXPECTED_SHIFT[keys[1]], q.curves[1].name);
+    assert.notDeepEqual(plain(CHANGES[keys[0]].conditions), plain(CHANGES[keys[1]].conditions), 'two real changes, not pH twice');
+    assert.equal(q.answer, EXPECTED_SHIFT[keys[0]] === 'right' ? 'To the right' : 'To the left', q.prompt);
+  }
+});
+
+test('physiological scenarios shift the textbook way', () => {
+  const expected = { 'Exercising muscle': 'To the right', 'High altitude': 'To the right', Acidosis: 'To the right', 'Stored blood': 'To the left', Hyperventilation: 'To the left' };
+  const seen = new Set();
+  for (const q of manyOf('scenarios')) {
+    const name = q.curves[1].name;
+    seen.add(name);
+    assert.equal(q.answer, expected[name], name);
+  }
+  assert.deepEqual([...seen].sort(), Object.keys(expected).sort(), 'all appear');
+  assert.ok(manyOf('scenarios').some(q => /several days/.test(q.prompt)), 'altitude says after several days');
+});
+
+test('concerted and sequential questions have the right answers and no plot', () => {
+  for (const q of manyOf('models')) {
+    assert.equal(q.curves.length, 0);
+    if (/all four subunits/.test(q.prompt) || /MWC/.test(q.prompt)) assert.equal(q.answer, 'Concerted model');
+    if (/T and R subunits at once/.test(q.prompt) || /KNF/.test(q.prompt) || /only the subunit/.test(q.prompt)) assert.equal(q.answer, 'Sequential model');
+    if (/sigmoidal/.test(q.prompt)) assert.equal(q.answer, 'Both models');
+  }
+});
+
+// ── Dealing ────────────────────────────────────────────────────
+test('exactly one question in every five uses checkboxes, at varying places', () => {
+  const deck = createQuizDeck(seeded(7));
+  const places = new Set();
+  for (let block = 0; block < 100; block++) {
+    const five = Array.from({ length: 5 }, () => deck.next());
+    const checkbox = five.map((q, i) => (q.format === 'multi' ? i : -1)).filter(i => i >= 0);
+    assert.equal(checkbox.length, 1, `block ${block}`);
+    places.add(checkbox[0]);
+  }
+  assert.equal(places.size, 5, 'every place gets used');
+});
+
+test('all topics come up within a couple of bags, and a question never repeats back to back', () => {
+  const deck = createQuizDeck(seeded(11));
+  const questions = Array.from({ length: 400 }, () => deck.next());
+  assert.deepEqual([...new Set(questions.map(q => q.topic))].sort(), [...TOPICS].sort());
+  for (const start of [0, 100, 200]) {
+    assert.equal(new Set(questions.slice(start, start + 20).map(q => q.topic)).size, TOPICS.length, 'none is left out for long');
+  }
+  for (let i = 1; i < questions.length; i++) assert.notEqual(questions[i].prompt, questions[i - 1].prompt, `question ${i}`);
+});
+
+// ── Grading ────────────────────────────────────────────────────
+test('single choice grades exactly', () => {
+  const q = { format: 'single', answer: 'To the left' };
+  assert.equal(gradeQuizAnswer(q, 'To the left'), true);
+  assert.equal(gradeQuizAnswer(q, 'To the right'), false);
+});
+
+test('a partly right checkbox answer scores as wrong', () => {
+  const q = { format: 'multi', answer: ['a', 'b'] };
+  assert.equal(gradeQuizAnswer(q, ['b', 'a']), true, 'order does not matter');
+  assert.equal(gradeQuizAnswer(q, ['a']), false, 'one missing');
+  assert.equal(gradeQuizAnswer(q, ['a', 'b', 'c']), false, 'one extra');
+  assert.equal(gradeQuizAnswer(q, ['a', 'c']), false, 'same count, one wrong');
+});
+
+test('a match answer needs every row right', () => {
+  const q = { format: 'match', rows: ['Curve A', 'Curve B'], answer: { 'Curve A': 'x', 'Curve B': 'y' } };
+  assert.equal(gradeQuizAnswer(q, { 'Curve A': 'x', 'Curve B': 'y' }), true);
+  assert.equal(gradeQuizAnswer(q, { 'Curve A': 'y', 'Curve B': 'x' }), false);
+  assert.equal(gradeQuizAnswer(q, { 'Curve A': 'x' }), false);
+});
+
+test('curve names stay hidden until the question is answered', () => {
+  const names = /Myoglobin|Fetal|Adult|Decreased|Increased|No change|Exercising|altitude|Acidosis|Stored|Hyperventilation/;
+  for (const topic of TOPICS) {
+    for (const q of manyOf(topic, 100)) {
+      const before = [...quizCurveEntries(q, false)];
+      for (const c of before) {
+        if (c.name !== 'Normal Hb') assert.match(c.name, /^Curve [ABC]$/, `${topic}: ${c.name}`);
+        assert.doesNotMatch(c.name, names, topic);
+      }
+      assert.equal(before.length, q.curves.filter(c => !c.afterAnswer).length);
+      for (const c of quizCurveEntries(q, true)) {
+        if (topic === 'mbHb' || topic === 'fetal') assert.match(c.name, /: /, 'named after answering');
+      }
+    }
+  }
+});
+
+test('in match questions Normal Hb never gives away a lettered curve', () => {
+  for (const q of manyOf('mbHb')) {
+    const before = [...quizCurveEntries(q, false)];
+    assert.ok(before.every(c => c.letter), 'the Hb curve here is a letter, not named');
+  }
+});
+
+// ── Page wiring ────────────────────────────────────────────────
+test('the quiz button sits above the page, and the quiz panel starts hidden', () => {
+  const at = marker => HTML.indexOf(marker);
+  assert.ok(at('id="quiz-toggle"') < at('id="controls-row"'));
+  assert.match(HTML, /id="quiz-panel"[^>]*hidden/);
+  const fn = HTML.slice(HTML.indexOf('function setQuizMode'), HTML.indexOf("$('quiz-toggle').addEventListener"));
+  for (const id of ['controls-row', 'schematic-panel', 'affinity-box', 'hide-normal-label']) assert.ok(fn.includes(`$('${id}').hidden = on;`), id);
+});
+
+test('the quiz never changes the conditions, and clicks do not place the point', () => {
+  const section = HTML.slice(HTML.indexOf('// ── Quiz Mode ──'), HTML.indexOf('// Hover readout'));
+  assert.doesNotMatch(section, /state\.(pH|bpg|pco2|po2|coh|activity|show|hbModel)\b/);
+  assert.match(HTML, /function placeSelectedPoint\(e\) \{\s+if \(quiz\.active\) return;/);
+  assert.match(HTML, /if \(quiz\.active\) \{\s+drawCurves\(ctx, g, curves\);\s+drawCurveLetters/, 'no delivery markings, arrow or red point');
+});
+
+test('feedback uses the shared answer colors with ✓ and ✗', () => {
+  assert.match(HTML, /#quiz-feedback\.right \{ background: #DBEAFE; border-color: #1565C0;/);
+  assert.match(HTML, /#quiz-feedback\.wrong \{ background: #FFEBEE; border-color: #C8102E;/);
+  assert.ok(HTML.includes("'✓ Correct.'") && HTML.includes("'✗ Not quite.'"));
+});
+
+test('chemical names keep their capitals in every question', () => {
+  const bad = /bpg|\[h⁺\]|pco₂|\bph\b/;
+  for (const topic of TOPICS) {
+    for (const q of manyOf(topic, 150)) {
+      const entries = [...quizCurveEntries(q, true)].map(c => c.name);
+      for (const text of [q.prompt, q.explanation, ...[].concat(q.options || []), ...entries]) assert.doesNotMatch(text, bad, text);
+    }
+  }
+});
+
+test('the sequential model spreads O₂ across the molecules', () => {
+  for (const [bound, each] of [[12, 1], [24, 2], [36, 3]]) {
+    for (const molecule of subunitStates('sequential', bound)) {
+      assert.equal([...molecule].filter(s => s.bound).length, each, `${bound} bound`);
+    }
+  }
+});

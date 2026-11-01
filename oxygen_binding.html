@@ -242,6 +242,28 @@
     tbody th { text-align: left; font-weight: 600; }
     th .unit { display: block; font-weight: 400; font-size: 0.9em; color: var(--text-secondary); }
 
+    /* ── Quiz ── */
+    #quiz-bar { display: flex; justify-content: center; }
+    #plot-row.quiz-text { grid-template-columns: minmax(0, 1fr); }
+    #quiz-panel { min-width: 0; }
+    #quiz-score { font-size: 0.88em; font-weight: 600; }
+    #quiz-question { border: 0; min-width: 0; }
+    #quiz-prompt { font-size: 0.95em; font-weight: 600; line-height: 1.4; padding: 0; margin-bottom: 8px; }
+    #quiz-hint { font-size: 0.82em; color: var(--text-secondary); margin-bottom: 6px; }
+    #quiz-hint:empty { display: none; }
+    .quiz-option { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; margin-bottom: 4px; font-size: 0.9em; line-height: 1.35; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+    .quiz-option input { margin-top: 3px; accent-color: var(--ut-crimson); flex-shrink: 0; }
+    .quiz-match { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 8px; margin-bottom: 4px; font-size: 0.9em; border: 1px solid transparent; border-radius: 6px; }
+    .quiz-match select { min-width: 0; width: 100%; padding: 6px; font: inherit; font-size: 14px; background: #FFFFFF; color: #000000; border: 1px solid var(--ut-taupe); border-radius: 6px; }
+    .quiz-match select:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; }
+    .quiz-match .quiz-fix { grid-column: 2; font-size: 0.9em; }
+    .quiz-option.right, .quiz-match.right, #quiz-feedback.right { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .quiz-option.wrong, .quiz-match.wrong, #quiz-feedback.wrong { background: #FFEBEE; border-color: #C8102E; color: #000000; }
+    #quiz-buttons { display: flex; gap: 8px; margin-top: 10px; }
+    #quiz-feedback { margin-top: 10px; padding: 8px 12px; border: 2px solid transparent; border-radius: 8px; font-size: 0.9em; line-height: 1.45; }
+    #quiz-breakdown { margin-top: 14px; }
+    #quiz-breakdown td { text-align: right; }
+
     @media (max-width: 960px) {
       #controls-row, #plot-row { grid-template-columns: minmax(0, 1fr); }
     }
@@ -258,6 +280,8 @@
 <p class="subtitle">How pH, 2,3-BPG and CO₂ shift the hemoglobin O₂ saturation curve</p>
 
 <main id="main-layout">
+
+  <div id="quiz-bar"><button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode</button></div>
 
   <div id="controls-row">
   <section class="panel" aria-labelledby="controls-title">
@@ -335,6 +359,25 @@
   </div>
 
   <div id="plot-row">
+    <section class="panel" id="quiz-panel" aria-labelledby="quiz-title" hidden>
+      <div class="panel-header">
+        <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
+        <span id="quiz-score" role="status"></span>
+      </div>
+      <fieldset id="quiz-question">
+        <legend id="quiz-prompt"></legend>
+        <p id="quiz-hint"></p>
+        <div id="quiz-options"></div>
+      </fieldset>
+      <p class="field-error" id="quiz-message" role="status"></p>
+      <div id="quiz-buttons">
+        <button type="button" id="quiz-check">Check Answer</button>
+        <button type="button" id="quiz-next" hidden>Next Question</button>
+      </div>
+      <div id="quiz-feedback" role="status" hidden></div>
+      <div id="quiz-breakdown"></div>
+    </section>
+
     <section class="panel" id="schematic-panel" aria-labelledby="schematic-title">
       <h2 class="panel-section-title" id="schematic-title">O₂ binding to myoglobin and hemoglobin</h2>
       <div id="model-buttons" role="group" aria-label="Hemoglobin model">
@@ -382,12 +425,12 @@
     <section class="panel" id="plot-panel" aria-labelledby="plot-title">
       <div class="panel-header">
         <h2 class="panel-section-title" id="plot-title">O₂ saturation curve</h2>
-        <label class="check-label"><input type="checkbox" id="hide-normal">Hide Normal Hb</label>
+        <label class="check-label" id="hide-normal-label"><input type="checkbox" id="hide-normal">Hide Normal Hb</label>
       </div>
       <p id="affinity-box" role="status"></p>
       <div class="legend" id="legend"></div>
       <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
-      <p class="plot-hint">Click or tap the plot to place the red point at that pO₂. Hover to read the nearest curve.</p>
+      <p class="plot-hint" id="plot-hint">Click or tap the plot to place the red point at that pO₂. Hover to read the nearest curve.</p>
     </section>
   </div>
 </main>
@@ -398,6 +441,8 @@
 // ═══ 1. STATE ═════════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
+
+const quiz = { active: false, deck: null, question: null, answered: false, correct: 0, total: 0, topics: {} };
 
 const state = {
   pH: 7.4, bpg: 5, pco2: 40, coh: 20, po2: 30,
@@ -575,6 +620,275 @@ function curvePoints(curve, step = 0.25, max = 120) {
 }
 
 
+// ── Quiz questions ──
+// Answers about shifts, affinity and delivery are worked out from the model above, so a question
+// can't disagree with the curves it shows.
+const QUIZ_TOPICS = {
+  mbHb: 'Mb vs Hb',
+  predict: 'Predict the effect',
+  match: 'Match plots to causes',
+  causes: 'Possible causes',
+  twoChanges: 'Two changes at once',
+  scenarios: 'Physiological scenarios',
+  fetal: 'Fetal Hb',
+  models: 'Concerted vs sequential',
+};
+
+const QUIZ_CHANGES = {
+  pHDown:  { label: 'Decreased pH',       phrase: 'the pH falls',           conditions: { pH: 7.0 },  why: 'Protons stabilize the T state (the Bohr effect).' },
+  pHUp:    { label: 'Increased pH',       phrase: 'the pH rises',           conditions: { pH: 7.7 },  why: 'With fewer protons, the T state is less stable and R is favored.' },
+  hUp:     { label: 'Increased [H⁺]',     phrase: '[H⁺] rises',             conditions: { pH: 7.0 },  why: 'Higher [H⁺] means lower pH, and protons stabilize the T state (the Bohr effect).' },
+  hDown:   { label: 'Decreased [H⁺]',     phrase: '[H⁺] falls',             conditions: { pH: 7.7 },  why: 'Lower [H⁺] means higher pH, so the T state is less stable and R is favored.' },
+  co2Up:   { label: 'Increased pCO₂',     phrase: 'the pCO₂ rises',         conditions: { pco2: 80 }, why: 'CO₂ forms carbamates on Hb, which stabilize the T state.' },
+  co2Down: { label: 'Decreased pCO₂',     phrase: 'the pCO₂ falls',         conditions: { pco2: 20 }, why: 'Fewer carbamates form on Hb, so R is favored.' },
+  bpgUp:   { label: 'Increased 2,3-BPG',  phrase: 'the [2,3-BPG] rises',    conditions: { bpg: 8 },   why: '2,3-BPG binds in the central cavity of T-state Hb and stabilizes it.' },
+  bpgDown: { label: 'Decreased 2,3-BPG',  phrase: 'the [2,3-BPG] falls',    conditions: { bpg: 2 },   why: 'With less 2,3-BPG holding it, the T state is less stable and R is favored.' },
+};
+const RIGHT_SHIFTS = ['pHDown', 'hUp', 'co2Up', 'bpgUp'], LEFT_SHIFTS = ['pHUp', 'hDown', 'co2Down', 'bpgDown'];
+const SHIFT_OPTIONS = { left: 'To the left', right: 'To the right', none: 'It does not shift' };
+const NO_CHANGE = 'No change';
+
+const pick = (list, rand) => list[Math.floor(rand() * list.length)];
+function shuffled(list, rand) {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+const capitalize = text => text[0].toUpperCase() + text.slice(1);
+const changedCurve = conditions => adultCurve({ ...MODEL.hemoglobin.normal, ...conditions });
+const shiftOf = conditions => shiftFrom(changedCurve(conditions).p50);
+const lettered = (entries, rand) => shuffled(entries, rand).map((entry, i) => ({ ...entry, letter: 'ABC'[i] }));
+const NORMAL_REFERENCE = () => ({ name: 'Normal Hb', reference: true, curve: normalHbCurve() });
+const curveChoice = entry => `Curve ${entry.letter}`;
+
+// A single-choice question that shows Normal Hb, then adds the changed curve once answered.
+function shiftQuestion(prompt, conditions, name, explanation, rand) {
+  return {
+    format: 'single', prompt, explanation,
+    options: shuffled(Object.values(SHIFT_OPTIONS), rand),
+    answer: SHIFT_OPTIONS[shiftOf(conditions)],
+    curves: [NORMAL_REFERENCE(), { name, curve: changedCurve(conditions), afterAnswer: true }],
+  };
+}
+
+const QUIZ_BUILDERS = {
+  mbHb(rand) {
+    const curves = lettered([{ name: 'Myoglobin', curve: myoglobinCurve() }, { name: 'Normal Hb', curve: normalHbCurve() }], rand);
+    const [mb, hb] = curves[0].name === 'Myoglobin' ? curves : [curves[1], curves[0]];
+    const letters = curves.map(curveChoice);
+    const holder = saturation(mb.curve, MODEL.tissue.rest) > saturation(hb.curve, MODEL.tissue.rest) ? mb : hb;
+    return {
+      format: 'single', curves,
+      ...pick([
+        { prompt: 'Which curve is myoglobin?', answer: curveChoice(mb), options: letters,
+          explanation: 'Myoglobin has a single O₂ site, so it binds without cooperativity and gives a hyperbolic curve at high affinity.' },
+        { prompt: 'Which curve shows cooperative O₂ binding?', answer: curveChoice(hb), options: letters,
+          explanation: 'Hemoglobin\'s sigmoidal shape comes from cooperativity: O₂ binding at one subunit raises the affinity of the others.' },
+        { prompt: `Which curve holds more of its O₂ at a tissue pO₂ of ${MODEL.tissue.rest} torr?`, answer: curveChoice(holder), options: letters,
+          explanation: 'Myoglobin stays nearly saturated at tissue pO₂, so it stores O₂, while hemoglobin releases O₂ there.' },
+        { prompt: 'Which curve belongs to the protein with four O₂-binding subunits?', answer: curveChoice(hb), options: letters,
+          explanation: 'Hemoglobin is a tetramer (α₂β₂) with four hemes, and myoglobin is a single chain with one.' },
+        { prompt: `Why is curve ${mb.letter} hyperbolic rather than sigmoidal?`, answer: 'It has one O₂ site, so there is no cooperativity',
+          options: shuffled(['It has one O₂ site, so there is no cooperativity', 'Its four sites bind O₂ independently', 'It has no heme', 'It binds O₂ only at high pO₂'], rand),
+          explanation: 'With one site there are no other subunits to influence, so binding follows a simple hyperbola.' },
+      ], rand),
+    };
+  },
+
+  predict(rand) {
+    const key = pick(Object.keys(QUIZ_CHANGES), rand), change = QUIZ_CHANGES[key];
+    const shift = shiftOf(change.conditions), lead = capitalize(change.phrase);
+    const curve = changedCurve(change.conditions);
+    const moved = `The curve shifts to the ${shift}. ${change.why}`;
+    const kind = pick(['shift', 'affinity', 'delivery'], rand);
+    if (kind === 'shift') return shiftQuestion(`${lead}. Which way does the hemoglobin curve shift?`, change.conditions, change.label, moved, rand);
+    const base = { format: 'single', curves: [NORMAL_REFERENCE(), { name: change.label, curve, afterAnswer: true }] };
+    if (kind === 'affinity') {
+      return { ...base, prompt: `${lead}. What happens to hemoglobin's O₂ affinity?`,
+        options: shuffled(['It increases', 'It decreases', 'It does not change'], rand),
+        answer: shift === 'left' ? 'It increases' : 'It decreases', explanation: moved };
+    }
+    const delivered = delivery(curve, MODEL.tissue.rest).delivered, normal = delivery(normalHbCurve(), MODEL.tissue.rest).delivered;
+    const more = delivered > normal;
+    return { ...base, prompt: `${lead}. How does the O₂ delivered at rest change, from the lung (${MODEL.tissue.lung} torr) to the tissue (${MODEL.tissue.rest} torr)?`,
+      options: shuffled(['More O₂ is delivered', 'Less O₂ is delivered', 'It does not change'], rand),
+      answer: more ? 'More O₂ is delivered' : 'Less O₂ is delivered',
+      explanation: `${moved} Hemoglobin then ${more ? 'releases more' : 'holds on to more'} of its O₂ at the tissue.` };
+  },
+
+  // One right shift and one left shift, because causes in the same direction look alike on a plot.
+  match(rand) {
+    const right = QUIZ_CHANGES[pick(RIGHT_SHIFTS, rand)], left = QUIZ_CHANGES[pick(LEFT_SHIFTS, rand)];
+    const threeCurves = rand() < 0.5;
+    const entries = [
+      { name: right.label, curve: changedCurve(right.conditions), direction: 'right', why: right.why },
+      { name: left.label, curve: changedCurve(left.conditions), direction: 'left', why: left.why },
+    ];
+    if (threeCurves) entries.push({ name: NO_CHANGE, curve: normalHbCurve(), direction: 'none' });
+    const curves = lettered(entries, rand);
+    const answer = Object.fromEntries(curves.map(c => [curveChoice(c), c.name]));
+    return {
+      format: 'match',
+      prompt: threeCurves
+        ? 'One curve is at normal conditions, and the other two have each had one change. Match each curve to what happened.'
+        : 'Each lettered curve has had one change from Normal Hb (the dotted gray curve). Match each curve to its cause.',
+      rows: curves.map(curveChoice),
+      options: shuffled(entries.map(e => e.name), rand),
+      answer,
+      explanation: curves.map(c => (c.direction === 'none'
+        ? `Curve ${c.letter} is at normal conditions.`
+        : `Curve ${c.letter} is shifted ${c.direction} (${c.name}). ${c.why}`)).join(' '),
+      curves: threeCurves ? curves : [NORMAL_REFERENCE(), ...curves],
+    };
+  },
+
+  // The checkbox question: every cause in the curve's direction is correct.
+  causes(rand) {
+    const rightward = rand() < 0.5;
+    const correct = rightward ? RIGHT_SHIFTS : LEFT_SHIFTS, wrong = rightward ? LEFT_SHIFTS : RIGHT_SHIFTS;
+    const shown = QUIZ_CHANGES[pick(rightward ? ['pHDown', 'bpgUp'] : ['pHUp', 'bpgDown'], rand)];
+    const count = 2 + Math.floor(rand() * 3);   // 2 to 4 correct choices, out of 6
+    const chosen = shuffled(correct, rand).slice(0, count), distractors = shuffled(wrong, rand).slice(0, 6 - count);
+    const label = key => QUIZ_CHANGES[key].label;
+    return {
+      format: 'multi',
+      prompt: 'Curve A has shifted from Normal Hb (the dotted gray curve). Which changes could cause this?',
+      hint: 'Select all that apply.',
+      options: shuffled([...chosen, ...distractors].map(label), rand),
+      answer: chosen.map(label),
+      explanation: `Curve A is shifted ${rightward ? 'right, to lower affinity' : 'left, to higher affinity'}. ${chosen.map(key => `${label(key)}: ${QUIZ_CHANGES[key].why}`).join(' ')}`,
+      curves: [NORMAL_REFERENCE(), { name: 'Curve A', letter: 'A', curve: changedCurve(shown.conditions) }],
+    };
+  },
+
+  // Only changes pushing the same way, so each question has one clear answer.
+  twoChanges(rand) {
+    const pool = rand() < 0.5 ? RIGHT_SHIFTS : LEFT_SHIFTS;
+    const pairs = [[0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
+    const [first, second] = pick(pairs, rand).map(i => QUIZ_CHANGES[pool[i]]);
+    const conditions = { ...first.conditions, ...second.conditions };
+    return shiftQuestion(
+      `${capitalize(first.phrase)} and ${second.phrase}. Which way does the hemoglobin curve shift?`,
+      conditions, `${first.label}, ${second.label}`,
+      `Both push the curve to the ${shiftOf(conditions)}. ${first.why} ${second.why}`, rand,
+    );
+  },
+
+  scenarios(rand) {
+    const scenario = pick([
+      { prompt: 'In the capillaries of exercising muscle, the pH falls and the pCO₂ rises.', conditions: { pH: 7.2, pco2: 60 }, name: 'Exercising muscle',
+        why: 'Protons and CO₂ both stabilize the T state, so hemoglobin releases more O₂ where it is needed.' },
+      { prompt: 'After several days at high altitude, the [2,3-BPG] in red blood cells rises.', conditions: { bpg: 8 }, name: 'High altitude',
+        why: '2,3-BPG stabilizes the T state, which helps hemoglobin release O₂ to the tissues.' },
+      { prompt: 'A patient develops metabolic acidosis, with a blood pH well below normal.', conditions: { pH: 7.1 }, name: 'Acidosis',
+        why: 'Protons stabilize the T state (the Bohr effect), lowering hemoglobin\'s O₂ affinity.' },
+      { prompt: 'Red blood cells in stored blood lose most of their 2,3-BPG.', conditions: { bpg: 1 }, name: 'Stored blood',
+        why: 'Without 2,3-BPG stabilizing the T state, hemoglobin holds O₂ tightly and releases less to tissues.' },
+      { prompt: 'During hyperventilation, the pCO₂ falls and the blood pH rises.', conditions: { pH: 7.6, pco2: 20 }, name: 'Hyperventilation',
+        why: 'Less CO₂ and fewer protons both favor the R state, so hemoglobin holds its O₂ more tightly.' },
+    ], rand);
+    return shiftQuestion(`${scenario.prompt} Which way does the hemoglobin curve shift?`, scenario.conditions, scenario.name,
+      `It shifts to the ${shiftOf(scenario.conditions)}. ${scenario.why}`, rand);
+  },
+
+  fetal(rand) {
+    const normal = MODEL.hemoglobin.normal;
+    const curves = lettered([{ name: 'Adult Hb', curve: normalHbCurve() }, { name: 'Fetal Hb', curve: fetalCurve(normal) }], rand);
+    const fetal = curves.find(c => c.name === 'Fetal Hb'), adult = curves.find(c => c.name === 'Adult Hb');
+    const letters = curves.map(curveChoice);
+    const placenta = 30;
+    const higher = saturation(fetal.curve, placenta) > saturation(adult.curve, placenta) ? fetal : adult;
+    return {
+      format: 'single', curves,
+      ...pick([
+        { prompt: 'Which curve is fetal hemoglobin?', answer: curveChoice(fetal), options: letters,
+          explanation: 'Fetal Hb has the higher O₂ affinity, so its curve lies to the left of adult Hb.' },
+        { prompt: `At a placental pO₂ of ${placenta} torr, which curve is more saturated with O₂?`, answer: curveChoice(higher), options: letters,
+          explanation: 'Fetal Hb is more saturated at the same pO₂, which is how O₂ passes from maternal to fetal blood.' },
+        { prompt: 'Why does fetal Hb have a higher O₂ affinity than adult Hb?', answer: 'It binds 2,3-BPG less tightly',
+          options: shuffled(['It binds 2,3-BPG less tightly', 'It binds 2,3-BPG more tightly', 'It has more hemes per molecule', 'It is not affected by pH'], rand),
+          explanation: 'The γ subunits of fetal Hb bind 2,3-BPG weakly, so the T state is stabilized less.' },
+        { prompt: 'Why does O₂ move from maternal to fetal blood in the placenta?', answer: 'Fetal Hb has a higher O₂ affinity than maternal Hb',
+          options: shuffled(['Fetal Hb has a higher O₂ affinity than maternal Hb', 'Fetal Hb has a lower O₂ affinity than maternal Hb', 'Fetal blood has a higher pO₂', 'Maternal Hb cannot release O₂ elsewhere'], rand),
+          explanation: 'At the same pO₂, fetal Hb is more saturated, so O₂ released by maternal Hb binds fetal Hb.' },
+      ], rand),
+    };
+  },
+
+  models(rand) {
+    const options = ['Concerted model', 'Sequential model', 'Both models'];
+    return {
+      format: 'single', curves: [],
+      options: shuffled(options, rand),
+      ...pick([
+        { prompt: 'Which model has all four subunits switch between T and R together?', answer: 'Concerted model',
+          explanation: 'In the concerted (MWC) model, each molecule is entirely T or entirely R.' },
+        { prompt: 'Which model allows one hemoglobin molecule to hold T and R subunits at once?', answer: 'Sequential model',
+          explanation: 'In the sequential (KNF) model, subunits change one at a time, so mixed molecules exist.' },
+        { prompt: 'In which model does O₂ binding change only the subunit it binds to, which then raises the affinity of its neighbors?', answer: 'Sequential model',
+          explanation: 'The sequential model passes the change from a bound subunit to its neighbors, one at a time.' },
+        { prompt: 'Which model is also called the MWC or symmetry model?', answer: 'Concerted model',
+          explanation: 'The concerted model of Monod, Wyman and Changeux keeps all subunits in the same state, which preserves symmetry.' },
+        { prompt: 'Which model is also called the KNF model?', answer: 'Sequential model',
+          explanation: 'The sequential model is named for Koshland, Némethy and Filmer.' },
+        { prompt: 'Which models can account for hemoglobin\'s sigmoidal O₂ curve?', answer: 'Both models',
+          explanation: 'Each model explains cooperativity, by a different route: a whole-molecule switch, or subunit-by-subunit changes.' },
+      ], rand),
+    };
+  },
+};
+
+function buildQuizQuestion(topic, rand) {
+  return { topic, hint: '', ...QUIZ_BUILDERS[topic](rand) };
+}
+
+// Hands out questions without end. One in every five is the checkbox question, at a random
+// place in that five. The other topics rotate through a shuffled bag.
+function createQuizDeck(rand) {
+  const others = Object.keys(QUIZ_TOPICS).filter(topic => topic !== 'causes');
+  let bag = [], slot = 0, checkboxSlot = Math.floor(rand() * 5), lastPrompt = '';
+  return {
+    next() {
+      if (slot === 5) {
+        // Never first in a block straight after being last in the one before
+        const wasLast = checkboxSlot === 4;
+        slot = 0;
+        checkboxSlot = wasLast ? 1 + Math.floor(rand() * 4) : Math.floor(rand() * 5);
+      }
+      let topic = 'causes';
+      if (slot !== checkboxSlot) {
+        if (!bag.length) bag = shuffled(others, rand);
+        topic = bag.pop();
+      }
+      slot++;
+      let question = buildQuizQuestion(topic, rand);
+      for (let tries = 0; tries < 8 && question.prompt === lastPrompt; tries++) question = buildQuizQuestion(topic, rand);
+      lastPrompt = question.prompt;
+      return question;
+    },
+  };
+}
+
+function gradeQuizAnswer(question, given) {
+  if (question.format === 'single') return given === question.answer;
+  if (question.format === 'multi') {
+    return Array.isArray(given) && given.length === question.answer.length && question.answer.every(a => given.includes(a));
+  }
+  return question.rows.every(row => given && given[row] === question.answer[row]);
+}
+
+// The curves to draw. Until answered, a lettered curve is named only by its letter.
+function quizCurveEntries(question, answered) {
+  return question.curves.filter(c => answered || !c.afterAnswer).map(c => {
+    const name = c.letter ? (answered && c.name !== `Curve ${c.letter}` ? `Curve ${c.letter}: ${c.name}` : `Curve ${c.letter}`) : c.name;
+    return { key: c.reference ? 'normal' : c.afterAnswer ? 'adjustable' : c.letter, name, letter: c.letter, curve: c.curve };
+  });
+}
+
+
 // ═══ 3. PLOTTING ══════════════════════════════════════════════
 
 // All colors match the :root tokens above.
@@ -590,6 +904,12 @@ const STYLES = {
   myoglobin:  { color: COLORS.taupe, dash: [9, 5], width: 2 },
   normal:     { color: COLORS.gray, dash: [3, 3], width: 2 },
   fetal:      { color: COLORS.purple, dash: [], width: 2.25, diamonds: true },
+};
+// Quiz curves take their style from their letter, so a style never hints at the answer.
+const QUIZ_STYLES = {
+  A: { color: COLORS.crimson, dash: [], width: 2.75 },
+  B: { color: COLORS.blue, dash: [9, 5], width: 2.5 },
+  C: { color: COLORS.taupe, dash: [2, 4], width: 2.75 },
 };
 const PLOT = { xMax: 120, aspect: 450 / 700, minHeight: 240, left: 58, right: 58, top: 12, bottom: 62, diamonds: 9 };
 
@@ -607,6 +927,10 @@ function adjustableName() {
 // The curves to draw, bottom to top. Dashed references go over the solid curves so that both
 // stay visible when they overlap at normal conditions.
 function visibleCurves() {
+  if (quiz.active) {
+    return quizCurveEntries(quiz.question, quiz.answered)
+      .map(c => ({ ...c, style: QUIZ_STYLES[c.key] || STYLES[c.key], pts: curvePoints(c.curve) }));
+  }
   const list = [];
   if (state.show.fetal) list.push({ key: 'fetal', name: 'Fetal Hb', curve: fetalCurve(state) });
   list.push({ key: 'adjustable', name: adjustableName(), curve: currentCurve() });
@@ -841,6 +1165,18 @@ function drawSelectedPoint(ctx, g) {
   ctx.stroke();
 }
 
+// Each letter sits beside its curve at half saturation, where the curves are farthest apart.
+function drawCurveLetters(ctx, g, curves) {
+  ctx.font = `700 14px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const { letter, curve, style } of curves) {
+    if (!letter) continue;
+    ctx.fillStyle = style.color;
+    labelWithHalo(ctx, letter, g.sx(curve.p50) + 7, g.sy(0.5) + 7);
+  }
+}
+
 function drawCurves(ctx, g, curves) {
   ctx.save();
   ctx.beginPath();
@@ -949,6 +1285,12 @@ function drawPlot() {
   const g = geometry();
   const curves = visibleCurves();
   drawAxes(ctx, g);
+  if (quiz.active) {
+    drawCurves(ctx, g, curves);
+    drawCurveLetters(ctx, g, curves);
+    if (state.hover) drawHover(ctx, g, curves);
+    return;
+  }
   drawMarkers(ctx, g, currentCurve());
   drawCurves(ctx, g, curves);
   drawShiftArrow(ctx, g);
@@ -980,6 +1322,10 @@ function legendSwatch(style) {
 }
 
 function renderLegend() {
+  if (quiz.active) {
+    $('legend').innerHTML = visibleCurves().map(c => `<span class="legend-item">${legendSwatch(c.style)}${c.name}</span>`).join('');
+    return;
+  }
   // The adjustable curve first, whatever the drawing order.
   const entries = visibleCurves().sort((a, b) => (b.key === 'adjustable') - (a.key === 'adjustable'));
   const dots = state.activity
@@ -1020,6 +1366,10 @@ function renderResults() {
 }
 
 function updateCanvasLabel() {
+  if (quiz.active) {
+    plot.canvas.setAttribute('aria-label', `Fractional and percent O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${visibleCurves().map(c => c.name).join(', ')}.`);
+    return;
+  }
   const names = visibleCurves().map(c => c.name).join(', ');
   const c = currentCurve();
   const deliveryText = state.activity
@@ -1168,8 +1518,146 @@ $('reset').addEventListener('click', () => {
   render();
 });
 
+// ── Quiz Mode ──
+const HINT_NORMAL = $('plot-hint').textContent;
+
+function showQuizPlot() {
+  const hasPlot = quiz.question.curves.length > 0;
+  $('plot-panel').hidden = !hasPlot;
+  $('plot-row').classList.toggle('quiz-text', !hasPlot);
+  state.hover = null;
+  if (!hasPlot) return;
+  renderLegend();
+  updateCanvasLabel();
+  if (plot.canvas.parentElement.clientWidth !== plot.cssWidth) resizeCanvas();
+  drawPlot();
+}
+
+function renderQuizQuestion() {
+  const q = quiz.question;
+  $('quiz-prompt').textContent = q.prompt;
+  $('quiz-hint').textContent = q.hint;
+  const options = q.options.map((text, i) => ({ text, i }));
+  if (q.format === 'match') {
+    $('quiz-options').innerHTML = q.rows.map((row, r) => `<div class="quiz-match" data-row="${row}"><label for="quiz-row-${r}">${row}</label>` +
+      `<select id="quiz-row-${r}"><option value="">Choose…</option>${options.map(o => `<option value="${o.i}">${o.text}</option>`).join('')}</select></div>`).join('');
+  } else {
+    const type = q.format === 'multi' ? 'checkbox' : 'radio';
+    $('quiz-options').innerHTML = options.map(o => `<label class="quiz-option" data-text="${o.text}"><input type="${type}" name="quiz-choice" value="${o.i}"><span>${o.text}</span></label>`).join('');
+  }
+  $('quiz-message').textContent = '';
+  $('quiz-feedback').hidden = true;
+  $('quiz-check').hidden = false;
+  $('quiz-next').hidden = true;
+  showQuizPlot();
+}
+
+// What the student has entered, or null if the question isn't finished.
+function readQuizAnswer() {
+  const q = quiz.question;
+  if (q.format === 'match') {
+    const given = {};
+    for (const row of document.querySelectorAll('.quiz-match')) {
+      const value = row.querySelector('select').value;
+      if (value === '') return null;
+      given[row.dataset.row] = q.options[Number(value)];
+    }
+    return given;
+  }
+  const chosen = [...document.querySelectorAll('input[name=quiz-choice]:checked')].map(input => q.options[Number(input.value)]);
+  if (!chosen.length) return null;
+  return q.format === 'multi' ? chosen : chosen[0];
+}
+
+function markQuizAnswer(given) {
+  const q = quiz.question;
+  document.querySelectorAll('#quiz-options input, #quiz-options select').forEach(el => { el.disabled = true; });
+  if (q.format === 'match') {
+    for (const row of document.querySelectorAll('.quiz-match')) {
+      const right = given[row.dataset.row] === q.answer[row.dataset.row];
+      row.classList.add(right ? 'right' : 'wrong');
+      row.insertAdjacentHTML('beforeend', `<span class="quiz-fix">${right ? '✓ Correct' : `✗ Answer: ${q.answer[row.dataset.row]}`}</span>`);
+    }
+    return;
+  }
+  const correct = q.format === 'multi' ? q.answer : [q.answer];
+  const picked = q.format === 'multi' ? given : [given];
+  for (const option of document.querySelectorAll('.quiz-option')) {
+    const text = option.dataset.text, isCorrect = correct.includes(text), isPicked = picked.includes(text);
+    if (!isCorrect && !isPicked) continue;
+    option.classList.add(isCorrect ? 'right' : 'wrong');
+    option.querySelector('span').textContent = `${isCorrect ? '✓' : '✗'} ${text}`;
+  }
+}
+
+function renderQuizScore() {
+  $('quiz-score').textContent = `Score: ${quiz.correct} of ${quiz.total}`;
+  const rows = Object.entries(QUIZ_TOPICS).filter(([key]) => quiz.topics[key])
+    .map(([key, name]) => `<tr><th scope="row">${name}</th><td>${quiz.topics[key].correct}</td><td>${quiz.topics[key].total}</td></tr>`).join('');
+  $('quiz-breakdown').innerHTML = rows
+    ? `<table><thead><tr><td></td><th scope="col">Correct</th><th scope="col">Asked</th></tr></thead><tbody>${rows}</tbody></table>`
+    : '';
+}
+
+function checkQuizAnswer() {
+  const given = readQuizAnswer();
+  if (given === null) {
+    $('quiz-message').textContent = quiz.question.format === 'match' ? 'Choose an answer for every curve.' : 'Choose an answer first.';
+    return;
+  }
+  const q = quiz.question, right = gradeQuizAnswer(q, given);
+  quiz.answered = true;
+  quiz.total++;
+  if (right) quiz.correct++;
+  const topic = (quiz.topics[q.topic] ||= { correct: 0, total: 0 });
+  topic.total++;
+  if (right) topic.correct++;
+  markQuizAnswer(given);
+  $('quiz-message').textContent = '';
+  const box = $('quiz-feedback');
+  box.className = right ? 'right' : 'wrong';
+  box.textContent = `${right ? '✓ Correct.' : '✗ Not quite.'} ${q.explanation}`;
+  box.hidden = false;
+  $('quiz-check').hidden = true;
+  $('quiz-next').hidden = false;
+  renderQuizScore();
+  showQuizPlot();
+  $('quiz-next').focus();
+}
+
+function nextQuizQuestion() {
+  quiz.question = quiz.deck.next();
+  quiz.answered = false;
+  renderQuizQuestion();
+}
+
+function setQuizMode(on) {
+  quiz.active = on;
+  setPressed($('quiz-toggle'), on);
+  $('controls-row').hidden = on;
+  $('schematic-panel').hidden = on;
+  $('quiz-panel').hidden = !on;
+  $('affinity-box').hidden = on;
+  $('hide-normal-label').hidden = on;
+  $('plot-hint').textContent = on ? 'Hover or tap the plot to read the nearest curve.' : HINT_NORMAL;
+  if (on) {
+    Object.assign(quiz, { deck: createQuizDeck(Math.random), correct: 0, total: 0, topics: {} });
+    renderQuizScore();
+    nextQuizQuestion();
+    return;
+  }
+  $('plot-panel').hidden = false;
+  $('plot-row').classList.remove('quiz-text');
+  render();
+}
+
+$('quiz-toggle').addEventListener('click', () => setQuizMode(!quiz.active));
+$('quiz-check').addEventListener('click', checkQuizAnswer);
+$('quiz-next').addEventListener('click', nextQuizQuestion);
+
 // Hover readout. A touch has no "leave", so its readout stays until the next tap elsewhere.
 function placeSelectedPoint(e) {
+  if (quiz.active) return;
   const g = geometry();
   const rect = plot.canvas.getBoundingClientRect();
   const x = e.clientX - rect.left, y = e.clientY - rect.top;
