@@ -884,3 +884,55 @@ test('the six starting [S] buttons share one row, with the readout below them', 
   assert.ok(box.indexOf('id="demo-s-buttons"') > 0 && box.indexOf('id="demo-s-buttons"') < box.indexOf('id="demo-readout"'));
   assert.doesNotMatch(HTML, /#demo-controls, #collect-controls/, 'the box is no longer two columns');
 });
+
+test('the product plot compares the selection with 0.2 and 10 × Km, not the previous [S]', () => {
+  assert.match(HTML, /const DEMO_REFERENCES = \[0, DEMO_S_FACTORS\.length - 1\]/);
+  assert.match(HTML, /const DEMO_S_FACTORS = \[0\.2, 0\.5, 1, 2, 5, 10\]/);
+  assert.ok(HTML.includes(".filter(e => e !== focus)"), 'a selected reference is drawn once, as the selection');
+  assert.ok(HTML.includes("legend: 'Reference [S]', style: RATE_STYLES.reference"));
+  assert.doesNotMatch(HTML, /Previous \[S\]|previously selected|rates\.previous/);
+});
+
+test('reference buttons stay selectable and turn from gray to the active color', () => {
+  assert.match(HTML, /#demo-s-buttons button\.reference \{ background: #BFBFBF;/);
+  assert.match(HTML, /const look = i === selected \? ' class="active"'\s+: reference >= 0/);
+  const handler = HTML.slice(HTML.indexOf("$('demo-s-buttons').addEventListener"), HTML.indexOf('function runProblem'));
+  assert.ok(handler.includes('state.rates.selected = chosen;'));
+  assert.doesNotMatch(handler, /disabled|reference/i, 'no button is left out');
+});
+
+test('Show Guides sits beside the note, and the plot cards match in height', () => {
+  const footer = HTML.slice(HTML.indexOf('<div id="mm-footer">'), HTML.indexOf('id="lb-canvas"'));
+  assert.ok(footer.indexOf('id="mm-note"') > 0 && footer.indexOf('id="mm-note"') < footer.indexOf('id="guides"'));
+  assert.match(HTML, /#mm-footer \{ display: flex; align-items: center;/);
+  assert.match(HTML, /\.rates-layout #plot-column \{[^}]*align-items: stretch;/);
+  assert.match(HTML, /\.rates-layout \.plot-card\.collapsed \{ align-self: start; \}/);
+});
+
+test('the hover hint is centered below the plots', () => {
+  assert.match(HTML, /\.plot-hint \{[^}]*text-align: center;/);
+  assert.match(HTML, /\.rates-layout #plot-hint \{ grid-column: 1 \/ -1;/);
+});
+
+test('the enzyme model and scheme are 20% smaller', () => {
+  assert.match(HTML, /#enzyme-model svg \{ max-width: 213px; \}/);
+  assert.match(HTML, /#reaction-scheme svg \{ max-width: 272px; \}/);
+});
+
+test('Random and Reset sit below the tab buttons on every tab, 20% smaller', () => {
+  const at = marker => {
+    const i = HTML.indexOf(marker);
+    assert.ok(i >= 0, marker);
+    return i;
+  };
+  for (const row of ['id="rates-view-buttons"', 'id="type-buttons"', 'id="difference-buttons"']) {
+    assert.ok(at(row) < at('<div id="param-buttons">'), row);
+  }
+  assert.ok(at('<div id="param-buttons">') < at('id="rates-settings"'));
+  const row = HTML.slice(at('<div id="param-buttons">'), at('id="rates-settings"'));
+  assert.ok(row.includes('id="random"') && row.includes('id="reset"'));
+  const actions = HTML.slice(at('<div id="action-buttons">'), at('<!-- Enzyme model and reaction scheme -->'));
+  assert.ok(actions.includes('id="quiz-toggle"') && !actions.includes('id="random"'), 'Quiz Mode stays on top');
+  assert.match(HTML, /#param-buttons button \{ padding: 5\.6px 12px; font-size: 0\.7em; \}/);
+  assert.doesNotMatch(HTML.replace(/<[^>]*param-buttons[^>]*>/, ''), /\$\('param-buttons'\)\.hidden/, 'never hidden by a tab');
+});
