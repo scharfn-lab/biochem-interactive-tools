@@ -55,7 +55,7 @@ test('the button rows have the requested headings and topics', () => {
 
 test('each tool has the requested description, one sentence or less', () => {
   const wanted = {
-    'Acid-Base Chemistry': 'Evaluate buffer composition and effect of adding acid or base to buffer solution',
+    'Acid-Base Chemistry': 'Evaluate buffer composition and addition of strong acid or base',
     'Amino Acids': 'Practice naming the 20 amino acids and their properties',
     'Peptide Properties': 'Evaluate pH, charge, and pI of peptide structures',
     'Peptide Folding': 'Adjust dihedral angles to visualize folding patterns',
