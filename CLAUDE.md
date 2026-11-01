@@ -85,7 +85,7 @@ For the quiz, `buildQuizSet()` and `QUESTION_BUILDERS` produce plain-data questi
 
 ## Architecture: oxygen_binding.html
 
-Every adjustable constant is in `MODEL`. P50 is the normal value multiplied by `bohrFactor()`, `bpgFactor()` and `co2Factor()`. `withCarbonMonoxide()` lowers P50 and n and sets `cap`, so O₂ saturation is a fraction of total Hb. `render()` is the hub. `drawMarkers()` always draws the blue lines at Y(lung) and Y(tissue), with the arrow between them. `shiftFrom()` compares P50 with normal to set the affinity box, though P50 itself no longer appears on the page. The carbon monoxide button is disabled for now, with its code left in place. Section 2 of the script touches no DOM, and the test file runs it in a vm.
+Every adjustable constant is in `MODEL`. P50 is the normal value multiplied by `bohrFactor()`, `bpgFactor()` and `co2Factor()`. `withCarbonMonoxide()` lowers P50 and n and sets `cap`, so O₂ saturation is a fraction of total Hb. `render()` is the hub. `state.activity` is null when no O₂ delivery button is selected, which hides the blue lines, dots and lung and tissue markers. Otherwise `drawMarkers()` draws the blue lines at Y(lung) and Y(tissue), with the arrow between them, and `drawDeliveryDots()` marks both points on Adjusted Hb and, at half size, on Normal Hb. The schematic's hemoglobin follows the Adjusted Hb curve, and `boundSites()` rounds saturation to whole sites. `shiftFrom()` compares P50 with normal to set the affinity box, though P50 itself no longer appears on the page. The carbon monoxide button is disabled for now, with its code left in place. Section 2 of the script touches no DOM, and the test file runs it in a vm.
 
 ## Git Workflow
 
