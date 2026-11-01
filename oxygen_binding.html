@@ -90,11 +90,7 @@
     }
     .panel-header .panel-section-title { margin-bottom: 0; }
 
-    #conditions {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 14px 32px;
-    }
+    #conditions { display: flex; flex-direction: column; gap: 14px; }
 
     #sliders {
       display: grid;
@@ -173,12 +169,9 @@
     #co-control { margin-top: 14px; }
 
     /* ── Plot and results ── */
-    #plot-row {
-      display: grid;
-      grid-template-columns: minmax(0, 588px) minmax(0, 1fr);
-      gap: 18px;
-      align-items: start;
-    }
+    #controls-row, #plot-row { display: grid; gap: 18px; align-items: stretch; }
+    #controls-row { grid-template-columns: minmax(0, 588px) minmax(0, 1fr); }
+    #plot-row { grid-template-columns: minmax(0, 1fr) minmax(0, 588px); }
 
     #plot-panel { min-width: 0; }
     #plot-wrap { max-width: 552px; margin: 0 auto; }
@@ -217,6 +210,24 @@
       touch-action: pan-y;   /* keep vertical page scrolling on phones; sideways drags scrub the readout */
     }
 
+    .check-label { display: flex; align-items: center; gap: 6px; font-size: 0.85em; cursor: pointer; }
+    .check-label input { accent-color: var(--ut-crimson); width: 16px; height: 16px; cursor: pointer; }
+
+    /* ── Mb and Hb schematic ── */
+    #schematic-panel { display: flex; flex-direction: column; min-width: 0; }
+    #schematic { display: block; width: 100%; height: auto; margin-block: auto; }
+    #schematic text { font-family: inherit; fill: #000000; text-anchor: middle; }
+    .globin { stroke: var(--ut-taupe); stroke-width: 2; }
+    .globin.alpha { fill: var(--ut-lavender); }
+    .globin.beta { fill: #E6E0CC; }
+    .heme { fill: var(--ut-taupe); }
+    .o2-site { opacity: 0; transition: opacity 0.25s; }
+    .o2-site.on { opacity: 1; }
+    .o2-site circle { fill: var(--ut-crimson); stroke: #FFFFFF; stroke-width: 1.5; }
+    #schematic .o2-site text { fill: #FFFFFF; font-size: 11px; font-weight: 700; }
+    #po2-control { padding-top: 10px; }
+    @media (prefers-reduced-motion: reduce) { .o2-site { transition: none; } }
+
     .plot-hint { font-size: 0.8em; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
 
     table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
@@ -227,10 +238,7 @@
     th .unit { display: block; font-weight: 400; font-size: 0.9em; color: var(--text-secondary); }
 
     @media (max-width: 960px) {
-      #plot-row { grid-template-columns: minmax(0, 1fr); }
-    }
-    @media (max-width: 720px) {
-      #conditions { grid-template-columns: minmax(0, 1fr); }
+      #controls-row, #plot-row { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 480px) {
       .panel { padding: 12px; }
@@ -245,6 +253,7 @@
 
 <main id="main-layout">
 
+  <div id="controls-row">
   <section class="panel" aria-labelledby="controls-title">
     <div class="panel-header">
       <h2 class="panel-section-title" id="controls-title">Conditions</h2>
@@ -255,7 +264,6 @@
         <h3 class="panel-section-title">Show</h3>
         <div id="toggles" role="group" aria-label="Curves to show">
           <button type="button" data-toggle="myoglobin">Myoglobin reference</button>
-          <button type="button" data-toggle="normal">Normal Hb reference</button>
           <button type="button" data-toggle="fetal">Fetal Hb</button>
           <button type="button" data-toggle="co" disabled>Carbon monoxide</button>
         </div>
@@ -308,24 +316,70 @@
             <p class="field-error" id="bpg-error" role="status"></p>
           </div>
         </div>
-        <p class="note">In the body, CO₂ also lowers pH, but the sliders are kept separate so you can see each effect on its own.</p>
+        <p class="note">In the body, CO₂ also lowers pH, but the sliders are kept separate so you can observe each effect on its own.</p>
       </div>
     </div>
   </section>
-
-  <div id="plot-row">
-    <section class="panel" id="plot-panel" aria-labelledby="plot-title">
-      <h2 class="panel-section-title" id="plot-title">O₂ saturation curve</h2>
-      <p id="affinity-box" role="status"></p>
-      <div class="legend" id="legend"></div>
-      <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
-      <p class="plot-hint">Hover or tap the plot to read the nearest curve.</p>
-    </section>
 
     <section class="panel" aria-labelledby="results-title">
       <h2 class="panel-section-title" id="results-title">Results</h2>
       <div id="results-table"></div>
       <p class="note" id="co-results-note" hidden>With CO, Y is a fraction of all Hb. The fetal curve is shown without CO.</p>
+    </section>
+  </div>
+
+  <div id="plot-row">
+    <section class="panel" id="schematic-panel" aria-labelledby="schematic-title">
+      <h2 class="panel-section-title" id="schematic-title">O₂ binding to myoglobin and hemoglobin</h2>
+      <svg id="schematic" viewBox="0 0 402 250" role="img">
+        <text x="92" y="16" font-size="13" font-weight="600">Myoglobin</text>
+        <text x="290" y="16" font-size="13" font-weight="600">Hemoglobin</text>
+
+        <ellipse class="globin alpha" cx="92" cy="112" rx="68" ry="62"/>
+        <rect class="heme" x="74" y="120" width="36" height="8" rx="2"/>
+        <g class="o2-site" id="mb-site-0"><circle cx="92" cy="104" r="13"/><text x="92" y="108">O₂</text></g>
+
+        <ellipse class="globin alpha" cx="240" cy="74" rx="52" ry="46"/>
+        <ellipse class="globin beta"  cx="340" cy="74" rx="52" ry="46"/>
+        <ellipse class="globin beta"  cx="240" cy="154" rx="52" ry="46"/>
+        <ellipse class="globin alpha" cx="340" cy="154" rx="52" ry="46"/>
+        <text x="205" y="70" font-size="12">α₁</text>
+        <text x="375" y="70" font-size="12">β₁</text>
+        <text x="205" y="158" font-size="12">β₂</text>
+        <text x="375" y="158" font-size="12">α₂</text>
+        <rect class="heme" x="224" y="84" width="32" height="7" rx="2"/>
+        <rect class="heme" x="324" y="84" width="32" height="7" rx="2"/>
+        <rect class="heme" x="224" y="164" width="32" height="7" rx="2"/>
+        <rect class="heme" x="324" y="164" width="32" height="7" rx="2"/>
+        <g class="o2-site" id="hb-site-0"><circle cx="240" cy="68" r="13"/><text x="240" y="72">O₂</text></g>
+        <g class="o2-site" id="hb-site-1"><circle cx="340" cy="148" r="13"/><text x="340" y="152">O₂</text></g>
+        <g class="o2-site" id="hb-site-2"><circle cx="340" cy="68" r="13"/><text x="340" y="72">O₂</text></g>
+        <g class="o2-site" id="hb-site-3"><circle cx="240" cy="148" r="13"/><text x="240" y="152">O₂</text></g>
+
+        <text id="mb-bound" x="92" y="222" font-size="12" font-weight="600"></text>
+        <text id="mb-percent" x="92" y="240" font-size="12"></text>
+        <text id="hb-bound" x="290" y="222" font-size="12" font-weight="600"></text>
+        <text id="hb-percent" x="290" y="240" font-size="12"></text>
+      </svg>
+      <div class="slider-control" id="po2-control">
+        <label for="po2-number">pO₂ (torr)</label>
+        <div class="slider-row">
+          <input type="range" id="po2-range" min="0" max="120" step="1" aria-label="pO₂ slider">
+          <input type="number" id="po2-number" min="0" max="120" step="1">
+        </div>
+        <p class="field-error" id="po2-error" role="status"></p>
+      </div>
+    </section>
+
+    <section class="panel" id="plot-panel" aria-labelledby="plot-title">
+      <div class="panel-header">
+        <h2 class="panel-section-title" id="plot-title">O₂ saturation curve</h2>
+        <label class="check-label"><input type="checkbox" id="hide-normal">Hide Normal Hb</label>
+      </div>
+      <p id="affinity-box" role="status"></p>
+      <div class="legend" id="legend"></div>
+      <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
+      <p class="plot-hint">Hover or tap the plot to read the nearest curve.</p>
     </section>
   </div>
 </main>
@@ -338,9 +392,9 @@
 const $ = id => document.getElementById(id);
 
 const state = {
-  pH: 7.4, bpg: 5, pco2: 40, coh: 20,
+  pH: 7.4, bpg: 5, pco2: 40, coh: 20, po2: 40,
   show: { myoglobin: true, normal: true, fetal: false, co: false },
-  activity: 'rest',
+  activity: 'rest',   // 'rest', 'exercise', or null when no delivery is shown
   hover: null,
 };
 
@@ -453,6 +507,11 @@ function affinityText(shift) {
   return '';
 }
 
+// How many of a molecule's sites to draw holding O₂, for its saturation at this pO₂.
+function boundSites(curve, pO2, sites) {
+  return Math.round(saturation(curve, pO2) * sites);
+}
+
 function curvePoints(curve, step = 0.25, max = 120) {
   const pts = [];
   for (let p = 0; p <= max + 1e-9; p += step) pts.push({ x: p, y: saturation(curve, p) });
@@ -465,6 +524,7 @@ function curvePoints(curve, step = 0.25, max = 120) {
 // All colors match the :root tokens above.
 const COLORS = { crimson: '#C8102E', taupe: '#685C53', purple: '#6A0DAD', gray: '#828282', grid: '#BFBFBF', text: '#000000', blue: '#1565C0' };
 const FONT = "'Segoe UI', Arial, sans-serif";
+const DELIVERY_DOT = { adjusted: 5, normal: 2.5 };   // radii; the Normal Hb reference's are half the size
 
 // Each curve differs by line style or markers as well as color.
 const STYLES = {
@@ -483,7 +543,7 @@ function currentCurve() {
 }
 
 function adjustableName() {
-  return state.show.co ? `Adjustable Hb + ${state.coh}% COHb` : 'Adjustable Hb';
+  return state.show.co ? `Adjusted Hb + ${state.coh}% COHb` : 'Adjusted Hb';
 }
 
 // The curves to draw, bottom to top. Dashed references go over the solid curves so that both
@@ -602,6 +662,7 @@ function drawDeliveryArrow(ctx, x, yTop, yBottom) {
 const ARROW_INSET = 14;
 
 function drawMarkers(ctx, g, curve) {
+  if (!state.activity) return;
   const tissueP = MODEL.tissue[state.activity];
   const { lung, tissue } = delivery(curve, tissueP);
   const xLung = g.sx(MODEL.tissue.lung), xTissue = g.sx(tissueP);
@@ -637,6 +698,7 @@ function drawMarkers(ctx, g, curve) {
 
 // Drawn after the curves, so that none of them runs through the words.
 function drawDeliveryLabel(ctx, g, curve) {
+  if (!state.activity) return;
   const tissueP = MODEL.tissue[state.activity];
   const { lung, tissue, delivered } = delivery(curve, tissueP);
   const yLung = g.sy(lung), yTissue = g.sy(tissue);
@@ -650,6 +712,21 @@ function drawDeliveryLabel(ctx, g, curve) {
     const full = `O₂ delivered: ${percent}`;
     const room = (arrowX - xTissue) * 0.75;   // the left of that span is where the curve still climbs
     labelWithHalo(ctx, ctx.measureText(full).width <= room ? full : `${percent} O₂`, arrowX - 10, (yLung + yTissue) / 2);
+  }
+}
+
+// Blue dots where a curve meets the lung and tissue pO₂, drawn over the curves.
+function drawDeliveryDots(ctx, g, curve, radius) {
+  const tissueP = MODEL.tissue[state.activity];
+  const { lung, tissue } = delivery(curve, tissueP);
+  ctx.fillStyle = COLORS.blue;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = radius > 3 ? 1.5 : 1;
+  for (const [p, y] of [[MODEL.tissue.lung, lung], [tissueP, tissue]]) {
+    ctx.beginPath();
+    ctx.arc(g.sx(p), g.sy(y), radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
   }
 }
 
@@ -763,6 +840,10 @@ function drawPlot() {
   drawAxes(ctx, g);
   drawMarkers(ctx, g, currentCurve());
   drawCurves(ctx, g, curves);
+  if (state.activity) {
+    drawDeliveryDots(ctx, g, currentCurve(), DELIVERY_DOT.adjusted);
+    if (state.show.normal) drawDeliveryDots(ctx, g, normalHbCurve(), DELIVERY_DOT.normal);
+  }
   drawDeliveryLabel(ctx, g, currentCurve());
   if (state.hover) drawHover(ctx, g, curves);
 }
@@ -788,10 +869,13 @@ function legendSwatch(style) {
 function renderLegend() {
   // The adjustable curve first, whatever the drawing order.
   const entries = visibleCurves().sort((a, b) => (b.key === 'adjustable') - (a.key === 'adjustable'));
-  $('legend').innerHTML = entries.map(c => `<span class="legend-item">${legendSwatch(c.style)}${c.name}</span>`).join('');
+  const dots = state.activity
+    ? `<span class="legend-item"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="${COLORS.blue}"/></svg>O₂ delivery points</span>`
+    : '';
+  $('legend').innerHTML = entries.map(c => `<span class="legend-item">${legendSwatch(c.style)}${c.name}</span>`).join('') + dots;
 }
 
-const fmtY = y => `${y.toFixed(3)} (${(y * 100).toFixed(1)}%)`;
+const fmtPercent = y => `${(y * 100).toFixed(1)}%`;
 
 function renderAffinity() {
   const shift = shiftFrom(currentCurve().p50);
@@ -801,19 +885,19 @@ function renderAffinity() {
 }
 
 function renderResults() {
-  const tissueP = MODEL.tissue[state.activity];
-  const columns = [{ name: 'Adult Hb', curve: currentCurve() }];
+  const tissueP = state.activity ? MODEL.tissue[state.activity] : null;
+  const columns = [{ name: 'Adjusted Hb', curve: currentCurve() }];
   if (state.show.fetal) columns.push({ name: 'Fetal Hb', curve: fetalCurve(state) });
-  const data = columns.map(c => ({ ...c, ...delivery(c.curve, tissueP) }));
+  const data = columns.map(c => ({ ...c, lung: saturation(c.curve, MODEL.tissue.lung), ...(tissueP ? delivery(c.curve, tissueP) : {}) }));
   const row = (label, unit, value) => `<tr><th scope="row">${label}${unit ? ` <span class="unit">${unit}</span>` : ''}</th>${data.map(d => `<td>${value(d)}</td>`).join('')}</tr>`;
   // One column needs no heading. Two have to say which is which.
   const head = data.length > 1 ? `<thead><tr><td></td>${data.map(d => `<th scope="col">${d.name}</th>`).join('')}</tr></thead>` : '';
 
   $('results-table').innerHTML = `<table>${head}<tbody>` +
-    row('Hill coefficient, n', '', d => d.curve.n.toFixed(2)) +
-    row('Y at lung', `${MODEL.tissue.lung} torr`, d => fmtY(d.lung)) +
-    row('Y at tissue', `${tissueP} torr`, d => fmtY(d.tissue)) +
-    row('% O₂ delivered', 'Y(lung) − Y(tissue)', d => `${(d.delivered * 100).toFixed(1)}%`) +
+    row('% Saturation (lung)', `${MODEL.tissue.lung} torr`, d => fmtPercent(d.lung)) +
+    row('% Saturation (tissue)', tissueP ? `${tissueP} torr` : 'Select an O₂ delivery', d => (tissueP ? fmtPercent(d.tissue) : '—')) +
+    row('% O₂ delivered', '', d => (tissueP ? fmtPercent(d.delivered) : '—')) +
+    row('Hill coefficient, n', 'Measures cooperativity: values above 1 mean cooperative binding', d => d.curve.n.toFixed(2)) +
     '</tbody></table>';
   $('co-results-note').hidden = !state.show.co;
 }
@@ -821,9 +905,31 @@ function renderResults() {
 function updateCanvasLabel() {
   const names = visibleCurves().map(c => c.name).join(', ');
   const c = currentCurve();
-  const { delivered } = delivery(c, MODEL.tissue[state.activity]);
+  const deliveryText = state.activity
+    ? ` Blue dots and lines mark the saturation of Adjusted Hb at the lung and at the tissue, and an arrow between them shows that it delivers ${fmtPercent(delivery(c, MODEL.tissue[state.activity]).delivered)} of its O₂ capacity.`
+    : '';
   plot.canvas.setAttribute('aria-label',
-    `Fractional O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}. Two blue lines mark the saturation of adjustable Hb at the lung and at the tissue, and an arrow between them shows that it delivers ${(delivered * 100).toFixed(1)}% of its O₂ capacity. Values are in the results panel.`);
+    `Fractional O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}.${deliveryText} Values are in the results panel.`);
+}
+
+// Myoglobin has one site and hemoglobin four. Hemoglobin follows the Adjusted Hb curve.
+const SCHEMATIC = [
+  { key: 'mb', name: 'Myoglobin', sites: 1, curve: myoglobinCurve },
+  { key: 'hb', name: 'Hemoglobin', sites: 4, curve: currentCurve },
+];
+
+function renderSchematic() {
+  const parts = SCHEMATIC.map(({ key, name, sites, curve }) => {
+    const c = curve();
+    const bound = boundSites(c, state.po2, sites);
+    for (let i = 0; i < sites; i++) $(`${key}-site-${i}`).classList.toggle('on', i < bound);
+    const sitesText = `${bound} of ${sites} ${sites === 1 ? 'site' : 'sites'} bound`;
+    const percent = fmtPercent(saturation(c, state.po2));
+    $(`${key}-bound`).textContent = sitesText;
+    $(`${key}-percent`).textContent = `${percent} saturation`;
+    return `${name}: ${sitesText}, ${percent} saturation`;
+  });
+  $('schematic').setAttribute('aria-label', `At a pO₂ of ${state.po2} torr. ${parts.join('. ')}.`);
 }
 
 
@@ -834,6 +940,7 @@ const SLIDERS = [
   { key: 'bpg', decimals: 1, name: '[2,3-BPG]' },
   { key: 'pco2', decimals: 0, name: 'pCO₂' },
   { key: 'coh', decimals: 0, name: 'COHb' },
+  { key: 'po2', decimals: 0, name: 'pO₂' },
 ];
 const NORMAL_CONDITIONS = { ...MODEL.hemoglobin.normal, coh: 20 };
 
@@ -852,11 +959,13 @@ function render() {
   }
   document.querySelectorAll('[data-toggle]').forEach(b => setPressed(b, state.show[b.dataset.toggle]));
   document.querySelectorAll('[data-activity]').forEach(b => setPressed(b, b.dataset.activity === state.activity));
+  $('hide-normal').checked = !state.show.normal;
   $('co-control').hidden = !state.show.co;
   state.hover = null;
   renderLegend();
   renderAffinity();
   renderResults();
+  renderSchematic();
   updateCanvasLabel();
   drawPlot();
 }
@@ -903,9 +1012,15 @@ document.querySelectorAll('[data-toggle]').forEach(button => button.addEventList
 }));
 
 document.querySelectorAll('[data-activity]').forEach(button => button.addEventListener('click', () => {
-  state.activity = button.dataset.activity;
+  // Pressing the selected button again turns the delivery markings off.
+  state.activity = button.dataset.activity === state.activity ? null : button.dataset.activity;
   render();
 }));
+
+$('hide-normal').addEventListener('change', e => {
+  state.show.normal = !e.target.checked;
+  render();
+});
 
 // Returns the blood to normal, and leaves which reference curves are showing as they are.
 $('reset').addEventListener('click', () => {
