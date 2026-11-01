@@ -97,8 +97,8 @@ test('loads with the default 50 mM, 50 mL generic buffer at pH = pKa', () => {
   const page = loadPage();
   assertClose(page.pH(), 4.76, 1e-6, 'pH');
   assert.equal(page.text('readout-ph'), '4.76');
-  assert.equal(page.text('readout-total'), '50 mM');
-  assert.equal(page.text('readout-volume'), '50 mL');
+  assert.equal(page.el('conc-input').value, '50');
+  assert.equal(page.el('vol-input').value, '50');
   assert.equal(page.el('capacity-warning').hidden, true);
 });
 
@@ -119,8 +119,8 @@ test('50 mM acetate at pH 4.76 has [HA] = [A⁻] = 25 mM', () => {
   page.run("setBuffer('acetate')");
   assert.equal(page.text('readout-acid-conc'), '25 mM');
   assert.equal(page.text('readout-base-conc'), '25 mM');
-  assert.equal(page.text('readout-ratio'), '1');
-  assert.equal(page.text('readout-acid-mol'), '1.25 mmol');
+  assertClose(page.run('composition().ratio'), 1, 1e-9, 'ratio');
+  assertClose(page.run('composition().acidMoles'), 0.00125, 1e-9, 'moles of HA');
 });
 
 test('0.5 mL of 1 M HCl into 50 mL of that buffer gives pH 4.39 by exact solve', () => {
@@ -129,7 +129,7 @@ test('0.5 mL of 1 M HCl into 50 mL of that buffer gives pH 4.39 by exact solve',
   page.run("setBuffer('acetate')");
   page.click('add-button');
   assertClose(page.pH(), 4.392, 0.002, 'pH');
-  assert.equal(page.text('readout-volume'), '50.5 mL');
+  assert.equal(page.el('vol-input').value, '50.5');
 });
 
 test('0.25 mL of 1 M HCl gives the pH 4.58 from the specification', () => {
@@ -145,8 +145,8 @@ test('diluting 10-fold leaves the moles unchanged and the pH nearly so', () => {
   page.run("setBuffer('acetate')");
   page.enter('final-input', 500);
   page.click('final-button');
-  assert.equal(page.text('readout-volume'), '500 mL');
-  assert.equal(page.text('readout-total'), '5 mM');
+  assert.equal(page.el('vol-input').value, '500');
+  assert.equal(page.el('conc-input').value, '5');
   assertClose(page.pH(), 4.76, 0.01, 'pH');
   assertClose(page.run('state.totalMoles'), 0.0025, 1e-12, 'total moles');
   assertClose(page.run('composition().acidMoles + composition().baseMoles'), 0.0025, 1e-12, 'moles');
@@ -169,12 +169,10 @@ test('Tris names its forms TrisH⁺ and Tris, with no HA or A⁻ anywhere', () =
   const page = loadPage();
   page.run("setBuffer('tris')");
   assert.equal(page.text('forms-label'), 'Acid form: TrisH⁺, Base form: Tris');
-  for (const id of ['ratio-label', 'acid-conc-label', 'base-conc-label', 'acid-mol-label', 'base-mol-label', 'forms-label']) {
-    assert.doesNotMatch(page.text(id), /HA|A⁻/, id);
-  }
-  assert.equal(page.text('ratio-label'), '[Tris]/[TrisH⁺]');
-  assert.ok(page.el('particle-legend').innerHTML.includes('TrisH⁺'));
-  assert.ok(page.el('particle-legend').innerHTML.includes('–NH₂'));
+  assert.doesNotMatch(page.text('forms-label'), /HA|A⁻/);
+  assert.ok(page.el('legend-acid').innerHTML.includes('TrisH⁺'));
+  assert.ok(page.el('legend-base').innerHTML.includes('–NH₂'));
+  for (const id of ['legend-acid', 'legend-base']) assert.doesNotMatch(page.el(id).innerHTML, /HA|A⁻/, id);
 });
 
 test('Tris obeys the same charge balance with a neutral base form', () => {
@@ -189,7 +187,6 @@ test('Tris obeys the same charge balance with a neutral base form', () => {
 test('a unit change keeps the amounts and relabels them', () => {
   const page = loadPage();
   page.setUnits('conc-unit', 'M');
-  assert.equal(page.text('readout-total'), '0.05 M');
   assert.equal(page.text('readout-acid-conc'), '0.025 M');
   assert.equal(page.el('conc-input').value, '0.05');
   page.setUnits('vol-unit', 'L');
@@ -319,7 +316,7 @@ test('a batch of a different size keeps the concentration and pH', () => {
   const page = loadPage();
   page.enter('ph-input', 5);
   page.enter('vol-input', 200);
-  assert.equal(page.text('readout-total'), '50 mM');
+  assert.equal(page.el('conc-input').value, '50');
   assertClose(page.pH(), 5, 1e-9, 'pH');
   assertClose(page.run('state.totalMoles'), 0.01, 1e-12, 'moles');
 });
@@ -363,7 +360,7 @@ test('additions are listed and Undo last restores each state in turn', () => {
   page.click('undo-button');
   page.click('undo-button');
   assertClose(page.pH(), one, 1e-9, 'pH after two undos');
-  assert.equal(page.text('readout-volume'), '50.5 mL');
+  assert.equal(page.el('vol-input').value, '50.5');
   page.click('undo-button');
   assertClose(page.pH(), 4.76, 1e-9, 'pH after three undos');
   assert.equal(page.el('undo-button').disabled, true);
@@ -372,10 +369,9 @@ test('additions are listed and Undo last restores each state in turn', () => {
 test('a dilution can be undone too', () => {
   const page = loadPage();
   page.click('water-button');
-  assert.equal(page.text('readout-volume'), '100 mL');
+  assert.equal(page.el('vol-input').value, '100');
   page.click('undo-button');
-  assert.equal(page.text('readout-volume'), '50 mL');
-  assert.equal(page.el('dilution-calc').hidden, true);
+  assert.equal(page.el('vol-input').value, '50');
 });
 
 test('a new recipe starts a new history', () => {
@@ -396,32 +392,31 @@ test('Reset returns to the starting amounts for the chosen buffer', () => {
   page.click('water-button');
   page.click('reset');
   assertClose(page.pH(), 8.07, 1e-6, 'pH');
-  assert.equal(page.text('readout-total'), '50 mM');
-  assert.equal(page.text('readout-volume'), '50 mL');
+  assert.equal(page.el('conc-input').value, '50');
+  assert.equal(page.el('vol-input').value, '50');
   assert.equal(page.run('state.history.length'), 0);
-  assert.equal(page.el('dilution-calc').hidden, true);
   assert.equal(page.run('state.buffer'), 'tris');
 });
 
 // ── Dilution ───────────────────────────────────────────────────
-test('the dilution panel shows C₁V₁ = C₂V₂ with the actual numbers', () => {
+test('diluting and adding water show no explanation, only the result', () => {
+  assert.ok(!IDS.includes('dilution-calc'));
+  assert.doesNotMatch(HTML, /C₁V₁|Teaching point/);
   const page = loadPage();
   page.click('final-button');
-  const shown = page.el('dilution-calc').innerHTML;
-  assert.equal(page.el('dilution-calc').hidden, false);
-  assert.ok(shown.includes('50 mM × 50 mL = C₂ × 500 mL, so C₂ = 5 mM'), shown);
-  assert.ok(shown.includes('2.5 mmol'));
-  assert.ok(shown.includes('Teaching point'));
+  assert.equal(page.el('vol-input').value, '500');
+  page.click('water-button');
+  assert.equal(page.el('vol-input').value, '550');
+  assert.equal(page.text('dilute-error'), '');
 });
 
-test('a very dilute buffer shows real pH drift and the teaching note names water', () => {
+test('a very dilute buffer shows real pH drift', () => {
   const page = loadPage();
   page.run('setVolume(1e-3)');
   page.enter('final-input', 2);
   page.setUnits('final-unit', 'L');
   page.click('final-button');
   assert.ok(page.pH() - 4.76 > 0.2, `pH ${page.pH()}`);
-  assert.match(page.el('dilution-calc').innerHTML, /water itself/);
 });
 
 // ── Containers ─────────────────────────────────────────────────
@@ -474,7 +469,7 @@ test('the default buffer shows 50 particles split evenly', () => {
   const page = loadPage();
   assert.equal(page.run('particles.length'), 50);
   assert.equal(page.run('particles.filter(p => p.isBase).length'), 25);
-  assert.match(page.text('particle-scale'), /50 µmol/);
+  assertClose(page.run('particleScale'), 5e-5, 1e-12, 'scale');
 });
 
 test('the count follows the moles and stays in bounds at every extreme', () => {
@@ -549,7 +544,7 @@ test('the generic buffer draws dots; the others draw their own acid and base gly
     const html = page.el('glyph-defs').innerHTML;
     assert.match(html, /id="glyph-acid".*<path.*id="glyph-base".*<path/, key);
     seen.add(page.run(`BUFFERS.${key}.core`));
-    assert.ok(page.el('particle-legend').innerHTML.includes(page.run(`BUFFERS.${key}.acidSite`)), `${key} names the site`);
+    assert.ok(page.el('legend-acid').innerHTML.includes(page.run(`BUFFERS.${key}.acidSite`)), `${key} names the site`);
     assert.equal(page.run('particles.length'), 50);
   }
   assert.equal(seen.size, 6, 'each buffer has its own skeleton');
@@ -661,14 +656,12 @@ test('moles use the fitting unit', () => {
   assert.match(page.run('formatNumber(0.00012)'), /^1\.20 × 10⁻⁴$/);
 });
 
-test('diluting past the buffer explains that excess acid or base sets the pH', () => {
+test('diluting past the buffer moves the pH about one unit per 10-fold', () => {
   const page = loadPage();
   page.run("addStrong('HCl', 1, 0.01)");
   const before = page.pH();
   page.run('diluteToFinal(0.6)');
   assertClose(page.pH() - before, 1, 0.02, '10-fold moves pH one unit');
-  assert.match(page.el('dilution-calc').innerHTML, /past its buffer/);
-  assert.doesNotMatch(page.el('dilution-calc').innerHTML, /pH holds/);
 });
 
 test('curve labels sit clear of the curve', () => {
@@ -702,4 +695,55 @@ test('the curve canvas takes its displayed width and redraws on resize', () => {
 
 test('volume marks draw above the particles', () => {
   assert.ok(HTML.indexOf('<g id="particles">') < HTML.indexOf('<g id="vessel-body">'));
+});
+
+// ── Solution panel layout ──────────────────────────────────────
+test('Reset sits at the top of the page, above everything else', () => {
+  const at = marker => HTML.indexOf(marker);
+  assert.ok(at('<h1>') < at('id="reset"') && at('id="reset"') < at('<div id="layout">'));
+  assert.equal([...HTML.matchAll(/id="reset"/g)].length, 1);
+});
+
+test('the solution panel runs pH, buffering status, container, then legend', () => {
+  const at = marker => {
+    const i = HTML.indexOf(marker);
+    assert.ok(i >= 0, marker);
+    return i;
+  };
+  const order = ['<h2 class="panel-title">Solution', 'id="readout-ph"', 'id="status"', 'id="vessel-svg"', 'id="vessel-label"', 'id="particle-legend"', 'id="readout-acid-conc"', 'id="readout-base-conc"'];
+  for (let i = 1; i < order.length; i++) assert.ok(at(order[i - 1]) < at(order[i]), order[i]);
+});
+
+test('the Readout box and the particle note are gone', () => {
+  for (const id of ['readout', 'readout-ratio', 'readout-acid-mol', 'readout-base-mol', 'readout-total', 'readout-volume', 'particle-scale']) {
+    assert.ok(!IDS.includes(id), id);
+  }
+  assert.doesNotMatch(HTML, />Readout</);
+  assert.doesNotMatch(HTML, /crowding shows|Each particle ≈/);
+});
+
+test('every style rule has a selector and the status box keeps its style', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /#status \{[^}]*border: 2px solid/);
+  // A declaration directly after a blank line means a selector went missing
+  assert.doesNotMatch(css, /\n\s*\n\s+[a-z-]+: [^;{]+;\n/);
+});
+
+test('the legend gives each form with its concentration, in the chosen unit', () => {
+  const page = loadPage();
+  assert.ok(page.el('legend-acid').innerHTML.includes('HA'));
+  assert.ok(page.el('legend-base').innerHTML.includes('A⁻'));
+  assert.equal(page.text('readout-acid-conc'), '25 mM');
+  assert.equal(page.text('readout-base-conc'), '25 mM');
+  page.enter('ph-input', 5.76);
+  assert.equal(page.text('readout-acid-conc'), '4.545 mM');
+  assert.equal(page.text('readout-base-conc'), '45.45 mM');
+  page.setUnits('conc-unit', 'M');
+  assert.equal(page.text('readout-base-conc'), '0.04545 M');
+});
+
+test('the curve column is 20% narrower than before', () => {
+  // The panel was 614 px wide at full size, so its 582 px canvas is now 466 px after 32 px of padding
+  assert.match(HTML, /grid-template-columns: 330px minmax\(0, 340px\) minmax\(0, 498px\)/);
+  assert.match(HTML, /#column-curve \{ max-width: 498px; \}/);
 });

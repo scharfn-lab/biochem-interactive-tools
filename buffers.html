@@ -39,13 +39,15 @@
 
     #layout {
       display: grid;
-      grid-template-columns: 330px minmax(0, 340px) minmax(0, 1fr);
+      grid-template-columns: 330px minmax(0, 340px) minmax(0, 498px);
       gap: 18px;
-      max-width: 1320px;
+      max-width: 1204px;
       margin: 0 auto;
       align-items: start;
     }
     .column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+    #column-curve { max-width: 498px; }
+    #top-bar { display: flex; justify-content: center; margin-bottom: 16px; }
 
     @media (max-width: 1120px) {
       #layout { grid-template-columns: 330px minmax(0, 1fr); }
@@ -135,19 +137,19 @@
     @media (prefers-reduced-motion: reduce) {
       .swap, .conv .flash-ring { animation: none; }
     }
-    #particle-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 0.82em; margin-top: 6px; }
-    .legend-item { display: flex; align-items: center; gap: 5px; }
-    .legend-item svg { width: 34px; height: 24px; flex-shrink: 0; }
-    #particle-scale { text-align: center; margin-top: 4px; }
+    #particle-legend { display: flex; flex-direction: column; gap: 4px; font-size: 0.88em; margin-top: 6px; }
+    .legend-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .legend-name { display: flex; align-items: center; gap: 5px; }
+    .legend-name svg { width: 34px; height: 24px; flex-shrink: 0; }
+    .legend-item b { white-space: nowrap; }
 
-    /* ── Readout ── */
-    #readout { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 0.9em; }
-    #readout dt { color: var(--ut-taupe); }
-    #readout dd { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
-    #readout-ph { color: var(--ut-crimson); font-size: 1.3em; line-height: 1.1; }
+    /* ── pH and buffering status ── */
+    #solution-ph { text-align: center; font-size: 1.1em; font-weight: 600; }
+    #readout-ph { color: var(--ut-crimson); font-size: 1.5em; font-weight: 700; }
     #status {
-      margin-top: 10px;
-      padding: 9px 10px;
+      margin-top: 6px;
+      margin-bottom: 8px;
+      padding: 7px 10px;
       border-radius: 8px;
       font-weight: 600;
       font-size: 0.9em;
@@ -174,15 +176,14 @@
     #history { list-style: none; max-height: 150px; overflow-y: auto; font-size: 0.85em; margin-bottom: 8px; }
     #history li { padding: 4px 0; border-bottom: 1px solid #E8DDE8; }
     #history-empty { font-size: 0.85em; color: var(--ut-taupe); margin-bottom: 8px; }
-    #dilution-calc { margin-top: 8px; padding: 8px 10px; background: #FFFFFF; border: 1px solid var(--ut-taupe); border-radius: 8px; font-size: 0.85em; line-height: 1.5; }
-    #dilution-calc b { color: var(--ut-crimson); }
-    #reset { width: 100%; }
   </style>
 </head>
 <body>
 
 <h1>Buffer Visualizer</h1>
 <p class="subtitle">Set the pH, add strong acid or base, and dilute to see how a buffer responds</p>
+
+<div id="top-bar"><button id="reset">Reset</button></div>
 
 <div id="layout">
   <!-- ── Controls ── -->
@@ -285,16 +286,15 @@
         </div>
       </div>
       <p class="error" id="dilute-error" role="alert"></p>
-      <div id="dilution-calc" hidden></div>
     </section>
-
-    <button id="reset">Reset</button>
   </div>
 
   <!-- ── Container and readout ── -->
   <div class="column" id="column-vessel">
     <section class="panel">
       <h2 class="panel-title">Solution</h2>
+      <div id="solution-ph">pH <span id="readout-ph"></span></div>
+      <div id="status" aria-live="polite"></div>
       <svg id="vessel-svg" viewBox="0 0 300 330" role="img">
         <defs>
           <clipPath id="vessel-clip"><path id="vessel-clip-path"></path></clipPath>
@@ -305,23 +305,10 @@
         <g id="vessel-body"></g>
       </svg>
       <div id="vessel-label"></div>
-      <div id="particle-legend"></div>
-      <p class="hint" id="particle-scale"></p>
-    </section>
-
-    <section class="panel">
-      <h2 class="panel-title">Readout</h2>
-      <dl id="readout">
-        <dt>pH</dt><dd id="readout-ph"></dd>
-        <dt id="ratio-label"></dt><dd id="readout-ratio"></dd>
-        <dt id="acid-conc-label"></dt><dd id="readout-acid-conc"></dd>
-        <dt id="base-conc-label"></dt><dd id="readout-base-conc"></dd>
-        <dt id="acid-mol-label"></dt><dd id="readout-acid-mol"></dd>
-        <dt id="base-mol-label"></dt><dd id="readout-base-mol"></dd>
-        <dt>Total concentration</dt><dd id="readout-total"></dd>
-        <dt>Volume</dt><dd id="readout-volume"></dd>
-      </dl>
-      <div id="status" aria-live="polite"></div>
+      <div id="particle-legend">
+        <div class="legend-item"><span class="legend-name" id="legend-acid"></span><b id="readout-acid-conc"></b></div>
+        <div class="legend-item"><span class="legend-name" id="legend-base"></span><b id="readout-base-conc"></b></div>
+      </div>
     </section>
   </div>
 
@@ -459,7 +446,6 @@ function setNetBaseForPH(pH) {
 // ═══════════════════════════════════════════════════════════════
 function clearHistory() {
   state.history = [];
-  lastDilution = null;
 }
 
 const snapshot = () => ({ volume: state.volume, totalMoles: state.totalMoles, netBase: state.netBase });
@@ -531,19 +517,15 @@ function addStrong(reagent, stockMolar, addedLitres) {
     label: `${formatVolume(addedLitres)} of ${formatNumber(stockMolar)} M ${reagent} (${formatMoles(moles)}): pH ${pHBefore.toFixed(2)} → ${currentPH().toFixed(2)}`,
     before,
   });
-  lastDilution = null;
   render(true);
   return null;
 }
 
 function dilute(finalLitres) {
   const pHBefore = currentPH(), before = snapshot();
-  const c1 = totalConc(), v1 = state.volume;
   state.volume = finalLitres;
-  const pH = currentPH();
-  lastDilution = { c1, v1, c2: totalConc(), v2: finalLitres, pHBefore, pH, overrun: capacityExceeded() };
   state.history.push({
-    label: `Water to ${formatVolume(finalLitres)}: pH ${pHBefore.toFixed(2)} → ${pH.toFixed(2)}`,
+    label: `Water to ${formatVolume(finalLitres)}: pH ${pHBefore.toFixed(2)} → ${currentPH().toFixed(2)}`,
     before,
   });
   render();
@@ -566,7 +548,6 @@ function undoLast() {
   const last = state.history.pop();
   if (!last) return;
   Object.assign(state, last.before);
-  lastDilution = null;
   render();
 }
 
@@ -835,9 +816,9 @@ function buildGlyphs() {
     `<g id="glyph-acid" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, false)}</g>` +
     `<g id="glyph-base" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, true)}</g>`;
   const entry = (isBase, name, site) =>
-    `<span class="legend-item"><svg viewBox="-20 -12 40 24" aria-hidden="true" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, isBase)}</svg>${name}${site ? ` (${site})` : ''}</span>`;
-  document.getElementById('particle-legend').innerHTML =
-    entry(false, buffer.acid, buffer.acidSite) + entry(true, buffer.base, buffer.baseSite);
+    `<svg viewBox="-20 -12 40 24" aria-hidden="true" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, isBase)}</svg>${name}${site ? ` (${site})` : ''}`;
+  document.getElementById('legend-acid').innerHTML = entry(false, buffer.acid, buffer.acidSite);
+  document.getElementById('legend-base').innerHTML = entry(true, buffer.base, buffer.baseSite);
 }
 
 // ── Motion ─────────────────────────────────────────────────────
@@ -1015,7 +996,6 @@ curveCanvas.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch
 //  RENDERING THE PAGE
 // ═══════════════════════════════════════════════════════════════
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-let lastDilution = null;
 
 const setText = (id, text) => { document.getElementById(id).textContent = text; };
 
@@ -1053,18 +1033,8 @@ const formatPlain = x => String(+x.toPrecision(5));
 function updateReadout() {
   const buffer = BUFFERS[state.buffer], c = composition();
   setText('readout-ph', c.pH.toFixed(2));
-  setText('ratio-label', `[${buffer.base}]/[${buffer.acid}]`);
-  setText('readout-ratio', formatNumber(c.ratio, 3));
-  setText('acid-conc-label', `[${buffer.acid}]`);
-  setText('base-conc-label', `[${buffer.base}]`);
   setText('readout-acid-conc', formatConc(c.acidConc));
   setText('readout-base-conc', formatConc(c.baseConc));
-  setText('acid-mol-label', `Moles of ${buffer.acid}`);
-  setText('base-mol-label', `Moles of ${buffer.base}`);
-  setText('readout-acid-mol', formatMoles(c.acidMoles));
-  setText('readout-base-mol', formatMoles(c.baseMoles));
-  setText('readout-total', formatConc(totalConc()));
-  setText('readout-volume', formatVolume(state.volume));
 
   const distance = Math.abs(c.pH - state.pKa), status = document.getElementById('status');
   if (distance <= 1) {
@@ -1075,7 +1045,6 @@ function updateReadout() {
     status.textContent = `Poor buffering: pH is ${distance.toFixed(2)} units from pKa`;
   }
   document.getElementById('capacity-warning').hidden = !capacityExceeded();
-  setText('particle-scale', `Each particle ≈ ${formatMoles(particleScale)}. Particle count shows moles; crowding shows concentration.`);
   document.getElementById('vessel-svg').setAttribute('aria-label',
     `${shownVessel.label} holding ${formatVolume(state.volume)} of ${buffer.name} buffer, with ${particles.filter(p => !p.isBase).length} acid-form and ${particles.filter(p => p.isBase).length} base-form particles.`);
 }
@@ -1092,27 +1061,12 @@ function updateHistory() {
   document.getElementById('undo-button').disabled = state.history.length === 0;
 }
 
-function updateDilution() {
-  const box = document.getElementById('dilution-calc');
-  box.hidden = !lastDilution;
-  if (!lastDilution) return;
-  const { c1, v1, c2, v2, pHBefore, pH, overrun } = lastDilution, drift = pH - pHBefore;
-  box.innerHTML =
-    `<b>C₁V₁ = C₂V₂:</b> ${formatConc(c1)} × ${formatVolume(v1)} = C₂ × ${formatVolume(v2)}, so C₂ = ${formatConc(c2)}.<br>` +
-    `Moles of buffer stay at ${formatMoles(state.totalMoles)}.<br>` +
-    `pH ${pHBefore.toFixed(3)} → ${pH.toFixed(3)} (change ${drift >= 0 ? '+' : '−'}${Math.abs(drift).toFixed(3)}).<br>` +
-    (overrun
-      ? `<b>Teaching point:</b> this solution is past its buffer, so excess strong acid or base sets the pH, and dilution moves it about 1 unit per 10-fold.`
-      : `<b>Teaching point:</b> the [base]/[acid] ratio barely depends on dilution, so pH holds. The small drift is real: as a buffer becomes very dilute, the H⁺ and OH⁻ from water itself start to matter.`);
-}
-
 function render(flash = false) {
   updateVessel();
   syncParticles(flash);
   updateControls();
   updateReadout();
   updateHistory();
-  updateDilution();
   drawCurve();
 }
 
