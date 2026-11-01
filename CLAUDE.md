@@ -8,6 +8,7 @@ A collection of standalone, single-file interactive educational web tools for ch
 
 ## Files
 
+- **index.html** — Landing page linking to the tools. Add a tool by editing the `TOOLS` list at the top of its script; `index.test.js` checks that every link matches a file in this folder
 - **ramachandran.html** — Interactive Ramachandran plot + 3D dipeptide viewer
 - **cell_membrane.html** — Cell membrane ion transport / electrochemical gradient visualizer
 - **chemistry_quiz.html** — Stoichiometry practice quiz (loads RDKit.js from CDN for molecular structures)

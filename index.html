@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biochemistry</title>
+  <!-- An empty icon, so browsers don't request a favicon.ico that doesn't exist. -->
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --ut-crimson:  #C8102E;
+      --ut-taupe:    #685C53;
+      --ut-lavender: #FFCDFF;
+      --bg-page:     #FFFFFF;
+      --bg-panel:    #FFF8FF;
+      --bg-muted:    #F0F0F0;
+      --text-primary:   #000000;
+      --text-secondary: #685C53;
+      --text-muted:     #5F5F5F;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.45;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--ut-crimson);
+      outline-offset: 2px;
+    }
+
+    /* ── Header ── */
+    #site-header {
+      background: var(--ut-crimson);
+      color: #FFFFFF;
+      padding: 28px 16px;
+    }
+    #header-inner {
+      max-width: 968px;   /* lines up with main, which is 1000px including its 16px gutters */
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1 { font-size: 2.1em; font-weight: 600; letter-spacing: 0.5px; line-height: 1.2; }
+    #subtitle { font-size: 1.05em; margin-top: 2px; }
+    #logo { max-height: 64px; max-width: 40%; height: auto; display: block; }
+
+    /* ── Layout ── */
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px 16px 8px;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+      padding: 16px 18px;
+    }
+
+    .section-title {
+      font-size: 0.8em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ut-crimson);
+    }
+
+    /* ── Jump links ── */
+    #jump-links {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    #jump-links a {
+      display: block;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font-size: 0.88em;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    #jump-links a:hover { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+
+    /* ── How-to note ── */
+    #how-to { margin-bottom: 26px; }
+    #how-to .section-title { margin-bottom: 8px; }
+    #how-to ul { padding-left: 18px; font-size: 0.92em; }
+    #how-to li { margin-top: 3px; }
+
+    /* ── Topic sections ── */
+    #topics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+      column-gap: 24px;
+    }
+    .topic { margin-bottom: 28px; scroll-margin-top: 16px; min-width: 0; }
+    .topic:focus { outline: none; }
+    .topic-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .topic-header svg { width: 40px; height: 40px; flex-shrink: 0; }
+    .topic-header .section-title { font-size: 0.95em; }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+      gap: 14px;
+    }
+
+    /* ── Tool cards ── */
+    .tool-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 14px 16px;
+      background: var(--bg-panel);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    a.tool-card:hover { background: var(--ut-lavender); }
+    a.tool-card:focus-visible { border-color: var(--ut-crimson); }
+    .card-top { display: flex; align-items: center; gap: 8px; }
+    .card-top svg { width: 28px; height: 28px; flex-shrink: 0; }
+    .card-title { font-weight: 600; font-size: 1.02em; line-height: 1.25; }
+    .card-description { font-size: 0.88em; flex: 1; }
+
+    .open-tool {
+      align-self: flex-start;
+      margin-top: 4px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font-size: 0.85em;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    a.tool-card:hover .open-tool, a.tool-card:focus-visible .open-tool { border-color: var(--ut-crimson); color: #000000; }
+
+    .tool-card.coming-soon {
+      background: var(--bg-muted);
+      box-shadow: none;
+      color: var(--text-muted);
+    }
+    .coming-soon .card-top svg { opacity: 0.45; }
+
+    /* ── Footer ── */
+    footer {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 8px 16px 28px;
+      color: var(--text-secondary);
+      font-size: 0.8em;
+    }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.8em; }
+      #site-header { padding: 22px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header id="site-header">
+  <div id="header-inner">
+    <div>
+      <h1>Biochemistry</h1>
+      <p id="subtitle">Dr. Nathan Scharf</p>
+    </div>
+    <!-- The logo goes here when LOGO_FILE is set below. -->
+  </div>
+</header>
+
+<main>
+  <nav aria-label="Topics"><ul id="jump-links"></ul></nav>
+
+  <section class="panel" id="how-to" aria-labelledby="how-to-title">
+    <h2 class="section-title" id="how-to-title">How to use these tools</h2>
+    <ul>
+      <li>Each tool opens in a new tab, so this page stays open.</li>
+      <li>Tools work best on a laptop or desktop, in Chrome, Edge, Firefox or Safari. They also work on tablets and phones, with smaller plots.</li>
+      <li>No login or install needed.</li>
+      <li>Hover over plots to read values, and drag the 3D models to rotate them.</li>
+    </ul>
+  </section>
+
+  <div id="topics"></div>
+  <noscript><p>This page needs JavaScript to list the tools.</p></noscript>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script>
+'use strict';
+
+// ═══ EDIT HERE ════════════════════════════════════════════════
+
+const LAST_UPDATED = 'October 2026';   // Shown in the footer.
+
+// To show a logo, add the file to this folder and set this to its name, such as 'ut_logo.png'.
+// It stays null while there is no file, so that visitors' browsers never ask for a missing one.
+const LOGO_FILE = null;
+
+// The topics, in page order. A topic with no tools below shows a "Coming soon" card.
+const TOPICS = [
+  'Acid-Base Chemistry',
+  'Amino Acids',
+  'Peptide Properties',
+  'Peptide Folding',
+  'Protein Structure',
+  'Hemoglobin + Myoglobin',
+  'Enzymes',
+  'Enzyme Kinetics',
+];
+
+// THE TOOLS. To add one, copy a line and change it. "topic" must match a name in TOPICS exactly,
+// and "file" must match the file's name in this folder exactly, including capitals.
+const TOOLS = [
+  { topic: 'Acid-Base Chemistry', title: 'Buffers & Titration', file: 'buffers.html',
+    description: 'Set pH, add acid or base, and dilute a buffer while watching HA and A⁻ change in the container and on the titration curve.' },
+  { topic: 'Amino Acids', title: 'Amino Acid Explorer', file: 'amino_acids.html',
+    description: 'Practice naming the 20 amino acids and their side-chain types, see their forms at different pH values, and explore how pairs of side chains interact.' },
+  { topic: 'Peptide Properties', title: 'Peptide Charge & pI', file: 'peptide_charge.html',
+    description: 'Enter a short peptide to see its structure at any pH, its net charge curve, and its isoelectric point.' },
+  { topic: 'Peptide Folding', title: 'Ramachandran Plot', file: 'ramachandran.html',
+    description: 'Adjust ϕ and ψ to see allowed conformations and build helices and β turns in 3D.' },
+  { topic: 'Hemoglobin + Myoglobin', title: 'Oxygen Binding', file: 'oxygen_binding.html',
+    description: "Change pH, 2,3-BPG and CO₂ to see how hemoglobin's O₂ binding curve shifts compared with myoglobin." },
+  { topic: 'Enzyme Kinetics', title: 'Michaelis–Menten & Lineweaver–Burk', file: 'enzyme_kinetics.html',
+    description: 'Change Km, kcat, [E] and inhibitors to see their effects on M-M and L-B plots.' },
+];
+
+
+// ═══ ICONS ════════════════════════════════════════════════════
+
+const CRIMSON = '#C8102E', TAUPE = '#685C53';
+
+// Simple line icons, drawn on a 48 × 48 grid. "t" lines are taupe, and "c" lines are crimson.
+const t = `stroke="${TAUPE}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+const c = `stroke="${CRIMSON}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+const label = (x, y, text, size = 11) => `<text x="${x}" y="${y}" font-size="${size}" font-weight="700" font-family="Segoe UI, Arial, sans-serif" fill="${CRIMSON}" text-anchor="middle">${text}</text>`;
+
+const TOPIC_ICONS = {
+  'Acid-Base Chemistry': `
+    <path ${t} d="M17 6 H29 M20 6 V19 L9 39 Q7 43 12 43 H34 Q39 43 37 39 L26 19 V6"/>
+    <path ${c} d="M14 32 H32"/>
+    <path ${c} d="M38 8 C41 12 43 15 43 17.5 A5 5 0 0 1 33 17.5 C33 15 35 12 38 8 Z"/>`,
+  'Amino Acids': `
+    <path ${t} d="M10 26 L20 20 L31 26"/>
+    <path ${t} d="M31 26 L40 20 M32 27 V37 M29 27 V37"/>
+    <path ${c} d="M20 20 V9"/>
+    ${label(20, 8, 'R')}
+    ${label(7, 32, 'N', 10)}
+    ${label(30.5, 46, 'O', 10)}`,
+  'Peptide Properties': `
+    <path ${t} d="M5 32 L14 24 L24 32 L34 24 L43 32"/>
+    <circle ${c} cx="14" cy="12" r="7"/>
+    <path ${c} d="M14 8.5 V15.5 M10.5 12 H17.5"/>
+    <circle ${c} cx="34" cy="12" r="7"/>
+    <path ${c} d="M30.5 12 H37.5"/>`,
+  'Peptide Folding': `
+    <path ${t} d="M5 12 L12 20 L19 12 L26 20 L33 12"/>
+    <path ${c} d="M33 12 C43 12 45 26 36 30 L28 26 L21 34 L14 28 L7 36"/>`,
+  'Protein Structure': `
+    <path ${t} d="M12 5 C30 5 38 12 24 15 C6 18 10 26 24 27 C38 28 38 36 24 38 C14 39 12 43 20 44"/>
+    <path ${c} d="M12 10 C28 10 32 13 22 19 M26 31 C33 33 32 36 22 41"/>`,
+  'Hemoglobin + Myoglobin': `
+    <circle ${t} cx="14" cy="14" r="9"/>
+    <circle ${c} cx="30" cy="14" r="9"/>
+    <circle ${c} cx="14" cy="30" r="9"/>
+    <circle ${t} cx="30" cy="30" r="9"/>
+    ${label(40, 46, 'O₂', 12)}`,
+  'Enzymes': `
+    <path ${t} d="M6 12 H30 V22 H24 V30 H30 V40 H6 Z"/>
+    <path ${c} d="M42 21 H27 V31 H42 M36 31 V36 M41 31 V36"/>`,
+  'Enzyme Kinetics': `
+    <path ${t} d="M8 5 V41 H44"/>
+    <path ${c} d="M8 41 C14 20 24 13 42 12"/>
+    <path stroke="${TAUPE}" stroke-width="1.5" stroke-dasharray="3 3" fill="none" d="M8 9 H44"/>`,
+};
+
+function iconSvg(topic) {
+  return `<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">${TOPIC_ICONS[topic] || ''}</svg>`;
+}
+
+
+// ═══ BUILDING THE PAGE ════════════════════════════════════════
+
+function escapeHtml(text) {
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+}
+
+// "Hemoglobin + Myoglobin" becomes "hemoglobin-myoglobin".
+function topicId(topic) {
+  return topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function toolsFor(topic) {
+  return TOOLS.filter(tool => tool.topic === topic);
+}
+
+function toolCard(tool) {
+  const title = escapeHtml(tool.title);
+  return `<a class="tool-card" href="${escapeHtml(tool.file)}" target="_blank" rel="noopener" aria-label="${title} (opens in a new tab)">
+    <span class="card-top">${iconSvg(tool.topic)}<span class="card-title">${title}</span></span>
+    <span class="card-description">${escapeHtml(tool.description)}</span>
+    <span class="open-tool" aria-hidden="true">Open tool →</span>
+  </a>`;
+}
+
+function comingSoonCard(topic) {
+  return `<div class="tool-card coming-soon">
+    <div class="card-top">${iconSvg(topic)}<span class="card-title">Coming soon</span></div>
+  </div>`;
+}
+
+function topicSection(topic) {
+  const id = topicId(topic);
+  const tools = toolsFor(topic);
+  const cards = tools.length ? tools.map(toolCard).join('') : comingSoonCard(topic);
+  return `<section class="topic" id="${id}" aria-labelledby="${id}-title" tabindex="-1">
+    <div class="topic-header">${iconSvg(topic)}<h2 class="section-title" id="${id}-title">${escapeHtml(topic)}</h2></div>
+    <div class="tool-grid">${cards}</div>
+  </section>`;
+}
+
+function renderPage() {
+  document.getElementById('jump-links').innerHTML = TOPICS
+    .map(topic => `<li><a href="#${topicId(topic)}">${escapeHtml(topic)}</a></li>`).join('');
+  document.getElementById('topics').innerHTML = TOPICS.map(topicSection).join('');
+  document.getElementById('site-footer').textContent = `Last updated: ${LAST_UPDATED}`;
+
+  if (LOGO_FILE) {
+    const logo = document.createElement('img');
+    logo.id = 'logo';
+    logo.src = LOGO_FILE;
+    logo.alt = '';
+    document.getElementById('header-inner').appendChild(logo);
+  }
+
+  // A mistyped topic would otherwise hide its tool without any sign of why.
+  TOOLS.filter(tool => !TOPICS.includes(tool.topic))
+    .forEach(tool => console.error(`"${tool.title}" has a topic that isn't in TOPICS: "${tool.topic}"`));
+}
+
+renderPage();
+</script>
+</body>
+</html>
