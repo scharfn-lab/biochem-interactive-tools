@@ -255,9 +255,9 @@
           <p class="quiz-result" id="quiz-seq-result" aria-live="polite"></p>
         </div>
         <div class="quiz-field">
-          <label for="quiz-charge">Net charge at <span id="quiz-ph"></span></label>
+          <label for="quiz-charge">Charge of most abundant species (<span id="quiz-ph"></span>)</label>
           <div class="controls-row">
-            <input type="text" id="quiz-charge" inputmode="decimal" autocomplete="off">
+            <input type="text" id="quiz-charge" autocomplete="off">
             <button type="button" id="quiz-check">Check</button>
           </div>
           <p class="quiz-result" id="quiz-charge-result" aria-live="polite"></p>
@@ -444,6 +444,15 @@ function drawnForm(group, pH) {
     form: pH <= group.pKa ? 'prot' : 'deprot',
     half: Math.abs(pH - group.pKa) <= HALF_WINDOW + 1e-9
   };
+}
+
+// The whole-number charge of the most abundant species, with every group in its main form at this pH
+function speciesCharge(groups, pH) {
+  return groups.reduce((sum, g) => {
+    const form = drawnForm(g, pH).form;
+    if (g.kind === 'base') return sum + (form === 'prot' ? 1 : 0);
+    return sum - (form === 'deprot' ? 1 : 0);
+  }, 0);
 }
 
 // The uncharged form used by the quiz
@@ -810,7 +819,7 @@ function refresh() {
 }
 
 // ─── Checking answers ─────────────────────────────────────────────────────────
-const CHARGE_TOLERANCE = 0.2, PI_TOLERANCE = 0.1;
+const PI_TOLERANCE = 0.1;
 
 // Accepts a typed minus sign as well as a hyphen
 function parseAnswer(text) {
@@ -941,19 +950,21 @@ function checkQuizSequence() {
   }
 }
 
-function checkNetCharge() {
+const chargeStatement = () =>
+  `the most abundant species has a charge of ${formatSigned(speciesCharge(currentGroups(), pH), 0)}`;
+
+function checkCharge() {
   if (quizField.charge.done) return;
   const answer = parseAnswer($('quiz-charge').value);
-  const truth = netCharge(currentGroups(), pH);
-  if (answer === null) {
-    showResult('quiz-charge-result', 'wrong', '✗ Net charge: enter a number.');
-  } else if (withinTolerance(answer, truth, CHARGE_TOLERANCE)) {
-    finishField('charge', true, 'right', `✓ Net charge: correct. The net charge is ${formatSigned(truth)}.`);
+  if (answer === null || !Number.isInteger(answer)) {
+    showResult('quiz-charge-result', 'wrong', '✗ Charge: enter a whole number, like +1, 0 or −2.');
+  } else if (answer === speciesCharge(currentGroups(), pH)) {
+    finishField('charge', true, 'right', `✓ Charge: correct. ${capitalizeFirst(chargeStatement())}.`);
   } else if (quizField.charge.wrong === 0) {
     quizField.charge.wrong++;
-    showResult('quiz-charge-result', 'wrong', `✗ Net charge: not within ±${CHARGE_TOLERANCE}. Try once more.`);
+    showResult('quiz-charge-result', 'wrong', '✗ Charge: not correct. Try once more.');
   } else {
-    finishField('charge', false, 'wrong', `✗ Net charge: the net charge is ${formatSigned(truth)}.`);
+    finishField('charge', false, 'wrong', `✗ Charge: ${chargeStatement()}.`);
   }
 }
 
@@ -972,11 +983,11 @@ function checkQuizPI() {
 function revealQuiz() {
   const groups = currentGroups();
   if (!quizField.seq.done) finishField('seq', false, 'wrong', `✗ Sequence: the peptide is ${formatSequence(sequence, quizFormat)}.`);
-  if (!quizField.charge.done) finishField('charge', false, 'wrong', `✗ Net charge: the net charge is ${formatSigned(netCharge(groups, pH))}.`);
+  if (!quizField.charge.done) finishField('charge', false, 'wrong', `✗ Charge: ${chargeStatement()}.`);
   if (!quizField.pi.done) finishField('pi', false, 'wrong', `✗ pI: ${piStatement(groups)}.`);
 }
 
-const QUIZ_PH_VALUES = [2, 7, 13];
+const QUIZ_PH_VALUES = [1, 7, 14];
 
 function nextQuizQuestion() {
   pH = QUIZ_PH_VALUES[Math.floor(Math.random() * QUIZ_PH_VALUES.length)];
@@ -1004,7 +1015,7 @@ function toggleQuiz() {
 const BREAKDOWN_ROWS = [
   ['seq1', 'Sequence (1-letter)'],
   ['seq3', 'Sequence (3-letter)'],
-  ['charge', 'Net charge'],
+  ['charge', 'Charge of most abundant species'],
   ['pi', 'pI']
 ];
 
@@ -1095,8 +1106,8 @@ $('pi-check').addEventListener('click', checkPI);
 onEnter('pi-input', checkPI);
 $('quiz-seq-check').addEventListener('click', checkQuizSequence);
 onEnter('quiz-seq', checkQuizSequence);
-$('quiz-check').addEventListener('click', checkNetCharge);
-onEnter('quiz-charge', checkNetCharge);
+$('quiz-check').addEventListener('click', checkCharge);
+onEnter('quiz-charge', checkCharge);
 $('quiz-pi-check').addEventListener('click', checkQuizPI);
 onEnter('quiz-pi', checkQuizPI);
 $('quiz-reveal').addEventListener('click', revealQuiz);

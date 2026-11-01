@@ -865,7 +865,7 @@ test('hidden rows really disappear, whatever display their class sets', () => {
   assert.match(CSS, /\[hidden\] \{ display: none !important; \}/);
 });
 
-test('the quiz box holds the sequence, net charge and pI entries, and the table stays below', () => {
+test('the quiz box holds the sequence, charge and pI entries, and the table stays below', () => {
   const box = MARKUP.match(/id="quiz-panel"[\s\S]*?<\/section>/)[0];
   for (const id of ['quiz-seq', 'quiz-charge', 'quiz-pi']) assert.ok(box.includes(`id="${id}"`), id);
   assert.ok(box.includes('Determining pI'));
@@ -886,7 +886,7 @@ test('Quiz Mode draws the structure uncharged and leaving it restores the pH', (
   const page = loadPage();
   page.run('setPH(4.5)');
   page.el('quiz-toggle').fire('click');
-  assert.ok([2, 7, 13].includes(page.run('pH')), 'the quiz picks its own pH');
+  assert.ok([1, 7, 14].includes(page.run('pH')), 'the quiz picks its own pH');
   assert.equal(page.el('structure-legend').style.display, 'none');
   assert.match(page.structure.getAttribute('aria-label'), /drawn uncharged/);
   assert.ok(page.structure.classList.contains('neutral-view'));
@@ -899,15 +899,19 @@ test('each question randomly asks for 1-letter or 3-letter codes', () => {
   const page = loadPage();
   page.el('quiz-toggle').fire('click');
   const seen = { 'Sequence in 1-letter codes (N- to C-terminal)': 0, 'Sequence in 3-letter codes (N- to C-terminal)': 0 };
+  const phSeen = { 1: 0, 7: 0, 14: 0 };
   for (let i = 0; i < 200; i++) {
     page.el('quiz-next').fire('click');
     const label = page.el('quiz-seq-label').textContent;
     assert.ok(label in seen, label);
     seen[label]++;
-    assert.ok([2, 7, 13].includes(page.run('pH')));
-    assert.equal(page.el('quiz-ph').textContent, `pH ${page.run('pH')}`);
+    const ph = page.run('pH');
+    assert.ok(ph in phSeen, `pH ${ph}`);
+    phSeen[ph]++;
+    assert.equal(page.el('quiz-ph').textContent, `pH ${ph}`);
   }
   for (const [label, n] of Object.entries(seen)) assert.ok(n > 40, `${label}: ${n}`);
+  for (const [ph, n] of Object.entries(phSeen)) assert.ok(n > 20, `pH ${ph}: ${n}`);
 });
 
 test('sequences are read in the asked format, in any case and with or without separators', () => {
@@ -960,20 +964,65 @@ test('sequence order matters, and a second wrong try shows the answer', () => {
   assert.equal(page.el('quiz-seq').disabled, true);
 });
 
-test('net charge accepts ±0.2, and a second wrong try shows the answer', () => {
-  const page = quizPage('G');  // −0.09 at pH 7
-  answerCharge(page, 'x');
-  assert.match(page.el('quiz-charge-result').textContent, /enter a number/);
+test('the most abundant species has the expected whole-number charge', () => {
+  // Worked out by hand from which groups are charged at each pH
+  const cases = [
+    ['G', 1, 1], ['G', 7, 0], ['G', 14, -1],
+    ['K', 1, 2], ['K', 7, 1], ['K', 14, -1],
+    ['D', 1, 1], ['D', 7, -1], ['D', 14, -2],
+    ['DD', 7, -2], ['HHH', 1, 4], ['HHH', 7, 0], ['HHH', 14, -1],
+    ['DHCYKR', 1, 4], ['DHCYKR', 7, 1], ['DHCYKR', 14, -4],
+  ];
+  for (const [seq, ph, expected] of cases) {
+    assert.equal(page0.run(`speciesCharge(ionizableGroups('${seq}'), ${ph})`), expected, `${seq} at pH ${ph}`);
+  }
+});
+
+test('the quiz charge is always a whole number, and no group sits at a pKa at the quiz pH values', () => {
+  const page = loadPage();
+  page.el('quiz-toggle').fire('click');
+  for (let i = 0; i < 300; i++) {
+    page.el('quiz-next').fire('click');
+    assert.ok(Number.isInteger(page.run('speciesCharge(currentGroups(), pH)')));
+    assert.equal(page.run('currentGroups().some(g => drawnForm(g, pH).half)'), false);
+  }
+});
+
+test('the charge must be the exact whole number, and a second wrong try shows the answer', () => {
+  const page = quizPage('G');  // 0 at pH 7
+  page.el('breakdown-btn').fire('click');
+  for (const entry of ['x', '', '0.2', '−0.09']) {
+    answerCharge(page, entry);
+    assert.equal(page.el('quiz-charge-result').textContent, '✗ Charge: enter a whole number, like +1, 0 or −2.', entry);
+    assert.equal(page.run('quizField.charge.wrong'), 0, 'a format error does not use up a try');
+  }
   answerCharge(page, '1');
-  assert.match(page.el('quiz-charge-result').textContent, /not within ±0\.2\. Try once more/);
-  assert.doesNotMatch(page.el('quiz-charge-result').textContent, /0\.09/);
-  answerCharge(page, '−0.2');
-  assert.equal(page.el('quiz-charge-result').textContent, '✓ Net charge: correct. The net charge is −0.09.');
+  assert.equal(page.el('quiz-charge-result').textContent, '✗ Charge: not correct. Try once more.');
+  answerCharge(page, '0');
+  assert.equal(page.el('quiz-charge-result').textContent, '✓ Charge: correct. The most abundant species has a charge of 0.');
+  assert.deepEqual(counts(page, 'Charge of most abundant species'), [1, 0]);
+
   setQuestion(page, 'G');
   answerCharge(page, '1');
   answerCharge(page, '1');
-  assert.equal(page.el('quiz-charge-result').textContent, '✗ Net charge: the net charge is −0.09.');
+  assert.equal(page.el('quiz-charge-result').textContent, '✗ Charge: the most abundant species has a charge of 0.');
   assert.equal(page.el('quiz-check').disabled, true);
+});
+
+test('the charge reads signs and minus signs, and uses the question pH', () => {
+  const page = quizPage('K', 'one', 1);
+  answerCharge(page, '+2');
+  assert.equal(page.el('quiz-charge-result').textContent, '✓ Charge: correct. The most abundant species has a charge of +2.');
+  for (const entry of ['−1', '-1', '–1']) {
+    setQuestion(page, 'K', 'one', 14);
+    answerCharge(page, entry);
+    assert.equal(page.el('quiz-charge-result').textContent, '✓ Charge: correct. The most abundant species has a charge of −1.', entry);
+  }
+});
+
+test('the charge question names the most abundant species and its pH', () => {
+  assert.match(MARKUP, /<label for="quiz-charge">Charge of most abundant species \(<span id="quiz-ph"><\/span>\)<\/label>/);
+  assert.doesNotMatch(MARKUP, /Net charge/);
 });
 
 test('the quiz pI follows the same rules as Check pI', () => {
@@ -1026,11 +1075,11 @@ test('Reveal shows every remaining answer, counts them as incorrect and shows th
   answerSeq(page, 'Lys');
   page.el('quiz-reveal').fire('click');
   assert.equal(page.el('quiz-seq-result').textContent, '✓ Sequence: correct. The peptide is Lys.', 'a finished answer stays');
-  assert.equal(page.el('quiz-charge-result').textContent, '✗ Net charge: the net charge is +0.91.');
+  assert.equal(page.el('quiz-charge-result').textContent, '✗ Charge: the most abundant species has a charge of +1.');
   assert.equal(page.el('quiz-pi-result').textContent, '✗ pI: the actual pI is 9.40.');
   assert.equal(page.structure.classList.contains('neutral-view'), false);
   assert.deepEqual(counts(page, 'Sequence (3-letter)'), [1, 0]);
-  assert.deepEqual(counts(page, 'Net charge'), [0, 1]);
+  assert.deepEqual(counts(page, 'Charge of most abundant species'), [0, 1]);
   assert.deepEqual(counts(page, 'pI'), [0, 1]);
 });
 
@@ -1064,7 +1113,7 @@ test('a Score breakdown button sits at the bottom and toggles a table', () => {
   assert.match(page.el('score-breakdown').innerHTML, /Correct Responses/);
   assert.match(page.el('score-breakdown').innerHTML, /Incorrect Responses/);
   assert.deepEqual(breakdownRows(page).map(r => r[0]),
-    ['Sequence (1-letter)', 'Sequence (3-letter)', 'Net charge', 'pI', 'Total']);
+    ['Sequence (1-letter)', 'Sequence (3-letter)', 'Charge of most abundant species', 'pI', 'Total']);
   assert.ok(breakdownRows(page).every(r => r[1] === 0 && r[2] === 0), 'starts empty');
   page.el('breakdown-btn').fire('click');
   assert.equal(page.el('score-breakdown').hidden, true);
@@ -1077,7 +1126,7 @@ test('each answer counts in its own row, and the open table stays current', () =
   assert.deepEqual(counts(page, 'Sequence (1-letter)'), [1, 0]);
   answerCharge(page, '5');
   answerCharge(page, '5');
-  assert.deepEqual(counts(page, 'Net charge'), [0, 1]);
+  assert.deepEqual(counts(page, 'Charge of most abundant species'), [0, 1]);
   answerPI(page, '');
   assert.deepEqual(counts(page, 'pI'), [0, 1]);
 
