@@ -256,13 +256,12 @@ test('water alone adds neither acid nor base at very high dilution', () => {
 });
 
 // ── Controls ───────────────────────────────────────────────────
-test('each buffer has its pKa, useful range and form labels', () => {
+test('each buffer has its pKa and form labels', () => {
   const page = loadPage();
   for (const [key, pKa] of [['generic', 4.76], ['acetate', 4.76], ['mes', 6.15], ['mops', 7.2], ['hepes', 7.5], ['tris', 8.07], ['bicarbonate', 6.1]]) {
     page.run(`setBuffer('${key}')`);
     assert.equal(page.run('state.pKa'), pKa);
     assertClose(page.pH(), pKa, 1e-6, key);
-    assert.equal(page.text('range-label'), `Useful range (pKa ± 1): pH ${(pKa - 1).toFixed(2)} to ${(pKa + 1).toFixed(2)}`);
     assert.match(page.text('forms-label'), /^Acid form: .+, Base form: .+$/);
     assert.ok(page.run(`Object.keys(BUFFERS).includes('${key}')`));
   }
@@ -407,11 +406,11 @@ test('with reduced motion nothing animates and the level jumps', () => {
 });
 
 // ── Particles ──────────────────────────────────────────────────
-test('the default buffer shows 50 particles split evenly', () => {
+test('the default buffer shows 25 particles split as evenly as an odd count allows', () => {
   const page = loadPage();
-  assert.equal(page.run('particles.length'), 50);
-  assert.equal(page.run('particles.filter(p => p.isBase).length'), 25);
-  assertClose(page.run('particleScale'), 5e-5, 1e-12, 'scale');
+  assert.equal(page.run('particles.length'), 25);
+  assert.equal(page.run('particles.filter(p => p.isBase).length'), 13);
+  assertClose(page.run('particleScale'), 1e-4, 1e-12, 'scale');
 });
 
 test('the count follows the moles and stays in bounds at every extreme', () => {
@@ -419,7 +418,7 @@ test('the count follows the moles and stays in bounds at every extreme', () => {
   for (const [conc, vol] of [[1e-3, 1e-4], [5, 2], [0.05, 0.05], [0.1, 2], [1e-3, 2], [2, 1e-4]]) {
     page.run(`setConcentration(${conc}); setVolume(${vol})`);
     const n = page.run('particles.length');
-    assert.ok(n >= 20 && n <= 80, `${conc} M × ${vol} L: ${n}`);
+    assert.ok(n >= 10 && n <= 40, `${conc} M × ${vol} L: ${n}`);
     assertClose(n * page.run('particleScale'), page.run('state.totalMoles'), page.run('particleScale'), 'each particle is worth the scale');
   }
 });
@@ -436,7 +435,7 @@ test('the particle split follows the acid/base ratio', () => {
   const page = loadPage();
   page.enter('ph-input', 5.76);
   const fb = 10 / 11;
-  assert.equal(page.run('particles.filter(p => p.isBase).length'), Math.round(50 * fb));
+  assert.equal(page.run('particles.filter(p => p.isBase).length'), Math.round(25 * fb));
   page.enter('ph-input', 2);
   assert.equal(page.run('particles.filter(p => p.isBase).length'), 0);
   page.enter('ph-input', 12);
@@ -447,7 +446,7 @@ test('adding acid or base flashes exactly the particles that converted', () => {
   const page = loadPage();
   page.click('add-button');
   const flashed = page.run("particles.filter(p => p.el.classList.contains('conv')).length");
-  assert.equal(flashed, 25 - Math.round(50 * (0.75 / 2.5)));
+  assert.equal(flashed, 13 - Math.round(25 * (0.75 / 2.5)));
   assert.equal(page.run('lastFlashed'), flashed);
   page.timers.at(-1)();
   assert.equal(page.run("particles.filter(p => p.el.classList.contains('conv')).length"), 0, 'clears afterward');
@@ -476,7 +475,7 @@ test('the generic buffer draws dots; the others draw their own acid and base gly
     assert.match(html, /id="glyph-acid".*<path.*id="glyph-base".*<path/, key);
     seen.add(page.run(`BUFFERS.${key}.core`));
     assert.ok(page.el('legend-acid').innerHTML.includes(page.run(`BUFFERS.${key}.acidSite`)), `${key} names the site`);
-    assert.equal(page.run('particles.length'), 50);
+    assert.equal(page.run('particles.length'), 25);
   }
   assert.equal(seen.size, 6, 'each buffer has its own skeleton');
 });
@@ -548,7 +547,6 @@ test('the shaded band is pKa ± 1 and moves with the buffer', () => {
   const page = loadPage();
   page.run("setBuffer('tris')");
   assert.ok(page.curve.calls.some(c => c.fn === 'fillText' && c.args[0] === 'pKa = 8.07'));
-  assert.equal(page.text('range-label'), 'Useful range (pKa ± 1): pH 7.07 to 9.07');
   assert.ok(page.curve.calls.some(c => c.fn === 'fillText' && /Buffering region/.test(c.args[0])));
 });
 
@@ -670,7 +668,7 @@ test('loads as a 50 mM, 500 mL generic buffer at pH = pKa, in the 1 L flask', ()
   assert.equal(page.el('vol-input').value, '500');
   assertClose(page.run('state.volume'), 0.5, 1e-12, 'volume');
   assert.equal(page.run('shownVessel.key'), 'flask1');
-  assert.equal(page.run('particles.length'), 50);
+  assert.equal(page.run('particles.length'), 25);
   assert.equal(page.run('state.temperature'), 25);
 });
 
@@ -711,7 +709,6 @@ test('buffer capacity is never announced, even far past the buffer', () => {
 
 test('the note under the curve no longer defines an equivalent', () => {
   assert.doesNotMatch(HTML, /One equivalent/);
-  assert.match(HTML, /Drawn at the current total concentration/);
 });
 
 // ── Buffer box layout ──────────────────────────────────────────
@@ -732,7 +729,6 @@ test('the pKa box always shows, editable only for the generic buffer', () => {
   page.enter('pka-input', 6);
   assert.equal(page.run('state.pKa'), 6);
   assertClose(page.pH(), 4.76, 1e-6, 'pH holds');
-  assert.equal(page.text('range-label'), 'Useful range (pKa ± 1): pH 5.00 to 7.00');
   for (const [key, pKa] of [['mops', '7.20'], ['tris', '8.07'], ['bicarbonate', '6.10']]) {
     page.run(`setBuffer('${key}')`);
     assert.equal(page.el('pka-input').disabled, true, key);
@@ -752,9 +748,7 @@ test('pKw follows the table and is exactly 14 at 25 °C', () => {
   assert.equal(page.run('pKwAt(37)'), 13.62);
   assertClose(page.run('pKwAt(35)'), 13.68, 0.001, 'between entries');
   assert.equal(page.run('pKwAt(60)'), 13.02);
-  assert.match(page.text('pkw-note'), /pKw = 14\.00 at 25 °C/);
   page.enter('temp-input', 37);
-  assert.match(page.text('pkw-note'), /pKw = 13\.62 at 37 °C/);
 });
 
 test('cooling a Tris buffer raises its pKa and pH by 0.028 per °C', () => {
@@ -764,7 +758,6 @@ test('cooling a Tris buffer raises its pKa and pH by 0.028 per °C', () => {
   assertClose(page.run('state.pKa'), 8.07 + 0.028 * 21, 1e-9, 'pKa');
   assert.equal(page.el('pka-input').value, '8.66');
   assertClose(page.pH(), 8.658, 0.005, 'pH');
-  assert.equal(page.text('range-label'), 'Useful range (pKa ± 1): pH 7.66 to 9.66');
 });
 
 test('warming a buffer keeps its contents and moves only what depends on temperature', () => {
@@ -834,7 +827,6 @@ test('Reset puts water back to its 25 °C Kw', () => {
   page.enter('temp-input', 37);
   page.click('reset');
   assertClose(page.run('KW'), 1e-14, 1e-20, 'Kw');
-  assert.match(page.text('pkw-note'), /pKw = 14\.00 at 25 °C/);
 });
 
 test('the markup starts with the same defaults as the script', () => {
@@ -904,4 +896,268 @@ test('the temperature slider and field stay together', () => {
   assert.equal(page.el('pka-input').value, '8.66');
   page.enter('temp-input', 37);
   assert.equal(page.el('temp-slider').value, '37');
+});
+
+// ── Removed text ───────────────────────────────────────────────
+test('the removed text stays gone', () => {
+  assert.doesNotMatch(HTML, /Useful range \(pKa|range-label|All values assume|Drawn at the current|pkw-note|Generic HA/);
+});
+
+test('the only text under the curve is the hover line', () => {
+  const section = HTML.slice(HTML.indexOf('<canvas id="curve"'), HTML.indexOf('</section>', HTML.indexOf('<canvas id="curve"')));
+  assert.equal(section.match(/<p\b/g).length, 1);
+  assert.ok(section.includes('<p id="curve-readout">Hover over or touch the plot to read a point on the curve</p>'));
+});
+
+test('the buffer list says HA / A⁻', () => {
+  const page = loadPage();
+  assert.equal(page.run('BUFFERS.generic.name'), 'HA / A⁻');
+});
+
+// ── Quiz questions ─────────────────────────────────────────────
+function seeded(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+}
+
+const quizPage = loadFreshPage();
+const SETS = 500;
+
+function eachQuestion(mode, check) {
+  quizPage.run(`quizRand = (${seeded.toString()})(${mode === 'easy' ? 11 : 22}); undefined`);
+  for (let i = 0; i < SETS; i++) {
+    const set = quizPage.run(`JSON.stringify(buildQuizSet('${mode}', quizRand).map(q => ({ ...q, answers: correctAnswerText(q) })))`);
+    for (const q of JSON.parse(set)) check(q);
+  }
+}
+quizPage.run('var quizRand;');
+
+const rightValues = q => Object.fromEntries(q.items.map(i => [i.key, i.kind === 'number' ? String(i.truth) : i.answer]));
+const grade = (q, values) => JSON.parse(quizPage.run(`JSON.stringify(gradeQuestion(${JSON.stringify(q)}, ${JSON.stringify(values)}))`));
+
+test('each set has 5 questions and covers every type of its mode', () => {
+  const wanted = { easy: ['hendersonHasselbalch', 'amounts', 'chooseBuffer', 'predominantForm'], hard: ['phAfterAddition', 'amountToReachPH', 'preparingBuffer'] };
+  for (const mode of ['easy', 'hard']) {
+    quizPage.run(`quizRand = (${seeded.toString()})(5); undefined`);
+    for (let i = 0; i < 200; i++) {
+      const types = JSON.parse(quizPage.run(`JSON.stringify(buildQuizSet('${mode}', quizRand).map(q => q.type))`));
+      assert.equal(types.length, 5);
+      for (const type of wanted[mode]) assert.ok(types.includes(type), `${mode}: ${type}`);
+    }
+  }
+});
+
+for (const mode of ['easy', 'hard']) {
+  test(`every ${mode} question grades its own answer as right, and is well formed`, () => {
+    let seen = 0;
+    eachQuestion(mode, q => {
+      seen += 1;
+      assert.ok(q.prompt && q.hint && q.explanation && q.title, q.type);
+      assert.ok(!/NaN|undefined|Infinity/.test(q.prompt + q.explanation + q.hint + q.answers), q.prompt + q.explanation);
+      assert.ok(!/Answers count|within ±/.test(q.prompt), q.prompt);
+      assert.ok(grade(q, rightValues(q)).correct, JSON.stringify(q));
+      for (const item of q.items) {
+        if (item.kind === 'number') assert.ok(Number.isFinite(item.truth) && item.truth > 0, JSON.stringify(item));
+        else assert.ok(item.options.includes(item.answer), JSON.stringify(item));
+      }
+      assert.ok(q.scene.volume > 0 && q.scene.totalMoles > 0 && Number.isFinite(q.scene.netBase), JSON.stringify(q.scene));
+    });
+    assert.equal(seen, SETS * 5);
+  });
+
+  test(`${mode} numbers outside the allowance are marked wrong`, () => {
+    eachQuestion(mode, q => {
+      for (const item of q.items) {
+        if (item.kind !== 'number') continue;
+        const off = rightValues(q);
+        off[item.key] = String(item.tolerancePH !== undefined ? item.truth + 0.06 : item.truth * (1 + item.tolerance * 1.5));
+        assert.equal(grade(q, off).results[item.key], false, JSON.stringify(item));
+      }
+    });
+  });
+}
+
+test('allowances: pH ± 0.05, calculations ± 2%, stock volumes ± 5%', () => {
+  for (const mode of ['easy', 'hard']) {
+    eachQuestion(mode, q => {
+      for (const item of q.items) {
+        if (item.kind !== 'number') continue;
+        if (/pH$/.test(item.label) || item.label === 'pH') assert.equal(item.tolerancePH, 0.05);
+        else if (q.type === 'amountToReachPH' || q.type === 'preparingBuffer') assert.equal(item.tolerance, 0.05);
+        else assert.equal(item.tolerance, 0.02);
+      }
+    });
+  }
+});
+
+test('hand calculation: 50 mM acetate at pH 4.76 has 25 mM of each form', () => {
+  const page = loadFreshPage();
+  page.run("setBuffer('acetate')");
+  const c = JSON.parse(page.run('JSON.stringify(composition())'));
+  assertClose(c.acidConc * 1e3, 25, 0.01, 'acid');
+  assertClose(c.baseConc * 1e3, 25, 0.01, 'base');
+});
+
+test('hand calculation: the scene helpers match 0.5 mL of 1 M HCl into 50 mL of 50 mM acetate', () => {
+  const page = loadFreshPage();
+  const r = JSON.parse(page.run("JSON.stringify(afterAddition(sceneAtPH({ key: 'acetate', pKa: 4.76 }, 0.05, 0.05, 4.76), -0.0005, 0.0005))"));
+  assertClose(r.pH, 4.39, 0.005, 'pH');
+  assertClose(r.acidMoles * 1e3, 1.75, 0.01, 'acid');
+  assertClose(r.baseMoles * 1e3, 0.75, 0.01, 'base');
+});
+
+// ── Worked the way a student would, from what the prompt gives ──
+const hhFraction = (pH, pKa) => 1 / (1 + 10 ** (pKa - pH));
+const numberAfter = (text, re) => Number(text.match(re)[1]);
+const unitFactor = { 'µL': 1e6, mL: 1e3 };
+
+test('pH after an addition, worked by Henderson–Hasselbalch in moles, passes', () => {
+  eachQuestion('hard', q => {
+    if (q.type !== 'phAfterAddition') return;
+    const { pKa, totalMoles } = q.scene;
+    const startPH = numberAfter(q.prompt, /buffer at pH (\d+\.\d+)/);
+    const volM = q.prompt.match(/add ([\d.]+) (µL|mL) of ([\d.]+) M (NaOH|HCl)/);
+    const moles = Number(volM[1]) / unitFactor[volM[2]] * Number(volM[3]);
+    const sign = volM[4] === 'NaOH' ? 1 : -1;
+    const base = totalMoles * hhFraction(startPH, pKa) + sign * moles;
+    const acid = totalMoles - base;
+    const pH = pKa + Math.log10(base / acid);
+    const values = { added: String(moles * 1e3), acid: String(acid * 1e3), base: String(base * 1e3), pH: String(pH) };
+    assert.ok(grade(q, values).correct, JSON.stringify([q.prompt, values, q.items.map(i => i.truth)]));
+  });
+});
+
+test('amount to reach a pH, worked by Henderson–Hasselbalch, passes', () => {
+  eachQuestion('hard', q => {
+    if (q.type !== 'amountToReachPH') return;
+    const { pKa, totalMoles } = q.scene;
+    const startPH = numberAfter(q.prompt, /buffer at pH (\d+\.\d+)/);
+    const targetPH = numberAfter(q.prompt, /brings it to pH (\d+\.\d+)/);
+    const stock = numberAfter(q.prompt, /What volume of ([\d.]+) M/);
+    const moles = Math.abs(hhFraction(targetPH, pKa) - hhFraction(startPH, pKa)) * totalMoles;
+    const litres = moles / stock;
+    const value = litres * unitFactor[q.items[0].unit];
+    assert.ok(grade(q, { volume: String(value) }).correct, JSON.stringify([q.prompt, value, q.items[0].truth]));
+  });
+});
+
+test('preparing a buffer, worked by Henderson–Hasselbalch, passes', () => {
+  eachQuestion('hard', q => {
+    if (q.type !== 'preparingBuffer') return;
+    const { pKa, totalMoles } = q.scene;
+    const targetPH = numberAfter(q.prompt, /at pH ([\d.]+)\?/);
+    const stock = numberAfter(q.prompt, /What volume of ([\d.]+) M/);
+    const fromAcid = q.scene.netBase === 0;
+    const fb = hhFraction(targetPH, pKa);
+    const moles = totalMoles * (fromAcid ? fb : 1 - fb);
+    const value = moles / stock * unitFactor[q.items[0].unit];
+    assert.ok(grade(q, { volume: String(value) }).correct, JSON.stringify([q.prompt, value, q.items[0].truth]));
+    assert.equal(q.items[0].label.includes(fromAcid ? 'NaOH' : 'HCl'), true);
+  });
+});
+
+test('adding the worked stock volume to the solution really reaches the target pH', () => {
+  eachQuestion('hard', q => {
+    if (q.type !== 'amountToReachPH' && q.type !== 'preparingBuffer') return;
+    const target = numberAfter(q.prompt, /(?:to|at) pH ([\d.]+)(?: \?|\?)/);
+    const stock = numberAfter(q.prompt, /What volume of ([\d.]+) M/);
+    const litres = q.items[0].truth / unitFactor[q.items[0].unit];
+    const sign = q.items[0].label.includes('NaOH') ? 1 : -1;
+    const r = JSON.parse(quizPage.run(`JSON.stringify(afterAddition(${JSON.stringify(q.scene)}, ${sign * stock * litres}, ${litres}))`));
+    assertClose(r.pH, target, 0.005, q.prompt);
+  });
+});
+
+test('hard questions mix units and always name a stock', () => {
+  const seen = new Set();
+  eachQuestion('hard', q => {
+    assert.ok(/\d M (NaOH|HCl)/.test(q.prompt), q.prompt);
+    for (const unit of q.prompt.match(/(\d) (M|mM|mL|L) /g) || []) seen.add(unit.split(' ')[1]);
+  });
+  for (const unit of ['M', 'mM', 'mL', 'L']) assert.ok(seen.has(unit), unit);
+});
+
+test('choose a buffer: the answer is clearly the closest, and the range answer is right', () => {
+  eachQuestion('easy', q => {
+    if (q.type !== 'chooseBuffer') return;
+    const target = numberAfter(q.prompt, /at pH ([\d.]+)\./);
+    const pKas = q.items[0].options.map(o => Number(o.match(/pKa ([\d.]+)/)[1]));
+    const answerPKa = Number(q.items[0].answer.match(/pKa ([\d.]+)/)[1]);
+    const others = pKas.filter(p => p !== answerPKa).map(p => Math.abs(p - target));
+    assert.ok(Math.abs(answerPKa - target) + 0.3 < Math.min(...others), q.items[0].options.join() + ' ' + target);
+    const [, testPH, checkPKa] = q.items[1].label.match(/pH ([\d.]+) within .*pKa ([\d.]+)/);
+    assert.equal(q.items[1].answer, Math.abs(testPH - checkPKa) <= 1 ? 'Yes' : 'No', q.items[1].label);
+  });
+});
+
+test('which form predominates follows pH against pKa, and uses the buffer\'s own names', () => {
+  const seen = new Set();
+  eachQuestion('easy', q => {
+    if (q.type !== 'predominantForm') return;
+    const pH = Number(q.items[0].label.match(/at pH ([\d.]+)\?/)[1]);
+    const pKa = q.scene.pKa;
+    const [acid, base, equal] = q.items[0].options;
+    assert.equal(q.items[0].answer, pH > pKa ? base : pH < pKa ? acid : equal, q.items[0].label);
+    assert.ok(q.prompt.includes(acid) && q.prompt.includes(base));
+    seen.add(acid);
+  });
+  for (const name of ['HA', 'CH₃COOH', 'TrisH⁺']) assert.ok(seen.has(name), name);
+});
+
+test('questions whose answer the image would show start at pH = pKa', () => {
+  eachQuestion('easy', q => {
+    const isRatio = q.items[0].key === 'ratio';
+    if (q.type !== 'predominantForm' && !isRatio) return;
+    const ka = 10 ** -q.scene.pKa;
+    const c = q.scene.totalMoles / q.scene.volume;
+    const fbAtScene = (q.scene.netBase / q.scene.volume - 0) / c;
+    assertClose(fbAtScene, 0.5, 0.01, q.type);
+    assert.ok(ka > 0);
+  });
+});
+
+test('Easy keeps matching units', () => {
+  eachQuestion('easy', q => {
+    assert.ok(!/\d M\b/.test(q.prompt), q.prompt);
+    assert.ok(!/\d L\b/.test(q.prompt), q.prompt);
+  });
+});
+
+test('answers read in the notations students use', () => {
+  const page = loadFreshPage();
+  for (const text of ['0.0025', '2.5e-3', '2.5 x 10^-3', '2.50 × 10⁻³']) {
+    assertClose(page.run(`parseAnswer(${JSON.stringify(text)})`), 0.0025, 1e-9, text);
+  }
+  assert.ok(page.run("Number.isNaN(parseAnswer('abc'))"));
+});
+
+test('a blank part is unmarked and not right, and credit is 1, then ½, or 0 when shown', () => {
+  const q = { items: [{ key: 'a', kind: 'number', truth: 2, tolerance: 0.02 }, { key: 'b', kind: 'choice', answer: 'Yes', options: ['Yes', 'No'] }] };
+  const blank = grade(q, { a: '2', b: null });
+  assert.equal(blank.correct, false);
+  assert.equal(blank.results.a, true);
+  assert.equal(blank.results.b, null);
+  assert.equal(grade(q, { a: '2', b: 'Yes' }).correct, true);
+  assert.equal(grade(q, { a: '2.1', b: 'Yes' }).results.a, false);
+  const page = loadFreshPage();
+  assert.equal(page.run('quizCredit(1, true)'), 1);
+  assert.equal(page.run('quizCredit(2, true)'), 0.5);
+  assert.equal(page.run('quizCredit(6, true)'), 0.5);
+  assert.equal(page.run('quizCredit(1, false)'), 0);
+});
+
+test('the quiz uses the shared answer colors, and no prompt suggests testing with the hidden pH', () => {
+  assert.match(HTML, /\.quiz-item\.correct \{ background: #DBEAFE; border-color: #1565C0; color: #000000; \}/);
+  assert.match(HTML, /\.quiz-item\.wrong \{ background: #FFEBEE; border-color: #C8102E; color: #000000; \}/);
+  assert.match(HTML, /\.quiz-item input\[type=text\]:disabled \{ background: #E4E4E4; border-color: #BFBFBF; color: #404040; \}/);
+  assert.doesNotMatch(HTML, /test your answer/);
+});
+
+test('a ✓ or ✗ marks the question, never each of its options', () => {
+  for (const rule of HTML.match(/[^\n{}]*::after \{ content: ' [✓✗]'/g)) {
+    assert.doesNotMatch(rule.replace(/label:not\(\.quiz-option\)/g, ''), /label/, rule);
+  }
 });

@@ -16,7 +16,7 @@ A collection of standalone, single-file interactive educational web tools for ch
 - **peptide_charge.html** — Peptide (1–6 residues) skeletal structure at any pH, with pKa values and pI practice, and a quiz mode (offline, no libraries)
 - **enzyme_kinetics.html** — Measuring Rates, Kinetics and Inhibition tabs: product vs. time, Michaelis–Menten and Lineweaver–Burk plots, with a quiz mode (offline, no libraries)
 - **oxygen_binding.html** — Hemoglobin and myoglobin O₂ saturation curves with pH, 2,3-BPG, CO₂, fetal Hb and carbon monoxide (offline, no libraries)
-- **buffers.html** — Buffer visualizer: set the pH and temperature and add strong acid or base to see how a buffer responds (offline, no libraries)
+- **buffers.html** — Buffer visualizer: set the pH and temperature and add strong acid or base to see how a buffer responds, with a quiz mode (offline, no libraries)
 
 Tests live beside the pages as `*.test.js` and run with `node --test` (no dependencies).
 
@@ -68,6 +68,12 @@ Central `state` object holds all ion concentrations, membrane potential (Vm), an
 ## Architecture: peptide_charge.html
 
 All pKa values live in the `PKA` table at the top of the script (Berg, Tymoczko & Stryer). `ionizableGroups(seq)` lists the free termini and side chains; `netCharge()` and `findPI()` (bisection) work from that list. `buildStructure(seq)` returns the SVG, drawing each residue from `SIDE_TEMPLATES` in local coordinates (x along the chain, u away from the backbone). Each ionizable group holds both its forms as `.ion-state` groups, and `updateStructureStates()` crossfades between them, so a pH change never rebuilds the drawing. Students identify the residues themselves, so nothing may mark residue boundaries or name the sequence: no bands, residue labels or peptide bond marks in the drawing, no sequence in its `aria-label`, `generateRandomPeptide()` leaves the entry box empty, and `pKaRows()` lists R groups by name rather than position. `pKaTableRows()` fills the Determining pI table with the termini and all seven ionizable side chains in alphabetical order, whatever the peptide, and it always shows, so it can't reveal the residues. `answersHidden()` is true in Quiz Mode until Reveal, and draws the structure uncharged. A lone three-letter code in the input is read as one residue.
+
+## Architecture: buffers.html
+
+`state` holds the buffer, volume, total moles and `netBase`, the moles of strong base minus strong acid, counted from the buffer all in its acid form. `solveH()` finds [H⁺] from the charge balance, so the pH stays right past the buffering region, and every readout comes from it. Each action returns an error message or null, then calls `render()`. Each particle stands for a fixed number of moles, so the count follows the moles.
+
+For the quiz, `buildQuizSet()` and `QUESTION_BUILDERS` produce plain-data questions, each with a `scene` written into `state`. That section of the script touches no DOM. Correct values use the exact solver, and the tests confirm that Henderson–Hasselbalch worked from a prompt's numbers still passes. `answersHidden()` is true during a question and hides the readouts, the curve's position dot and hover, and History's pH values, until the question is answered. `updateControls()` does nothing during a quiz, so the Buffer panel's fields never hold an answer. `exitQuiz()` restores the state saved by `startQuiz()`.
 
 ## Architecture: enzyme_kinetics.html
 

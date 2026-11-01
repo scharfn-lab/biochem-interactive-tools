@@ -14,6 +14,8 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    [hidden] { display: none !important; }
+
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       background: #FFFFFF;
@@ -47,7 +49,7 @@
     }
     .column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
     #column-curve { max-width: 498px; }
-    #top-bar { display: flex; justify-content: center; margin-bottom: 16px; }
+    #top-bar, #difficulty-buttons { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 
     @media (max-width: 1120px) {
       #layout { grid-template-columns: 330px minmax(0, 1fr); }
@@ -121,7 +123,7 @@
     button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
     button:active:not(:disabled) { background: var(--ut-crimson); border-color: var(--ut-crimson); color: #FFFFFF; }
     button.active { background: #FFCDD2; border-color: var(--ut-crimson); color: #000000; font-weight: 600; }
-    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    button:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; cursor: not-allowed; }
     .button-row { display: flex; gap: 6px; flex-wrap: wrap; }
     @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 
@@ -130,7 +132,6 @@
     .error { font-size: 0.82em; color: var(--ut-crimson); font-weight: 600; margin-top: 4px; min-height: 0; }
     .error:empty { display: none; }
     #forms-label { font-size: 0.88em; font-weight: 600; margin-top: 6px; }
-    #range-label { font-size: 0.85em; color: var(--ut-taupe); margin-top: 2px; }
     #buffer-note { margin-top: 4px; }
 
     /* ── Container ── */
@@ -170,6 +171,42 @@
     #curve { display: block; width: 100%; height: auto; touch-action: pan-y; cursor: crosshair; border-radius: 8px; }
     #curve-readout { font-size: 0.85em; color: var(--ut-taupe); margin-top: 6px; min-height: 1.3em; }
 
+    /* ── Quiz ── */
+    .quiz-header { display: flex; justify-content: space-between; gap: 8px; }
+    .quiz-header .panel-title { margin-bottom: 8px; }
+    #quiz-progress { font-size: 0.82em; flex-shrink: 0; }
+    #quiz-prompt { font-size: 0.9em; line-height: 1.45; }
+    .quiz-item { margin-top: 8px; padding: 4px 6px; border: 2px solid transparent; border-radius: 6px; min-width: 0; }
+    .quiz-item > label:not(.quiz-option), .quiz-item > legend { display: block; font-size: 0.85em; font-weight: 600; margin-bottom: 7px; padding: 0; }
+    .quiz-item > legend { float: left; width: 100%; }
+    .quiz-item input[type=text] {
+      width: 100%;
+      padding: 7px 8px;
+      min-height: 36px;
+      background: #FFFFFF;
+      border: 1px solid var(--ut-taupe);
+      border-radius: 6px;
+      color: #000000;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .quiz-item input[type=text]:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; }
+    .quiz-option { clear: both; display: flex; align-items: flex-start; gap: 6px; font-size: 0.85em; font-weight: 400; line-height: 1.35; padding: 2px 0; margin: 0; cursor: pointer; }
+    .quiz-option:has(input:checked) { font-weight: 600; }
+    .quiz-option input { margin-top: 2px; accent-color: var(--ut-crimson); flex-shrink: 0; }
+    .quiz-item.correct > legend::after, .quiz-item.correct > label:not(.quiz-option)::after { content: ' ✓'; }
+    .quiz-item.wrong > legend::after, .quiz-item.wrong > label:not(.quiz-option)::after { content: ' ✗'; }
+    .quiz-item.correct { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .quiz-item.wrong { background: #FFEBEE; border-color: #C8102E; color: #000000; }
+    .quiz-item.correct input[type=text], .quiz-item.correct input[type=text]:disabled { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .quiz-item.wrong input[type=text], .quiz-item.wrong input[type=text]:disabled { background: #FFEBEE; border-color: #C8102E; color: #000000; }
+    .quiz-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    #quiz-feedback { font-size: 0.85em; line-height: 1.5; margin-top: 10px; }
+    #quiz-feedback:empty { display: none; }
+    #quiz-feedback table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    #quiz-feedback td { padding: 4px; border-bottom: 1px solid #BFBFBF; }
+    #quiz-feedback td:last-child { text-align: right; }
+
     /* ── History ── */
     #history { list-style: none; max-height: 150px; overflow-y: auto; font-size: 0.85em; margin-bottom: 8px; }
     #history li { padding: 4px 0; border-bottom: 1px solid #E8DDE8; }
@@ -181,18 +218,42 @@
 <h1>Buffer Visualizer</h1>
 <p class="subtitle">Set the pH and add strong acid or base to see how a buffer responds</p>
 
-<div id="top-bar"><button id="reset">Reset</button></div>
+<div id="top-bar">
+  <button id="reset">Reset</button>
+  <button id="quiz-toggle" aria-pressed="false">Quiz Mode</button>
+</div>
+<div id="difficulty-buttons" role="group" aria-label="Quiz difficulty" hidden>
+  <button id="difficulty-easy">Easy Mode</button>
+  <button id="difficulty-hard">Hard Mode</button>
+</div>
 
 <div id="layout">
   <!-- ── Controls ── -->
   <div class="column" id="column-controls">
-    <section class="panel">
+    <section class="panel" id="quiz-box" aria-labelledby="quiz-title" hidden>
+      <div class="quiz-header">
+        <h2 class="panel-title" id="quiz-title">Quiz</h2>
+        <span id="quiz-progress"></span>
+      </div>
+      <div id="quiz-question"></div>
+      <div class="quiz-buttons" id="quiz-buttons">
+        <button id="quiz-check">Check</button>
+        <button id="quiz-show" hidden>Show answer</button>
+        <button id="quiz-next" hidden>Next</button>
+      </div>
+      <div id="quiz-feedback" role="status"></div>
+      <div class="quiz-buttons" id="quiz-end-buttons" hidden>
+        <button id="quiz-again">Try Again</button>
+        <button id="quiz-exit">Exit Quiz</button>
+      </div>
+    </section>
+
+    <section class="panel" id="buffer-panel">
       <h2 class="panel-title">Buffer</h2>
       <div class="field">
         <label for="buffer-select">Buffer system</label>
         <select id="buffer-select"></select>
         <div id="forms-label"></div>
-        <div id="range-label"></div>
         <p class="hint" id="buffer-note" hidden></p>
       </div>
       <div class="side-by-side">
@@ -297,8 +358,7 @@
     <section class="panel">
       <h2 class="panel-title">Titration Curve</h2>
       <canvas id="curve" role="img"></canvas>
-      <p id="curve-readout">Hover over or touch the plot to read a point on the curve.</p>
-      <p class="hint">Drawn at the current total concentration; the volume of titrant is not included in the curve. <span id="pkw-note"></span></p>
+      <p id="curve-readout">Hover over or touch the plot to read a point on the curve</p>
     </section>
 
     <section class="panel">
@@ -323,7 +383,7 @@
 //   note        an optional one-line note shown under the dropdown
 const BUFFERS = {
   generic: {
-    name: 'Generic HA / A⁻', pKa: 4.76, acid: 'HA', base: 'A⁻', editablePKa: true,
+    name: 'HA / A⁻', pKa: 4.76, acid: 'HA', base: 'A⁻', editablePKa: true,
   },
   acetate: {
     name: 'Acetate', pKa: 4.76, dpKadT: 0.0002, acid: 'CH₃COOH', base: 'CH₃COO⁻',
@@ -381,6 +441,21 @@ const state = {
   reagent: 'HCl',
   history: [],                                   // { label, before: {volume, totalMoles, netBase} }
 };
+
+// A running quiz. Its solutions live in state, and exitQuiz() puts back what was there.
+const quiz = {
+  active: false,
+  hard: false,
+  set: [],
+  index: 0,
+  attempt: 1,
+  finished: false,   // this question has been answered, or its answer shown
+  credits: [],
+  saved: null,
+};
+
+// During a question the readouts are hidden, and they return once it is answered.
+const answersHidden = () => quiz.active && !quiz.finished;
 
 function pKwAt(temperature) {
   for (let i = 1; i < PKW_TABLE.length; i++) {
@@ -521,7 +596,8 @@ function addStrong(reagent, stockMolar, addedLitres) {
   state.netBase += reagent === 'NaOH' ? moles : -moles;
   state.volume += addedLitres;
   state.history.push({
-    label: `${formatVolume(addedLitres)} of ${formatNumber(stockMolar)} M ${reagent} (${formatMoles(moles)}): pH ${pHBefore.toFixed(2)} → ${currentPH().toFixed(2)}`,
+    label: `${formatVolume(addedLitres)} of ${formatNumber(stockMolar)} M ${reagent} (${formatMoles(moles)})`,
+    pHChange: `pH ${pHBefore.toFixed(2)} → ${currentPH().toFixed(2)}`,
     before,
   });
   render(true);
@@ -582,6 +658,311 @@ function formatVolume(litres) {
 const CONC_FACTOR = { mM: 1e3, M: 1 };
 const VOL_FACTOR = { 'µL': 1e6, mL: 1e3, L: 1 };
 const formatConc = (molar, unit = state.concUnit) => `${formatNumber(molar * CONC_FACTOR[unit])} ${unit}`;
+
+// ═══════════════════════════════════════════════════════════════
+//  QUIZ QUESTIONS (no DOM access)
+// ═══════════════════════════════════════════════════════════════
+// A question is plain data: what to ask, how to grade it, and the solution to show beside it.
+// tolerance is a fraction of the true value. A pH uses tolerancePH, in pH units.
+const CALCULATED_TOLERANCE = 0.02;    // worked directly from the numbers given
+const STOCK_VOLUME_TOLERANCE = 0.05;  // several steps, and Henderson–Hasselbalch ignores a little
+const PH_TOLERANCE = 0.05;
+
+const QUIZ_TYPES = {
+  easy: ['hendersonHasselbalch', 'amounts', 'chooseBuffer', 'predominantForm'],
+  hard: ['phAfterAddition', 'amountToReachPH', 'preparingBuffer'],
+};
+const QUIZ_LENGTH = 5;
+// Bicarbonate is left out, since its note about blood goes beyond these questions.
+const QUIZ_BUFFERS = ['generic', 'acetate', 'mes', 'mops', 'hepes', 'tris'];
+const HH_HINT = 'Use pH = pKa + log([base form]/[acid form]).';
+const NEUTRALIZE_HINT = 'Strong base converts acid form to base form mole for mole, and strong acid does the reverse. Work in moles, then use Henderson–Hasselbalch. Convert units first: 1 M = 1000 mM, and 1 L = 1000 mL.';
+
+const pick = (list, rand) => list[Math.floor(rand() * list.length)];
+
+function shuffled(list, rand) {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function quizBuffer(rand) {
+  const key = pick(QUIZ_BUFFERS, rand), b = BUFFERS[key];
+  // The HA / A⁻ buffer has no real pKa of its own, so it varies for variety.
+  const pKa = key === 'generic' ? Number((4.5 + rand() * 4.5).toFixed(2)) : b.pKa;
+  return { key, pKa, name: b.name, acid: b.acid, base: b.base };
+}
+
+const describeBuffer = b => `The buffer is ${b.name} (pKa ${b.pKa.toFixed(2)}), with acid form ${b.acid} and base form ${b.base}.`;
+
+function numberItem(key, label, unit, truth, tolerance) {
+  return { key, kind: 'number', label, unit, truth, tolerance };
+}
+function pHItem(key, label, truth) {
+  return { key, kind: 'number', label, unit: '', truth, tolerancePH: PH_TOLERANCE };
+}
+function choiceItem(key, label, options, answer) {
+  return { key, kind: 'choice', label, options, answer };
+}
+
+// conc in M, volume in L
+function sceneAtPH(b, conc, volume, pH) {
+  return { buffer: b.key, pKa: b.pKa, volume, totalMoles: conc * volume, netBase: chargeForPH(pH, conc, 10 ** -b.pKa) * volume };
+}
+
+// The exact result of adding strong acid or base to a scene
+function afterAddition(scene, netChange, addedLitres) {
+  const volume = scene.volume + addedLitres, net = scene.netBase + netChange;
+  const H = solveH(net / volume, scene.totalMoles / volume, 10 ** -scene.pKa);
+  const fb = baseFraction(H, 10 ** -scene.pKa);
+  return { pH: -Math.log10(H), baseMoles: scene.totalMoles * fb, acidMoles: scene.totalMoles * (1 - fb) };
+}
+
+// The stock volume that brings a scene to a target pH, allowing for the stock's own volume
+function stockVolumeFor(scene, pH, stockMolar, sign) {
+  let added = 0;
+  for (let i = 0; i < 10; i++) {
+    const volume = scene.volume + added;
+    const needed = chargeForPH(pH, scene.totalMoles / volume, 10 ** -scene.pKa) * volume;
+    added = (needed - scene.netBase) * sign / stockMolar;
+  }
+  return added;
+}
+
+// Hard Mode states amounts in whichever units it draws, so they have to be converted.
+const concText = (molar, rand) => (rand() < 0.5 ? `${formatNumber(molar * 1e3)} mM` : `${formatNumber(molar)} M`);
+const volumeText = (litres, rand) => (rand() < 0.5 ? `${formatNumber(litres * 1e3)} mL` : `${formatNumber(litres)} L`);
+
+// A stock volume asked for in µL when that reads better than a fraction of a mL
+function stockVolumeUnit(litres, rand) {
+  return litres < 1e-3 || rand() < 0.25 ? { unit: 'µL', factor: 1e6 } : { unit: 'mL', factor: 1e3 };
+}
+
+const CONCENTRATIONS = [0.025, 0.05, 0.1, 0.2];
+const VOLUMES = [0.05, 0.1, 0.2, 0.25, 0.5];
+const STOCKS = [0.5, 1, 2, 5];
+
+const QUESTION_BUILDERS = {
+  hendersonHasselbalch(rand) {
+    const b = quizBuffer(rand);
+    if (rand() < 0.5) {
+      // pH from the ratio
+      const acidMM = pick([10, 20, 25, 40, 50], rand), ratio = pick([0.1, 0.2, 0.25, 0.5, 2, 4, 5, 10], rand);
+      const baseMM = acidMM * ratio;
+      const pH = b.pKa + Math.log10(ratio);
+      return {
+        type: 'hendersonHasselbalch', title: 'Henderson–Hasselbalch',
+        prompt: `${describeBuffer(b)} A solution has [${b.base}] = ${formatNumber(baseMM)} mM and [${b.acid}] = ${formatNumber(acidMM)} mM. What is its pH?`,
+        items: [pHItem('pH', 'pH', pH)],
+        hint: HH_HINT,
+        explanation: `pH = ${b.pKa.toFixed(2)} + log(${formatNumber(baseMM)}/${formatNumber(acidMM)}) = ${pH.toFixed(2)}.`,
+        scene: sceneAtPH(b, (acidMM + baseMM) / 1e3, 0.1, pH),
+      };
+    }
+    // The ratio from the pH. The solution stays at pH = pKa so that the image doesn't give it away.
+    const delta = pick([-1, -0.7, -0.5, -0.3, 0.3, 0.5, 0.7, 1], rand);
+    const pH = Number((b.pKa + delta).toFixed(2)), ratio = 10 ** (pH - b.pKa);
+    return {
+      type: 'hendersonHasselbalch', title: 'Henderson–Hasselbalch',
+      prompt: `${describeBuffer(b)} At pH ${pH.toFixed(2)}, what is the ratio [${b.base}]/[${b.acid}]?`,
+      items: [numberItem('ratio', `[${b.base}]/[${b.acid}]`, '', ratio, CALCULATED_TOLERANCE)],
+      hint: HH_HINT,
+      explanation: `Ratio = 10^(${pH.toFixed(2)} − ${b.pKa.toFixed(2)}) = ${formatNumber(ratio, 3)}.`,
+      scene: sceneAtPH(b, 0.05, 0.1, b.pKa),
+    };
+  },
+
+  amounts(rand) {
+    const b = quizBuffer(rand);
+    const concMM = pick([10, 20, 25, 50, 100], rand), volumeML = pick([50, 100, 200, 250, 500], rand);
+    const pH = Number((b.pKa + pick([-0.7, -0.5, -0.3, 0.3, 0.5, 0.7], rand)).toFixed(2));
+    const fb = baseFraction(10 ** -pH, 10 ** -b.pKa);
+    const asMoles = rand() < 0.5;
+    const total = asMoles ? concMM * volumeML / 1e3 : concMM;
+    const unit = asMoles ? 'mmol' : 'mM';
+    const noun = asMoles ? 'moles' : 'concentration';
+    return {
+      type: 'amounts', title: 'Amounts of each form',
+      prompt: `${describeBuffer(b)} You have ${volumeML} mL of ${concMM} mM buffer at pH ${pH.toFixed(2)}. Find the ${noun} of each form.`,
+      items: [
+        numberItem('acid', b.acid, unit, total * (1 - fb), CALCULATED_TOLERANCE),
+        numberItem('base', b.base, unit, total * fb, CALCULATED_TOLERANCE),
+      ],
+      hint: `${HH_HINT} The two forms add up to ${formatNumber(total)} ${unit}.`,
+      explanation: `The ratio is ${formatNumber(fb / (1 - fb), 3)}, so ${formatNumber(fb * 100, 3)}% is ${b.base}: ${formatNumber(total * fb, 3)} ${unit} ${b.base} and ${formatNumber(total * (1 - fb), 3)} ${unit} ${b.acid}.`,
+      scene: sceneAtPH(b, concMM / 1e3, volumeML / 1e3, pH),
+    };
+  },
+
+  chooseBuffer(rand) {
+    // Three buffers far enough apart that one is clearly closest to the target
+    const keys = shuffled(['acetate', 'mes', 'mops', 'tris'], rand).slice(0, 3);
+    const answerKey = pick(keys, rand), answer = BUFFERS[answerKey];
+    const target = Number((answer.pKa + pick([-0.2, -0.1, 0, 0.1, 0.2], rand)).toFixed(1));
+    const label = key => `${BUFFERS[key].name} (pKa ${BUFFERS[key].pKa.toFixed(2)})`;
+    const check = BUFFERS[pick(keys, rand)];
+    const inRange = rand() < 0.5;
+    const testPH = Number((check.pKa + (rand() < 0.5 ? -1 : 1) * (inRange ? pick([0.4, 0.6, 0.8], rand) : pick([1.4, 1.7, 2], rand))).toFixed(1));
+    const options = keys.map(label);
+    return {
+      type: 'chooseBuffer', title: 'Choose a buffer',
+      prompt: `You need a buffer at pH ${target.toFixed(1)}.`,
+      items: [
+        choiceItem('best', 'Which of these buffers is the best choice?', options, label(answerKey)),
+        choiceItem('range', `Is pH ${testPH.toFixed(1)} within the useful range of ${check.name} (pKa ${check.pKa.toFixed(2)})?`, ['Yes', 'No'], inRange ? 'Yes' : 'No'),
+      ],
+      hint: 'A buffer works best near its pKa, and its useful range is about pKa ± 1.',
+      explanation: `${answer.name} has the pKa closest to ${target.toFixed(1)}. The useful range of ${check.name} is pH ${(check.pKa - 1).toFixed(2)} to ${(check.pKa + 1).toFixed(2)}.`,
+      scene: sceneAtPH({ key: keys[0], pKa: BUFFERS[keys[0]].pKa }, 0.05, 0.1, BUFFERS[keys[0]].pKa),
+    };
+  },
+
+  predominantForm(rand) {
+    const b = quizBuffer(rand);
+    const delta = pick([-2, -1.5, -1, -0.5, -0.2, 0, 0, 0.2, 0.5, 1, 1.5, 2], rand);
+    const pH = Number((b.pKa + delta).toFixed(2));
+    const equal = 'Equal amounts of each';
+    const answer = delta === 0 ? equal : delta > 0 ? b.base : b.acid;
+    const why = delta === 0 ? 'At pH = pKa, the two forms are equal.'
+      : delta > 0 ? `The pH is above the pKa, so the base form, ${b.base}, predominates.`
+        : `The pH is below the pKa, so the acid form, ${b.acid}, predominates.`;
+    return {
+      type: 'predominantForm', title: 'Which form predominates?',
+      prompt: `${describeBuffer(b)} The solution here starts at pH = pKa.`,
+      items: [choiceItem('form', `Which form would be present in the greater amount at pH ${pH.toFixed(2)}?`, [b.acid, b.base, equal], answer)],
+      hint: 'Compare the pH with the pKa.',
+      explanation: why,
+      scene: sceneAtPH(b, 0.05, 0.1, b.pKa),
+    };
+  },
+
+  phAfterAddition(rand) {
+    for (;;) {
+      const b = quizBuffer(rand);
+      const conc = pick(CONCENTRATIONS, rand), volume = pick(VOLUMES, rand), stock = pick(STOCKS, rand);
+      const startPH = Number((b.pKa + pick([-0.3, 0, 0.3], rand)).toFixed(2));
+      const scene = sceneAtPH(b, conc, volume, startPH);
+      const startFb = baseFraction(10 ** -startPH, 10 ** -b.pKa);
+      const addBase = rand() < 0.5;
+      // Aim for a final split well inside the buffering region, in a round stock volume
+      const aimed = conc * volume * pick([0.1, 0.15, 0.2, 0.25], rand);
+      const added = Number((aimed / stock).toPrecision(2));
+      const moles = stock * added;
+      const result = afterAddition(scene, addBase ? moles : -moles, added);
+      const finalFb = result.baseMoles / scene.totalMoles;
+      if (finalFb < 0.15 || finalFb > 0.85) continue;
+      const reagent = addBase ? 'NaOH' : 'HCl';
+      const addedText = added < 1e-3 ? `${formatNumber(added * 1e6)} µL` : `${formatNumber(added * 1e3)} mL`;
+      return {
+        type: 'phAfterAddition', title: 'pH after an addition',
+        prompt: `${describeBuffer(b)} You have ${volumeText(volume, rand)} of ${concText(conc, rand)} buffer at pH ${startPH.toFixed(2)}, and add ${addedText} of ${formatNumber(stock)} M ${reagent}. Find the amounts after the addition, and the final pH.`,
+        items: [
+          numberItem('added', `${reagent} added`, 'mmol', moles * 1e3, CALCULATED_TOLERANCE),
+          numberItem('acid', b.acid, 'mmol', result.acidMoles * 1e3, CALCULATED_TOLERANCE),
+          numberItem('base', b.base, 'mmol', result.baseMoles * 1e3, CALCULATED_TOLERANCE),
+          pHItem('pH', 'Final pH', result.pH),
+        ],
+        hint: NEUTRALIZE_HINT,
+        explanation: `${formatNumber(moles * 1e3, 3)} mmol of ${reagent} takes the buffer from ${formatNumber(scene.totalMoles * (1 - startFb) * 1e3, 3)} mmol ${b.acid} and ${formatNumber(scene.totalMoles * startFb * 1e3, 3)} mmol ${b.base} to ${formatNumber(result.acidMoles * 1e3, 3)} and ${formatNumber(result.baseMoles * 1e3, 3)} mmol, so pH = ${result.pH.toFixed(2)}.`,
+        scene,
+      };
+    }
+  },
+
+  amountToReachPH(rand) {
+    const b = quizBuffer(rand);
+    const conc = pick(CONCENTRATIONS, rand), volume = pick(VOLUMES, rand), stock = pick(STOCKS, rand);
+    const startPH = Number((b.pKa + pick([-0.3, 0, 0.3], rand)).toFixed(2));
+    const change = pick([-0.6, -0.4, 0.4, 0.6], rand);
+    const targetPH = Number((startPH + change).toFixed(2));
+    const scene = sceneAtPH(b, conc, volume, startPH);
+    const addBase = change > 0, reagent = addBase ? 'NaOH' : 'HCl';
+    const added = stockVolumeFor(scene, targetPH, stock, addBase ? 1 : -1);
+    const { unit, factor } = stockVolumeUnit(added, rand);
+    const moles = stock * added;
+    return {
+      type: 'amountToReachPH', title: 'Amount to reach a pH',
+      prompt: `${describeBuffer(b)} You have ${volumeText(volume, rand)} of ${concText(conc, rand)} buffer at pH ${startPH.toFixed(2)}. What volume of ${formatNumber(stock)} M ${reagent} brings it to pH ${targetPH.toFixed(2)}?`,
+      items: [numberItem('volume', `Volume of ${formatNumber(stock)} M ${reagent}`, unit, added * factor, STOCK_VOLUME_TOLERANCE)],
+      hint: NEUTRALIZE_HINT,
+      explanation: `Moving from pH ${startPH.toFixed(2)} to ${targetPH.toFixed(2)} takes about ${formatNumber(moles * 1e3, 3)} mmol of ${reagent}, which is ${formatNumber(added * factor, 3)} ${unit} of ${formatNumber(stock)} M stock.`,
+      scene,
+    };
+  },
+
+  preparingBuffer(rand) {
+    const b = quizBuffer(rand);
+    const conc = pick(CONCENTRATIONS, rand), volume = pick(VOLUMES, rand), stock = pick(STOCKS, rand);
+    const targetPH = Number((b.pKa + pick([-0.5, -0.3, 0, 0.3, 0.5], rand)).toFixed(2));
+    const fromAcid = rand() < 0.5;
+    const form = fromAcid ? b.acid : b.base, reagent = fromAcid ? 'NaOH' : 'HCl';
+    const scene = { buffer: b.key, pKa: b.pKa, volume, totalMoles: conc * volume, netBase: fromAcid ? 0 : conc * volume };
+    const added = stockVolumeFor(scene, targetPH, stock, fromAcid ? 1 : -1);
+    const { unit, factor } = stockVolumeUnit(added, rand);
+    const fb = baseFraction(10 ** -targetPH, 10 ** -b.pKa);
+    const converted = conc * volume * (fromAcid ? fb : 1 - fb);
+    return {
+      type: 'preparingBuffer', title: 'Preparing a buffer',
+      prompt: `${describeBuffer(b)} You have ${volumeText(volume, rand)} of ${concText(conc, rand)} solution, entirely as ${form}. What volume of ${formatNumber(stock)} M ${reagent} makes a buffer at pH ${targetPH.toFixed(2)}?`,
+      items: [numberItem('volume', `Volume of ${formatNumber(stock)} M ${reagent}`, unit, added * factor, STOCK_VOLUME_TOLERANCE)],
+      hint: `Find what fraction of the buffer must be converted from ${form}. ${NEUTRALIZE_HINT}`,
+      explanation: `At pH ${targetPH.toFixed(2)}, ${formatNumber(fb * 100, 3)}% is ${b.base}, so ${formatNumber(converted * 1e3, 3)} mmol of ${form} must be converted. That is ${formatNumber(added * factor, 3)} ${unit} of ${formatNumber(stock)} M ${reagent}.`,
+      scene,
+    };
+  },
+};
+
+// Every type in the mode at least once, with random extras up to the set's length, in random order.
+function buildQuizSet(mode, rand = Math.random) {
+  const types = [...QUIZ_TYPES[mode]];
+  while (types.length < QUIZ_LENGTH) types.push(pick(QUIZ_TYPES[mode], rand));
+  return shuffled(types, rand).map(type => QUESTION_BUILDERS[type](rand));
+}
+
+// Accepts "0.5", "2.5e-3", "2.5 x 10^-3" and "2.50 × 10⁻³".
+function parseAnswer(text) {
+  const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  const t = String(text).replace(/\s+/g, '').replace(/[−–]/g, '-')
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, ch => SUP.indexOf(ch)).replace(/⁻/g, '-');
+  if (t === '') return NaN;
+  const sci = t.match(/^([+-]?(?:\d+\.?\d*|\.\d+))[xX×*]10\^?([+-]?\d+)$/);
+  return sci ? Number(`${sci[1]}e${sci[2]}`) : Number(t);
+}
+
+function itemIsRight(item, value) {
+  if (item.kind === 'choice') return value === item.answer;
+  const answer = parseAnswer(value);
+  if (!Number.isFinite(answer)) return false;
+  const allowed = item.tolerancePH ?? item.tolerance * Math.abs(item.truth);
+  return Math.abs(answer - item.truth) <= allowed * (1 + 1e-9);
+}
+
+// values holds each item's typed text or chosen option. A blank part is unmarked, and not yet right.
+function gradeQuestion(question, values) {
+  const results = {};
+  for (const item of question.items) {
+    const value = values[item.key];
+    results[item.key] = value === undefined || value === null || String(value).trim() === '' ? null : itemIsRight(item, value);
+  }
+  return { results, correct: Object.values(results).every(mark => mark === true) };
+}
+
+// 1 point on the first try and ½ on any later one. Showing the answer earns nothing.
+function quizCredit(attempt, correct) {
+  if (!correct) return 0;
+  return attempt === 1 ? 1 : 0.5;
+}
+
+function answerText(item) {
+  if (item.kind === 'choice') return item.label.endsWith('?') ? item.answer : `${item.label}: ${item.answer}`;
+  if (item.tolerancePH !== undefined) return `${item.label} = ${item.truth.toFixed(2)}`;
+  return `${item.label} = ${formatNumber(item.truth, 3)}${item.unit ? ` ${item.unit}` : ''}`;
+}
+
+const correctAnswerText = question => question.items.map(answerText).join('; ');
 
 // ═══════════════════════════════════════════════════════════════
 //  CONTAINERS
@@ -682,7 +1063,7 @@ function placeLiquid() {
 // Each particle stands for a fixed number of moles, so the count follows the moles and the
 // crowding follows the concentration. Dilution changes neither the moles nor the count.
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const MIN_PARTICLES = 20, MAX_PARTICLES = 80, IDEAL_PARTICLES = 50;
+const MIN_PARTICLES = 10, MAX_PARTICLES = 40, IDEAL_PARTICLES = 25;
 const PARTICLE_SCALE = 0.72;
 const particles = [];     // { u, v, du, dv, isBase, el, use }
 let particleScale = null; // mol per particle
@@ -943,7 +1324,12 @@ function drawCurve() {
     cc.beginPath(); cc.arc(px(hoverEq), py(pH), 5, 0, Math.PI * 2); cc.fill(); cc.stroke();
   }
 
-  // Current state
+  // Current state, which a quiz question keeps to itself
+  if (answersHidden()) {
+    curveCanvas.setAttribute('aria-label',
+      `Titration curve of pH against equivalents of OH⁻, with pKa ${pKa.toFixed(2)} at 0.5 equivalents.`);
+    return;
+  }
   const eq = equivalents(), pH = currentPH();
   cc.strokeStyle = '#FFFFFF';
   cc.lineWidth = 2;
@@ -955,6 +1341,7 @@ function drawCurve() {
 }
 
 function hoverAt(clientX) {
+  if (answersHidden()) return;
   const rect = curveCanvas.getBoundingClientRect();
   const x = (clientX - rect.left) * CW / rect.width;
   const { xMin, xMax } = curveRange();
@@ -969,7 +1356,7 @@ function hoverAt(clientX) {
 function clearHover() {
   if (hoverEq === null) return;
   hoverEq = null;
-  document.getElementById('curve-readout').textContent = 'Hover over or touch the plot to read a point on the curve.';
+  document.getElementById('curve-readout').textContent = 'Hover over or touch the plot to read a point on the curve';
   drawCurve();
 }
 
@@ -999,10 +1386,10 @@ const sliderToVolume = pos => +(MIN_VOLUME * (MAX_VOLUME / MIN_VOLUME) ** (pos /
 const volumeToSlider = litres => Math.round(Math.log(litres / MIN_VOLUME) / Math.log(MAX_VOLUME / MIN_VOLUME) * VOL_SLIDER_STEPS);
 
 function updateControls() {
+  if (quiz.active) return;   // the Buffer panel is away, and its fields shouldn't hold a quiz's answers
   const buffer = BUFFERS[state.buffer], c = composition();
   document.getElementById('buffer-select').value = state.buffer;
   setText('forms-label', `Acid form: ${buffer.acid}, Base form: ${buffer.base}`);
-  setText('range-label', `Useful range (pKa ± 1): pH ${(state.pKa - 1).toFixed(2)} to ${(state.pKa + 1).toFixed(2)}`);
   const note = document.getElementById('buffer-note');
   note.textContent = buffer.note ?? '';
   note.hidden = !buffer.note;
@@ -1011,7 +1398,6 @@ function updateControls() {
   setInput('temp-input', String(state.temperature));
   setInput('temp-slider', String(state.temperature));
   setInput('conc-slider', concToSlider(totalConc()));
-  setText('pkw-note', `All values assume ideal solutions, with pKw = ${pKwAt(state.temperature).toFixed(2)} at ${state.temperature} °C.`);
 
   setInput('conc-input', formatPlain(totalConc() * CONC_FACTOR[state.concUnit]));
   const volUnit = document.getElementById('vol-unit').value;
@@ -1025,12 +1411,19 @@ const formatPlain = x => String(+x.toPrecision(5));
 
 function updateReadout() {
   const buffer = BUFFERS[state.buffer], c = composition();
-  setText('readout-ph', c.pH.toFixed(2));
-  setText('readout-acid-conc', formatConc(c.acidConc));
-  setText('readout-base-conc', formatConc(c.baseConc));
+  const hidden = answersHidden();
+  document.getElementById('solution-ph').hidden = hidden;
+  document.getElementById('status').hidden = hidden;
+  document.getElementById('curve-readout').hidden = hidden;
+  setText('readout-ph', hidden ? '' : c.pH.toFixed(2));
+  setText('readout-acid-conc', hidden ? '' : formatConc(c.acidConc));
+  setText('readout-base-conc', hidden ? '' : formatConc(c.baseConc));
 
   const distance = Math.abs(c.pH - state.pKa), status = document.getElementById('status');
-  if (distance <= 1) {
+  if (hidden) {
+    status.className = '';
+    status.textContent = '';
+  } else if (distance <= 1) {
     status.className = 'good';
     status.textContent = 'Good buffering (within pKa ± 1)';
   } else {
@@ -1046,7 +1439,7 @@ function updateHistory() {
   list.innerHTML = '';
   for (const entry of state.history) {
     const li = document.createElement('li');
-    li.textContent = entry.label;
+    li.textContent = answersHidden() ? entry.label : `${entry.label}: ${entry.pHChange}`;
     list.appendChild(li);
   }
   document.getElementById('history-empty').hidden = state.history.length > 0;
@@ -1120,6 +1513,194 @@ document.getElementById('undo-button').addEventListener('click', undoLast);
 document.getElementById('reset').addEventListener('click', reset);
 
 window.addEventListener('resize', () => { sizeCurve(); drawCurve(); });
+
+// ── Quiz Mode ──────────────────────────────────────────────────
+function quizItemHtml(item) {
+  const id = `quiz-${item.key}`;
+  if (item.kind === 'number') {
+    const label = item.unit ? `${item.label} (${item.unit})` : item.label;
+    return `<div class="quiz-item" data-key="${item.key}"><label for="${id}">${label}</label>` +
+      `<input type="text" id="${id}" autocomplete="off" spellcheck="false"></div>`;
+  }
+  const options = item.options.map((option, i) =>
+    `<label class="quiz-option"><input type="radio" name="${id}" value="${i}"><span>${option}</span></label>`).join('');
+  return `<fieldset class="quiz-item" data-key="${item.key}"><legend>${item.label}</legend>${options}</fieldset>`;
+}
+
+function readQuizValues(question) {
+  const values = {};
+  for (const item of question.items) {
+    if (item.kind === 'number') {
+      values[item.key] = document.getElementById(`quiz-${item.key}`).value;
+    } else {
+      const chosen = document.querySelector(`input[name="quiz-${item.key}"]:checked`);
+      values[item.key] = chosen ? item.options[Number(chosen.value)] : null;
+    }
+  }
+  return values;
+}
+
+// Every particle may now be a different molecule, worth a different amount.
+function redrawSolution() {
+  clearHover();
+  buildGlyphs();
+  for (const p of particles) p.el.remove();
+  particles.length = 0;
+  particleScale = null;
+  render();
+}
+
+function showQuizQuestion() {
+  const question = quiz.set[quiz.index];
+  quiz.attempt = 1;
+  quiz.finished = false;
+  setText('quiz-progress', `Question ${quiz.index + 1} of ${quiz.set.length}`);
+  document.getElementById('quiz-question').innerHTML =
+    `<p id="quiz-prompt">${question.prompt}</p>${question.items.map(quizItemHtml).join('')}`;
+  document.getElementById('quiz-feedback').innerHTML = '';
+  document.getElementById('quiz-buttons').hidden = false;
+  document.getElementById('quiz-check').hidden = false;
+  document.getElementById('quiz-show').hidden = true;
+  document.getElementById('quiz-next').hidden = true;
+  document.getElementById('quiz-end-buttons').hidden = true;
+  showError('add-error', null);
+
+  // The question's solution, with a clean history
+  Object.assign(state, question.scene);
+  clearHistory();
+  redrawSolution();
+  document.getElementById('quiz-question').querySelector('input')?.focus();
+}
+
+function markQuizItems(results) {
+  document.querySelectorAll('#quiz-question .quiz-item').forEach(el => {
+    const mark = results[el.dataset.key];
+    el.classList.toggle('correct', mark === true);
+    el.classList.toggle('wrong', mark === false);
+  });
+}
+
+function finishQuizQuestion(question, correct) {
+  quiz.credits.push(quizCredit(quiz.attempt, correct));
+  quiz.finished = true;
+  const verdict = correct
+    ? (quiz.attempt === 1 ? '<b>✓ Correct.</b>' : '<b>✓ Correct on a later try</b> (½ point).')
+    : `<b>Answer:</b> ${correctAnswerText(question)}.`;
+  document.getElementById('quiz-feedback').innerHTML = `${verdict} ${question.explanation}`;
+  document.querySelectorAll('#quiz-question input').forEach(input => { input.disabled = true; });
+  document.getElementById('quiz-check').hidden = true;
+  document.getElementById('quiz-show').hidden = true;
+  const next = document.getElementById('quiz-next');
+  next.hidden = false;
+  next.textContent = quiz.index + 1 < quiz.set.length ? 'Next' : 'See Score';
+  render();   // brings back the readouts, curve position and History pH values
+  next.focus();
+}
+
+// Any part can be left blank. Until everything is right, Check gives a hint and offers the answer.
+function checkQuizAnswer() {
+  if (quiz.finished) return;
+  const question = quiz.set[quiz.index];
+  const { results, correct } = gradeQuestion(question, readQuizValues(question));
+  markQuizItems(results);
+  if (correct) {
+    finishQuizQuestion(question, true);
+    return;
+  }
+  quiz.attempt += 1;
+  document.getElementById('quiz-show').hidden = false;
+  document.getElementById('quiz-feedback').innerHTML = `<b>Hint:</b> ${question.hint}`;
+}
+
+function showQuizScore() {
+  const total = quiz.credits.reduce((sum, credit) => sum + credit, 0);
+  const rows = quiz.set.map((q, i) => `<tr><td>${q.title}</td><td>${quiz.credits[i]}</td></tr>`).join('');
+  setText('quiz-progress', 'Finished');
+  document.getElementById('quiz-question').innerHTML = '';
+  document.getElementById('quiz-buttons').hidden = true;
+  document.getElementById('quiz-feedback').innerHTML = `<b>Score: ${total} of ${quiz.set.length}</b><table><tbody>${rows}</tbody></table>`;
+  document.getElementById('quiz-end-buttons').hidden = false;
+  document.getElementById('quiz-again').focus();
+}
+
+function startQuizSet() {
+  quiz.set = buildQuizSet(quiz.hard ? 'hard' : 'easy');
+  quiz.index = 0;
+  quiz.credits = [];
+  showQuizQuestion();
+}
+
+function syncDifficultyButtons() {
+  for (const [id, on] of [['difficulty-easy', !quiz.hard], ['difficulty-hard', quiz.hard]]) {
+    const button = document.getElementById(id);
+    button.classList.toggle('active', on);
+    button.setAttribute('aria-pressed', String(on));
+  }
+}
+
+function setQuizToggle(on) {
+  const toggle = document.getElementById('quiz-toggle');
+  toggle.classList.toggle('active', on);
+  toggle.setAttribute('aria-pressed', String(on));
+}
+
+function startQuiz() {
+  quiz.saved = { state: { ...state }, KW };
+  quiz.active = true;
+  // Questions are worked at 25 °C, so that the listed pKa values hold.
+  state.temperature = 25;
+  KW = 10 ** -pKwAt(25);
+  setQuizToggle(true);
+  document.getElementById('quiz-box').hidden = false;
+  document.getElementById('difficulty-buttons').hidden = false;
+  document.getElementById('buffer-panel').hidden = true;
+  document.getElementById('reset').disabled = true;
+  syncDifficultyButtons();
+  startQuizSet();
+}
+
+// Puts the page back as it was before the quiz.
+function exitQuiz() {
+  quiz.active = false;
+  setQuizToggle(false);
+  Object.assign(state, quiz.saved.state);
+  KW = quiz.saved.KW;
+  document.getElementById('quiz-box').hidden = true;
+  document.getElementById('difficulty-buttons').hidden = true;
+  document.getElementById('buffer-panel').hidden = false;
+  document.getElementById('reset').disabled = false;
+  showError('add-error', null);
+  redrawSolution();
+}
+
+document.getElementById('quiz-toggle').addEventListener('click', () => {
+  if (quiz.active) exitQuiz(); else startQuiz();
+});
+document.getElementById('quiz-check').addEventListener('click', checkQuizAnswer);
+document.getElementById('quiz-show').addEventListener('click', () => {
+  if (!quiz.finished) finishQuizQuestion(quiz.set[quiz.index], false);
+});
+document.getElementById('quiz-next').addEventListener('click', () => {
+  quiz.index += 1;
+  if (quiz.index < quiz.set.length) showQuizQuestion(); else showQuizScore();
+});
+document.getElementById('quiz-again').addEventListener('click', startQuizSet);
+document.getElementById('quiz-exit').addEventListener('click', exitQuiz);
+for (const [id, hard] of [['difficulty-easy', false], ['difficulty-hard', true]]) {
+  // A change starts a new set, since the current questions belong to the other mode.
+  document.getElementById(id).addEventListener('click', () => {
+    if (quiz.hard === hard) return;
+    quiz.hard = hard;
+    syncDifficultyButtons();
+    startQuizSet();
+  });
+}
+document.getElementById('quiz-question').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.type === 'text') checkQuizAnswer();
+});
+document.getElementById('quiz-question').addEventListener('input', e => {
+  e.target.closest('.quiz-item')?.classList.remove('correct', 'wrong');
+});
 
 // ── Init ───────────────────────────────────────────────────────
 sizeCurve();
