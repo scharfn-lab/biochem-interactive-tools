@@ -11,7 +11,7 @@ const HTML = fs.readFileSync(path.join(__dirname, 'oxygen_binding.html'), 'utf8'
 const SECTION = HTML.slice(HTML.indexOf('// ═══ 2.'), HTML.indexOf('// ═══ 3.'));
 const page = vm.createContext({});
 vm.runInContext(SECTION, page);
-const { saturation, adultCurve, fetalCurve, withCarbonMonoxide, delivery, shiftFrom, bpgFactor, curvePoints, affinityText, boundSites } = page;
+const { saturation, adultCurve, fetalCurve, withCarbonMonoxide, delivery, shiftFrom, bpgFactor, curvePoints, affinityText, boundSites, schematicMarkup } = page;
 const myoglobinCurve = vm.runInContext('myoglobinCurve', page);
 const normalHbCurve = vm.runInContext('normalHbCurve', page);
 
@@ -208,7 +208,12 @@ test('the affinity box is red for left, blue for right, and sits above the plot'
   assert.ok(HTML.indexOf('id="affinity-box"') < HTML.indexOf('<canvas id="plot"'));
 });
 
-test('sliders run pH, pCO₂, then 2,3-BPG, below the O₂ delivery buttons', () => {
+test('sliders run pH, pCO₂, then 2,3-BPG side by side, below the O₂ delivery buttons', () => {
+  assert.match(HTML, /#sliders \{\s+display: grid;\s+grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+  for (const key of ['pH', 'pco2', 'bpg']) {
+    assert.ok(HTML.indexOf(`id="${key}-number"`) < HTML.indexOf(`id="${key}-range"`), `${key}: the bar sits below its box`);
+  }
+  assert.match(HTML, /#sliders \.slider-row \{ flex-direction: column;/);
   const at = marker => HTML.indexOf(marker);
   assert.ok(at('id="toggles"') < at('id="activity-buttons"'));
   assert.ok(at('id="activity-buttons"') < at('id="sliders"'));
@@ -296,39 +301,11 @@ test('Results sits right of Conditions, and the schematic left of the curve', ()
 });
 
 // ── Schematic ──────────────────────────────────────────────────
-test('the schematic has myoglobin on the left with one site, hemoglobin right with four', () => {
-  const svg = HTML.slice(HTML.indexOf('id="schematic"'), HTML.indexOf('</svg>', HTML.indexOf('id="schematic"')));
-  const x = name => Number(svg.match(new RegExp(`<text x="(\\d+)"[^>]*>${name}<`))[1]);
-  assert.ok(x('Myoglobin') < x('Hemoglobin'));
-  assert.equal((svg.match(/id="mb-site-/g) || []).length, 1);
-  assert.equal((svg.match(/id="hb-site-/g) || []).length, 4);
-  assert.equal((svg.match(/class="globin/g) || []).length, 5, 'one Mb chain and four Hb subunits');
-  for (const label of ['α₁', 'β₁', 'β₂', 'α₂']) assert.ok(svg.includes(`>${label}<`), label);
-});
-
 test('the pO₂ slider sits at the bottom of the schematic and runs 0 to 120 torr', () => {
   const box = HTML.slice(HTML.indexOf('id="schematic-panel"'), HTML.indexOf('id="plot-panel"'));
   assert.ok(box.indexOf('</svg>') < box.indexOf('id="po2-range"'));
   assert.match(box, /id="po2-range" min="0" max="120"/);
   assert.match(HTML, /#schematic \{[^}]*margin-block: auto;/, 'the drawing centers in the space above it');
-});
-
-test('hand check: bound sites follow saturation for Hb and Mb', () => {
-  const hb = adultCurve(NORMAL), mb = myoglobinCurve();
-  assert.equal(boundSites(hb, 0, 4), 0);
-  assert.equal(boundSites(hb, 10, 4), 0, 'Y ≈ 0.06');
-  assert.equal(boundSites(hb, 26, 4), 2, 'P50 gives half of the sites');
-  assert.equal(boundSites(hb, 40, 4), 3, 'Y ≈ 0.77');
-  assert.equal(boundSites(hb, 100, 4), 4, 'Y ≈ 0.98');
-  assert.equal(boundSites(mb, 1, 1), 0, 'below its P50 of 2.8');
-  assert.equal(boundSites(mb, 2.8, 1), 1, 'at its P50');
-  assert.equal(boundSites(mb, 40, 1), 1);
-});
-
-test('at tissue pO₂, myoglobin holds its O₂ while hemoglobin has released some', () => {
-  const hb = adultCurve(NORMAL), mb = myoglobinCurve();
-  assert.equal(boundSites(mb, 20, 1), 1);
-  assert.equal(boundSites(hb, 20, 4), 1);
 });
 
 test('the schematic has its name for screen readers and moves gently', () => {
@@ -347,4 +324,118 @@ test('the results read % Saturation, with Hill coefficient last and briefly desc
   assert.match(results, /row\('% O₂ delivered', ''/, 'no descriptor');
   const words = results.match(/'Hill coefficient, n', '([^']+)'/)[1].split(/\s+/).length;
   assert.ok(words >= 5 && words <= 10, `${words} words`);
+});
+
+// ── Schematic population ───────────────────────────────────────
+const count = (text, pattern) => (text.match(pattern) || []).length;
+
+test('each cell holds 12 molecules: 12 Mb sites and 48 Hb sites', () => {
+  const mb = schematicMarkup('mb'), hb = schematicMarkup('hb');
+  assert.equal(count(mb, /class="globin/g), 12);
+  assert.equal(count(mb, /id="mb-site-/g), 12);
+  assert.equal(count(hb, /class="globin/g), 48, 'four subunits in each of 12');
+  assert.equal(count(hb, /id="hb-site-/g), 48);
+  for (const [markup, key, total] of [[mb, 'mb', 12], [hb, 'hb', 48]]) {
+    const ids = [...markup.matchAll(new RegExp(`id="${key}-site-(\\d+)"`, 'g'))].map(m => Number(m[1])).sort((a, b) => a - b);
+    assert.deepEqual([...ids], Array.from({ length: total }, (_, i) => i), `${key} sites are numbered once each`);
+  }
+});
+
+test('the molecules are much smaller than before', () => {
+  const radii = text => [...text.matchAll(/class="globin[^"]*"[^>]* r="([\d.]+)"/g)].map(m => Number(m[1]));
+  assert.ok(Math.max(...radii(schematicMarkup('mb'))) <= 10, 'Mb was about 65');
+  assert.ok(Math.max(...radii(schematicMarkup('hb'))) <= 7, 'Hb subunits were about 50');
+});
+
+test('hemoglobin fills one molecule at a time, in a scattered order', () => {
+  const rank = vm.runInContext('MOLECULE_FILL_RANK', page);
+  assert.deepEqual([...rank].sort((a, b) => a - b), Array.from({ length: 12 }, (_, i) => i));
+  assert.notDeepEqual([...rank], Array.from({ length: 12 }, (_, i) => i), 'not top to bottom');
+  const hb = schematicMarkup('hb');
+  // Sites 0-3 belong to one molecule: the same four lobes around one center
+  const center = i => {
+    const m = hb.match(new RegExp(`id="hb-site-${i}" cx="([\\d.]+)" cy="([\\d.]+)"`));
+    return [Number(m[1]), Number(m[2])];
+  };
+  const xs = [0, 1, 2, 3].map(i => center(i)[0]), ys = [0, 1, 2, 3].map(i => center(i)[1]);
+  assert.ok(Math.max(...xs) - Math.min(...xs) <= 11 && Math.max(...ys) - Math.min(...ys) <= 11);
+});
+
+test('hand check: bound sites follow saturation across both populations', () => {
+  const hb = adultCurve(NORMAL), mb = myoglobinCurve();
+  assert.equal(boundSites(hb, 0, 48), 0);
+  assert.equal(boundSites(hb, 26, 48), 24, 'P50 gives half of the sites');
+  assert.equal(boundSites(hb, 40, 48), 37, 'Y ≈ 0.770');
+  assert.equal(boundSites(hb, 100, 48), 47, 'Y ≈ 0.978');
+  assert.equal(boundSites(mb, 2.8, 12), 6, 'Mb at its P50');
+  assert.equal(boundSites(mb, 40, 12), 11, 'Y ≈ 0.935');
+  assert.equal(boundSites(mb, 0, 12), 0);
+});
+
+test('at tissue pO₂, myoglobin holds its O₂ while hemoglobin has released most', () => {
+  const hb = adultCurve(NORMAL), mb = myoglobinCurve();
+  assert.ok(boundSites(mb, 20, 12) / 12 > 0.8);
+  assert.ok(boundSites(hb, 20, 48) / 48 < 0.4);
+});
+
+test('a vertical line separates the two cells, each named and drawn', () => {
+  const svg = HTML.slice(HTML.indexOf('id="schematic"'), HTML.indexOf('</svg>', HTML.indexOf('id="schematic"')));
+  const line = svg.match(/id="schematic-divider" x1="(\d+)" y1="\d+" x2="(\d+)"/);
+  assert.equal(line[1], line[2], 'vertical');
+  const divider = Number(line[1]);
+  const x = name => Number(svg.match(new RegExp(`<text[^>]* x="(\\d+)"[^>]*>${name}<`))[1]);
+  assert.ok(x('Myoglobin') < divider && x('Hemoglobin') > divider);
+  assert.ok(svg.includes('in a cardiac muscle cell') && svg.includes('in a red blood cell'));
+  assert.match(svg, /fill="#C8102E" fill-opacity="0\.12"/, 'a see-through red blood cell');
+  for (const key of ['mb', 'hb']) {
+    const { xs } = vm.runInContext(`SCHEMATIC_MOLECULES.${key}`, page);
+    for (const value of xs) assert.equal(value < divider, key === 'mb', `${key} stays on its side`);
+  }
+  assert.ok(HTML.includes('sites: 12, curve: myoglobinCurve') && HTML.includes('sites: 48, curve: currentCurve'));
+});
+
+// ── Selected point and purple arrow ────────────────────────────
+test('the red point starts clear of the blue points at the lung and tissue pO₂', () => {
+  const start = Number(HTML.match(/po2: (\d+),/)[1]);
+  for (const key of ['lung', 'rest', 'exercise']) assert.notEqual(start, vm.runInContext(`MODEL.tissue.${key}`, page), key);
+});
+
+test('a large red point marks Adjusted Hb at the selected pO₂', () => {
+  const size = Number(HTML.match(/const SELECTED_DOT = (\d+);/)[1]);
+  assert.ok(size > Number(HTML.match(/DELIVERY_DOT = \{ adjusted: (\d+)/)[1]), 'larger than the blue points');
+  const fn = HTML.slice(HTML.indexOf('function drawSelectedPoint'), HTML.indexOf('function drawCurves'));
+  assert.ok(fn.includes('saturation(currentCurve(), state.po2)'));
+  assert.ok(fn.includes('ctx.fillStyle = COLORS.crimson'));
+});
+
+test('clicking or dragging on the plot places the point, in whole torr, inside the axes', () => {
+  const fn = HTML.slice(HTML.indexOf('function placeSelectedPoint'), HTML.indexOf('function setHover'));
+  assert.ok(fn.includes('state.po2 = Math.round((x - g.left) / g.plotW * PLOT.xMax);'));
+  assert.match(fn, /x < g\.left \|\| x > g\.left \+ g\.plotW \|\| y < g\.top \|\| y > g\.top \+ g\.plotH\) return;/);
+  assert.match(HTML, /addEventListener\('pointerdown', e => \{\s+placeSelectedPoint\(e\);/);
+  assert.match(HTML, /if \(e\.buttons\) placeSelectedPoint\(e\);/);
+});
+
+test('the purple arrow runs between the curves, with no horizontal lines of its own', () => {
+  const fn = HTML.slice(HTML.indexOf('function drawShiftArrow'), HTML.indexOf('function drawSelectedPoint'));
+  assert.ok(fn.includes('COLORS.purple'));
+  assert.equal(count(fn, /const x = g\.sx\(state\.po2\)/g), 1);
+  assert.doesNotMatch(fn, /g\.left, |lineTo\(g\.|moveTo\(g\./, 'nothing runs out to the axis');
+  const shift = HTML.slice(HTML.indexOf('function shiftAtSelected'), HTML.indexOf('function drawShiftArrow'));
+  assert.ok(shift.includes('if (!state.show.normal) return null;'), 'no reference, no arrow');
+  assert.ok(shift.includes('normalHbCurve()') && shift.includes('currentCurve()'));
+});
+
+test('the second y axis is titled Percent saturation', () => {
+  const axes = HTML.slice(HTML.indexOf('function drawAxes'), HTML.indexOf('function labelWithHalo'));
+  assert.ok(axes.includes("ctx.fillText('Percent saturation', 0, 0);"));
+  assert.ok(axes.includes("ctx.fillText('Fractional saturation, Y', 0, 0);"));
+});
+
+test('the plot draws the arrow and red point over the curves, and the blue points over those', () => {
+  const draw = HTML.slice(HTML.indexOf('function drawPlot'), HTML.indexOf('let frame = 0'));
+  const steps = ['drawCurves(ctx, g, curves)', 'drawShiftArrow(ctx, g)', 'drawSelectedPoint(ctx, g)', 'drawDeliveryDots(ctx, g, currentCurve()'];
+  const places = steps.map(step => draw.indexOf(step));
+  assert.ok(places.every(place => place >= 0), 'each is drawn');
+  assert.deepEqual(places, [...places].sort((a, b) => a - b), steps.join(' < '));
 });
