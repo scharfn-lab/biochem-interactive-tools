@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buffer Visualizer</title>
+  <style>
+    :root {
+      --ut-crimson:  #C8102E;
+      --ut-taupe:    #685C53;
+      --ut-lavender: #FFCDFF;
+      --bg-panel:    #FFF8FF;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #FFFFFF;
+      color: #000000;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      color: var(--ut-crimson);
+      font-size: 1.7em;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: var(--ut-taupe);
+      font-size: 0.85em;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    #layout {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 340px) minmax(0, 1fr);
+      gap: 18px;
+      max-width: 1320px;
+      margin: 0 auto;
+      align-items: start;
+    }
+    .column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+    @media (max-width: 1120px) {
+      #layout { grid-template-columns: 330px minmax(0, 1fr); }
+      #column-vessel, #column-curve { grid-column: 2; }
+      #column-controls { grid-row: 1 / span 2; }
+    }
+    @media (max-width: 760px) {
+      #layout { grid-template-columns: minmax(0, 1fr); }
+      #column-vessel, #column-curve, #column-controls { grid-column: 1; grid-row: auto; }
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      padding: 14px 16px;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    }
+
+    .panel-title {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ut-crimson);
+      margin-bottom: 10px;
+    }
+
+    label, .field-label { display: block; font-size: 0.85em; font-weight: 600; margin-bottom: 3px; }
+    .field { margin-bottom: 10px; }
+    .field:last-child { margin-bottom: 0; }
+    .input-row { display: flex; gap: 6px; align-items: center; }
+    .input-row input[type=number] { flex: 1 1 auto; min-width: 0; width: 60px; }
+    .input-row select { flex-shrink: 0; }
+
+    input[type=number], select {
+      padding: 7px 8px;
+      min-height: 36px;
+      background: #FFFFFF;
+      border: 1px solid var(--ut-taupe);
+      border-radius: 6px;
+      color: #000000;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    select { max-width: 100%; }
+    #buffer-select { width: 100%; }
+    input[type=range] { width: 100%; height: 24px; accent-color: var(--ut-crimson); cursor: pointer; }
+
+    :focus-visible { outline: 3px solid var(--ut-crimson); outline-offset: 2px; }
+
+    button {
+      padding: 7px 14px;
+      min-height: 36px;
+      border-radius: 6px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font-family: inherit;
+      font-size: 0.88em;
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    button:active:not(:disabled) { background: var(--ut-crimson); border-color: var(--ut-crimson); color: #FFFFFF; }
+    button.active { background: #FFCDD2; border-color: var(--ut-crimson); color: #000000; font-weight: 600; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .button-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+
+    .hint { font-size: 0.8em; color: var(--ut-taupe); line-height: 1.45; }
+    .hint b { color: var(--ut-crimson); }
+    .error { font-size: 0.82em; color: var(--ut-crimson); font-weight: 600; margin-top: 4px; min-height: 0; }
+    .error:empty { display: none; }
+    #forms-label { font-size: 0.88em; font-weight: 600; margin-top: 6px; }
+    #range-label { font-size: 0.85em; color: var(--ut-taupe); margin-top: 2px; }
+    #buffer-note { margin-top: 4px; }
+
+    /* ── Container ── */
+    #vessel-svg { display: block; width: 100%; max-width: 300px; height: auto; margin: 0 auto; }
+    #vessel-label { text-align: center; font-weight: 600; font-size: 0.9em; margin-top: 2px; }
+    .swap { animation: vessel-in 0.45s ease; }
+    @keyframes vessel-in { from { opacity: 0; } to { opacity: 1; } }
+    .flash-ring { display: none; fill: none; stroke: #000000; stroke-width: 2; }
+    .conv .flash-ring { display: inline; animation: flash-pulse 1.2s ease-out; }
+    @keyframes flash-pulse { from { opacity: 1; } to { opacity: 0.2; } }
+    @media (prefers-reduced-motion: reduce) {
+      .swap, .conv .flash-ring { animation: none; }
+    }
+    #particle-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; font-size: 0.82em; margin-top: 6px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-item svg { width: 34px; height: 24px; flex-shrink: 0; }
+    #particle-scale { text-align: center; margin-top: 4px; }
+
+    /* ── Readout ── */
+    #readout { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 0.9em; }
+    #readout dt { color: var(--ut-taupe); }
+    #readout dd { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+    #readout-ph { color: var(--ut-crimson); font-size: 1.3em; line-height: 1.1; }
+    #status {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9em;
+      text-align: center;
+      border: 2px solid var(--ut-taupe);
+    }
+    #status.good { background: var(--ut-lavender); }
+    #status.poor { background: #FFEBEE; border-color: var(--ut-crimson); }
+
+    /* ── Curve ── */
+    #curve { display: block; width: 100%; height: auto; touch-action: pan-y; cursor: crosshair; border-radius: 8px; }
+    #curve-readout { font-size: 0.85em; color: var(--ut-taupe); margin-top: 6px; min-height: 1.3em; }
+    #capacity-warning {
+      background: #FFEBEE;
+      border: 2px solid var(--ut-crimson);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-bottom: 8px;
+    }
+
+    /* ── History ── */
+    #history { list-style: none; max-height: 150px; overflow-y: auto; font-size: 0.85em; margin-bottom: 8px; }
+    #history li { padding: 4px 0; border-bottom: 1px solid #E8DDE8; }
+    #history-empty { font-size: 0.85em; color: var(--ut-taupe); margin-bottom: 8px; }
+    #dilution-calc { margin-top: 8px; padding: 8px 10px; background: #FFFFFF; border: 1px solid var(--ut-taupe); border-radius: 8px; font-size: 0.85em; line-height: 1.5; }
+    #dilution-calc b { color: var(--ut-crimson); }
+    #reset { width: 100%; }
+  </style>
+</head>
+<body>
+
+<h1>Buffer Visualizer</h1>
+<p class="subtitle">Set the pH, add strong acid or base, and dilute to see how a buffer responds</p>
+
+<div id="layout">
+  <!-- ── Controls ── -->
+  <div class="column" id="column-controls">
+    <section class="panel">
+      <h2 class="panel-title">Buffer</h2>
+      <div class="field">
+        <label for="buffer-select">Buffer system</label>
+        <select id="buffer-select"></select>
+        <div id="forms-label"></div>
+        <div id="range-label"></div>
+        <p class="hint" id="buffer-note" hidden></p>
+      </div>
+      <div class="field" id="pka-field">
+        <label for="pka-input">pKa</label>
+        <input type="number" id="pka-input" min="0" max="14" step="0.01" value="4.76">
+      </div>
+      <div class="field">
+        <label for="conc-input">Total buffer concentration</label>
+        <div class="input-row">
+          <input type="number" id="conc-input" min="0" step="any" value="50">
+          <select id="conc-unit" aria-label="Concentration unit">
+            <option value="mM" selected>mM</option>
+            <option value="M">M</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="vol-input">Volume</label>
+        <div class="input-row">
+          <input type="number" id="vol-input" min="0" step="any" value="50">
+          <select id="vol-unit" aria-label="Volume unit">
+            <option value="µL">µL</option>
+            <option value="mL" selected>mL</option>
+            <option value="L">L</option>
+          </select>
+        </div>
+        <input type="range" id="vol-slider" min="0" max="1000" step="1" aria-label="Volume, 100 µL to 2 L">
+      </div>
+      <div class="field">
+        <label for="ph-input">Set pH</label>
+        <div class="input-row">
+          <input type="range" id="ph-slider" min="0" max="14" step="0.01" aria-label="pH">
+          <input type="number" id="ph-input" min="0" max="14" step="0.01" style="flex:0 0 84px;">
+        </div>
+      </div>
+      <p class="error" id="buffer-error" role="alert"></p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Add Strong Acid or Base</h2>
+      <div class="field">
+        <div class="button-row" role="group" aria-label="Reagent">
+          <button id="reagent-hcl" class="active" aria-pressed="true">HCl</button>
+          <button id="reagent-naoh" aria-pressed="false">NaOH</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="stock-input">Stock concentration (M)</label>
+        <input type="number" id="stock-input" min="0" step="any" value="1" style="width:100%;">
+      </div>
+      <div class="field">
+        <label for="add-vol-input">Volume added</label>
+        <div class="input-row">
+          <input type="number" id="add-vol-input" min="0" step="any" value="0.5">
+          <select id="add-vol-unit" aria-label="Volume added unit">
+            <option value="µL">µL</option>
+            <option value="mL" selected>mL</option>
+          </select>
+          <button id="add-button">Add</button>
+        </div>
+      </div>
+      <p class="error" id="add-error" role="alert"></p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Dilution</h2>
+      <div class="field">
+        <label for="water-input">Add water</label>
+        <div class="input-row">
+          <input type="number" id="water-input" min="0" step="any" value="50">
+          <select id="water-unit" aria-label="Water volume unit">
+            <option value="µL">µL</option>
+            <option value="mL" selected>mL</option>
+            <option value="L">L</option>
+          </select>
+          <button id="water-button">Add water</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="final-input">Dilute to final volume</label>
+        <div class="input-row">
+          <input type="number" id="final-input" min="0" step="any" value="500">
+          <select id="final-unit" aria-label="Final volume unit">
+            <option value="µL">µL</option>
+            <option value="mL" selected>mL</option>
+            <option value="L">L</option>
+          </select>
+          <button id="final-button">Dilute</button>
+        </div>
+      </div>
+      <p class="error" id="dilute-error" role="alert"></p>
+      <div id="dilution-calc" hidden></div>
+    </section>
+
+    <button id="reset">Reset</button>
+  </div>
+
+  <!-- ── Container and readout ── -->
+  <div class="column" id="column-vessel">
+    <section class="panel">
+      <h2 class="panel-title">Solution</h2>
+      <svg id="vessel-svg" viewBox="0 0 300 330" role="img">
+        <defs>
+          <clipPath id="vessel-clip"><path id="vessel-clip-path"></path></clipPath>
+          <g id="glyph-defs"></g>
+        </defs>
+        <g clip-path="url(#vessel-clip)"><rect id="liquid" x="0" width="300" fill="#FFCDFF" fill-opacity="0.55"></rect></g>
+        <g id="particles"></g>
+        <g id="vessel-body"></g>
+      </svg>
+      <div id="vessel-label"></div>
+      <div id="particle-legend"></div>
+      <p class="hint" id="particle-scale"></p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Readout</h2>
+      <dl id="readout">
+        <dt>pH</dt><dd id="readout-ph"></dd>
+        <dt id="ratio-label"></dt><dd id="readout-ratio"></dd>
+        <dt id="acid-conc-label"></dt><dd id="readout-acid-conc"></dd>
+        <dt id="base-conc-label"></dt><dd id="readout-base-conc"></dd>
+        <dt id="acid-mol-label"></dt><dd id="readout-acid-mol"></dd>
+        <dt id="base-mol-label"></dt><dd id="readout-base-mol"></dd>
+        <dt>Total concentration</dt><dd id="readout-total"></dd>
+        <dt>Volume</dt><dd id="readout-volume"></dd>
+      </dl>
+      <div id="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <!-- ── Curve and history ── -->
+  <div class="column" id="column-curve">
+    <section class="panel">
+      <h2 class="panel-title">Titration Curve</h2>
+      <div id="capacity-warning" role="alert" hidden>Buffer capacity exceeded</div>
+      <canvas id="curve" role="img"></canvas>
+      <p id="curve-readout">Hover over or touch the plot to read a point on the curve.</p>
+      <p class="hint">One equivalent is one mole of OH⁻ per mole of total buffer. Drawn at the current total concentration; the volume of titrant is not included in the curve. All values assume 25 °C and ideal solutions (p<i>K</i><sub>w</sub> = 14).</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">History</h2>
+      <p id="history-empty">No additions yet.</p>
+      <ol id="history"></ol>
+      <button id="undo-button" disabled>Undo last</button>
+    </section>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  BUFFER DATA
+// ═══════════════════════════════════════════════════════════════
+// Every buffer on the page. pKa values are the commonly tabulated 25 °C figures.
+//   acid, base  labels for the acid and base forms, used everywhere the page names them
+//   acidSite, baseSite   what the highlighted protonation site is in each form's glyph
+//   baseCharge  the mark on the glyph's site in the base form: '−' if anionic there, '' if neutral
+//   core        simplified skeleton of the glyph, around a site at (siteX, siteY)
+//   note        an optional one-line note shown under the dropdown
+const BUFFERS = {
+  generic: {
+    name: 'Generic HA / A⁻', pKa: 4.76, acid: 'HA', base: 'A⁻', editablePKa: true,
+  },
+  acetate: {
+    name: 'Acetate', pKa: 4.76, acid: 'CH₃COOH', base: 'CH₃COO⁻',
+    acidSite: 'carboxyl –COOH', baseSite: 'carboxylate –COO⁻', baseCharge: '−',
+    core: 'M-13,5 L-5,0 M-5,0 L-5,-8 M-3,0 L-3,-8 M-5,0 L3,4', siteX: 6, siteY: 5,
+  },
+  mes: {
+    name: 'MES', pKa: 6.15, acid: 'MES±', base: 'MES⁻',
+    acidSite: 'ring N–H⁺', baseSite: 'ring N', baseCharge: '',
+    core: 'M-1,0 L-5,-7 L-13,-7 L-17,0 L-13,7 L-5,7 Z M3,0 L9,4 L15,-1', siteX: 0, siteY: 0,
+  },
+  mops: {
+    name: 'MOPS', pKa: 7.20, acid: 'MOPS±', base: 'MOPS⁻',
+    acidSite: 'ring N–H⁺', baseSite: 'ring N', baseCharge: '',
+    core: 'M-3,0 L-7,-7 L-15,-7 L-19,0 L-15,7 L-7,7 Z M1,0 L6,5 L11,0 L16,5', siteX: -2, siteY: 0,
+  },
+  hepes: {
+    name: 'HEPES', pKa: 7.50, acid: 'HEPES±', base: 'HEPES⁻',
+    acidSite: 'piperazine N–H⁺', baseSite: 'piperazine N', baseCharge: '',
+    core: 'M2,0 L-2,-7 L-10,-7 L-14,0 L-10,7 L-2,7 Z M-14,0 L-19,4 M6,0 L12,4 L17,-1', siteX: 3, siteY: 0,
+  },
+  tris: {
+    name: 'Tris', pKa: 8.07, acid: 'TrisH⁺', base: 'Tris',
+    acidSite: 'amine –NH₃⁺', baseSite: 'amine –NH₂', baseCharge: '',
+    core: 'M-6,0 L-14,-7 M-6,0 L-15,0 M-6,0 L-14,7 M-6,0 L2,0', siteX: 5, siteY: 0,
+  },
+  bicarbonate: {
+    name: 'Bicarbonate', pKa: 6.1, acid: 'CO₂/H₂CO₃', base: 'HCO₃⁻',
+    acidSite: 'H₂CO₃ –OH', baseSite: 'HCO₃⁻ –O⁻', baseCharge: '−',
+    core: 'M-5,0 L-13,-6 M-5,0 L-5,-9 M-3,0 L-3,-9 M-5,0 L3,3', siteX: 6, siteY: 4,
+    note: 'Closed system here. Blood (pH 7.4) holds HCO₃⁻/CO₂ near 20:1, outside pKa ± 1, and stays buffered because lungs and kidneys keep regulating CO₂ and HCO₃⁻.',
+  },
+};
+
+const DEFAULTS = { buffer: 'generic', concentration: 0.05, volume: 0.05 };
+const KW = 1e-14;
+const MIN_VOLUME = 1e-4, MAX_VOLUME = 2;    // L: 100 µL to 2 L
+
+// ═══════════════════════════════════════════════════════════════
+//  CHEMISTRY
+// ═══════════════════════════════════════════════════════════════
+// netBase is the moles of strong base (NaOH) minus strong acid (HCl) relative to the buffer all in
+// its acid form, with any counterion of that form left out because it cancels. Then for HA/A⁻ and
+// BH⁺/B alike, the charge balance is  [H⁺] + netBase/V = [OH⁻] + [base form].
+const state = {
+  buffer: DEFAULTS.buffer,
+  pKa: BUFFERS[DEFAULTS.buffer].pKa,
+  volume: DEFAULTS.volume,                       // L
+  totalMoles: DEFAULTS.concentration * DEFAULTS.volume,
+  netBase: 0,                                    // mol
+  concUnit: 'mM',
+  reagent: 'HCl',
+  history: [],                                   // { label, before: {volume, totalMoles, netBase} }
+};
+
+const baseFraction = (H, Ka) => Ka / (Ka + H);
+
+// [H⁺] from the charge balance. It rises steadily with [H⁺], so bisection on log[H⁺] always converges.
+function solveH(S, totalConc, Ka) {
+  let lo = -20, hi = Math.log10(Math.abs(S) + totalConc + 1);
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2, H = 10 ** mid;
+    if (H + S - KW / H - totalConc * baseFraction(H, Ka) > 0) hi = mid; else lo = mid;
+  }
+  return 10 ** ((lo + hi) / 2);
+}
+
+// The net strong base concentration that makes a solution sit at this pH
+function chargeForPH(pH, totalConc, Ka) {
+  const H = 10 ** -pH;
+  return KW / H - H + totalConc * baseFraction(H, Ka);
+}
+
+const ka = () => 10 ** -state.pKa;
+const totalConc = () => state.totalMoles / state.volume;
+const currentH = () => solveH(state.netBase / state.volume, totalConc(), ka());
+const currentPH = () => -Math.log10(currentH());
+const equivalents = () => state.netBase / state.totalMoles;
+const curvePH = (eq, conc = totalConc()) => -Math.log10(solveH(eq * conc, conc, ka()));
+
+function composition() {
+  const H = currentH(), fb = baseFraction(H, ka());
+  const baseMoles = state.totalMoles * fb, acidMoles = state.totalMoles - baseMoles;
+  return {
+    pH: -Math.log10(H), fb, acidMoles, baseMoles,
+    acidConc: acidMoles / state.volume, baseConc: baseMoles / state.volume,
+    ratio: fb / (1 - fb),
+  };
+}
+
+const capacityExceeded = () => equivalents() < 0 || equivalents() > 1;
+
+// Sets the pH at the current amounts, leaving the volume alone
+function setNetBaseForPH(pH) {
+  state.netBase = chargeForPH(pH, totalConc(), ka()) * state.volume;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ACTIONS — each returns an error message, or null when applied
+// ═══════════════════════════════════════════════════════════════
+function clearHistory() {
+  state.history = [];
+  lastDilution = null;
+}
+
+const snapshot = () => ({ volume: state.volume, totalMoles: state.totalMoles, netBase: state.netBase });
+
+function setPH(pH) {
+  if (!Number.isFinite(pH) || pH < 0 || pH > 14) return 'Enter a pH from 0 to 14.';
+  setNetBaseForPH(pH);
+  clearHistory();
+  render();
+  return null;
+}
+
+function setBuffer(key) {
+  state.buffer = key;
+  state.pKa = BUFFERS[key].pKa;
+  setNetBaseForPH(state.pKa);
+  clearHistory();
+  buildGlyphs();
+  // Every particle is now a different molecule, so its drawing has to change
+  for (const p of particles) p.el.remove();
+  particles.length = 0;
+  render();
+  return null;
+}
+
+function setGenericPKa(pKa) {
+  if (!Number.isFinite(pKa) || pKa < 0 || pKa > 14) return 'Enter a pKa from 0 to 14.';
+  const pH = currentPH();
+  state.pKa = pKa;
+  setNetBaseForPH(pH);
+  clearHistory();
+  render();
+  return null;
+}
+
+function setConcentration(molar) {
+  if (!Number.isFinite(molar) || molar <= 0 || molar > 5) return 'Enter a concentration above 0 and up to 5 M.';
+  const pH = currentPH();
+  state.totalMoles = molar * state.volume;
+  setNetBaseForPH(pH);
+  clearHistory();
+  render();
+  return null;
+}
+
+// A different batch of the same solution: concentration and pH stay, the moles scale with volume
+function setVolume(litres) {
+  if (!Number.isFinite(litres) || litres < MIN_VOLUME - 1e-12 || litres > MAX_VOLUME + 1e-12) {
+    return 'Enter a volume from 100 µL to 2 L.';
+  }
+  const pH = currentPH(), conc = totalConc();
+  state.volume = litres;
+  state.totalMoles = conc * litres;
+  setNetBaseForPH(pH);
+  clearHistory();
+  render();
+  return null;
+}
+
+function addStrong(reagent, stockMolar, addedLitres) {
+  if (!Number.isFinite(stockMolar) || stockMolar <= 0 || stockMolar > 20) return 'Enter a stock concentration above 0 and up to 20 M.';
+  if (!Number.isFinite(addedLitres) || addedLitres <= 0) return 'Enter a volume to add above 0.';
+  if (state.volume + addedLitres > MAX_VOLUME + 1e-12) return 'That would take the volume past 2 L.';
+  const before = snapshot(), pHBefore = currentPH();
+  const moles = stockMolar * addedLitres;
+  state.netBase += reagent === 'NaOH' ? moles : -moles;
+  state.volume += addedLitres;
+  state.history.push({
+    label: `${formatVolume(addedLitres)} of ${formatNumber(stockMolar)} M ${reagent} (${formatMoles(moles)}): pH ${pHBefore.toFixed(2)} → ${currentPH().toFixed(2)}`,
+    before,
+  });
+  lastDilution = null;
+  render(true);
+  return null;
+}
+
+function dilute(finalLitres) {
+  const pHBefore = currentPH(), before = snapshot();
+  const c1 = totalConc(), v1 = state.volume;
+  state.volume = finalLitres;
+  const pH = currentPH();
+  lastDilution = { c1, v1, c2: totalConc(), v2: finalLitres, pHBefore, pH, overrun: capacityExceeded() };
+  state.history.push({
+    label: `Water to ${formatVolume(finalLitres)}: pH ${pHBefore.toFixed(2)} → ${pH.toFixed(2)}`,
+    before,
+  });
+  render();
+  return null;
+}
+
+function addWater(addedLitres) {
+  if (!Number.isFinite(addedLitres) || addedLitres <= 0) return 'Enter a volume of water above 0.';
+  if (state.volume + addedLitres > MAX_VOLUME + 1e-12) return 'That would take the volume past 2 L.';
+  return dilute(state.volume + addedLitres);
+}
+
+function diluteToFinal(finalLitres) {
+  if (!Number.isFinite(finalLitres) || finalLitres <= state.volume) return 'The final volume must be larger than the current volume.';
+  if (finalLitres > MAX_VOLUME + 1e-12) return 'The final volume cannot be past 2 L.';
+  return dilute(finalLitres);
+}
+
+function undoLast() {
+  const last = state.history.pop();
+  if (!last) return;
+  Object.assign(state, last.before);
+  lastDilution = null;
+  render();
+}
+
+function reset() {
+  const buffer = BUFFERS[state.buffer];
+  state.pKa = buffer.pKa;
+  state.volume = DEFAULTS.volume;
+  state.totalMoles = DEFAULTS.concentration * DEFAULTS.volume;
+  state.concUnit = 'mM';
+  setNetBaseForPH(state.pKa);
+  clearHistory();
+  particleScale = null;
+  document.getElementById('conc-unit').value = 'mM';
+  document.getElementById('vol-unit').value = 'mL';
+  for (const id of ['buffer-error', 'add-error', 'dilute-error']) showError(id, null);
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FORMATTING
+// ═══════════════════════════════════════════════════════════════
+function formatNumber(x, sig = 4) {
+  if (x === 0) return '0';
+  const abs = Math.abs(x);
+  if (abs >= 1e5 || abs < 1e-3) {
+    const [m, e] = x.toExponential(2).split('e');
+    const superscript = String(+e).replace(/[-0-9]/g, c => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+    return `${m} × 10${superscript}`;
+  }
+  return String(+x.toPrecision(sig));
+}
+
+function formatMoles(mol) {
+  if (mol === 0) return '0 mol';
+  for (const [factor, unit] of [[1, 'mol'], [1e-3, 'mmol'], [1e-6, 'µmol'], [1e-9, 'nmol']]) {
+    if (mol >= factor) return `${formatNumber(mol / factor)} ${unit}`;
+  }
+  return `${formatNumber(mol / 1e-12)} pmol`;
+}
+
+function formatVolume(litres) {
+  if (litres >= 1) return `${formatNumber(litres)} L`;
+  if (litres >= 1e-3) return `${formatNumber(litres * 1e3)} mL`;
+  return `${formatNumber(litres * 1e6)} µL`;
+}
+
+const CONC_FACTOR = { mM: 1e3, M: 1 };
+const VOL_FACTOR = { 'µL': 1e6, mL: 1e3, L: 1 };
+const formatConc = (molar, unit = state.concUnit) => `${formatNumber(molar * CONC_FACTOR[unit])} ${unit}`;
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTAINERS
+// ═══════════════════════════════════════════════════════════════
+// profile: [y, half width] of the inner wall from top to bottom, around x = 150.
+// fillTop and fillBottom are the y of the capacity mark and of the empty level.
+const CX = 150;
+const VESSELS = [
+  { key: 'micro', label: '1.5 mL microcentrifuge tube', capacity: 1.5, marks: [0.5, 1, 1.5],
+    profile: [[52, 46], [230, 38], [300, 10], [316, 3], [318, 0]], fillTop: 74, fillBottom: 318,
+    extra: '<rect x="98" y="38" width="104" height="14" rx="4" fill="#FFFFFF" stroke="#685C53" stroke-width="2"/><path d="M102,38 Q84,14 118,12 L150,12" fill="none" stroke="#685C53" stroke-width="2"/>' },
+  { key: 'conical15', label: '15 mL conical tube', capacity: 15, marks: [5, 10, 15],
+    profile: [[40, 34], [262, 34], [310, 6], [318, 0]], fillTop: 62, fillBottom: 318,
+    extra: '<rect x="112" y="16" width="76" height="24" rx="4" fill="#685C53"/>' },
+  { key: 'conical50', label: '50 mL conical tube', capacity: 50, marks: [10, 20, 30, 40, 50],
+    profile: [[40, 54], [266, 54], [310, 8], [318, 0]], fillTop: 70, fillBottom: 318,
+    extra: '<rect x="92" y="16" width="116" height="24" rx="4" fill="#685C53"/>' },
+  { key: 'beaker', label: '250 mL beaker', capacity: 250, marks: [50, 100, 150, 200, 250],
+    profile: [[44, 100], [312, 96], [318, 90]], fillTop: 84, fillBottom: 318,
+    extra: '<path d="M50,44 Q40,36 34,34" fill="none" stroke="#685C53" stroke-width="2.5"/>' },
+  { key: 'flask1', label: '1 L Erlenmeyer flask', capacity: 1000, marks: [250, 500, 750, 1000],
+    profile: [[26, 28], [96, 28], [300, 112], [314, 118], [318, 110]], fillTop: 106, fillBottom: 318,
+    extra: '<rect x="116" y="20" width="68" height="8" rx="3" fill="none" stroke="#685C53" stroke-width="2.5"/>' },
+  { key: 'flask2', label: '2 L Erlenmeyer flask', capacity: 2000, marks: [500, 1000, 1500, 2000],
+    profile: [[18, 24], [84, 24], [300, 130], [314, 138], [318, 128]], fillTop: 92, fillBottom: 318,
+    extra: '<rect x="120" y="12" width="60" height="8" rx="3" fill="none" stroke="#685C53" stroke-width="2.5"/>' },
+];
+
+const vesselFor = millilitres => VESSELS.find(v => millilitres <= v.capacity + 1e-9) ?? VESSELS.at(-1);
+
+function halfWidthAt(vessel, y) {
+  const p = vessel.profile;
+  if (y <= p[0][0]) return p[0][1];
+  for (let i = 1; i < p.length; i++) {
+    if (y <= p[i][0]) {
+      const t = (y - p[i - 1][0]) / (p[i][0] - p[i - 1][0]);
+      return p[i - 1][1] + t * (p[i][1] - p[i - 1][1]);
+    }
+  }
+  return p.at(-1)[1];
+}
+
+const levelY = (vessel, fraction) => vessel.fillBottom - fraction * (vessel.fillBottom - vessel.fillTop);
+
+function vesselPath(vessel) {
+  const left = vessel.profile.map(([y, w]) => `${CX - w},${y}`);
+  const right = [...vessel.profile].reverse().map(([y, w]) => `${CX + w},${y}`);
+  return `M${[...left, ...right].join(' L')}`;
+}
+
+function vesselMarkup(vessel) {
+  const marks = vessel.marks.map(mark => {
+    const y = levelY(vessel, mark / vessel.capacity), x = CX - halfWidthAt(vessel, y);
+    const isTop = mark === vessel.capacity;
+    return `<line x1="${x + 1}" y1="${y}" x2="${x + (isTop ? 16 : 11)}" y2="${y}" stroke="#000000" stroke-width="1.3"/>` +
+      `<text x="${x + 19}" y="${y + 3.5}" font-size="10.5" fill="#000000" font-family="Segoe UI, Arial, sans-serif">${mark}${isTop ? ' mL' : ''}</text>`;
+  }).join('');
+  return `<path d="${vesselPath(vessel)}" fill="none" stroke="#685C53" stroke-width="2.5" stroke-linejoin="round"/>${marks}${vessel.extra}`;
+}
+
+let shownVessel = null;
+let shownFraction = 0;    // the level on screen, easing toward the true one
+
+function targetFraction() {
+  return state.volume * 1e3 / vesselFor(state.volume * 1e3).capacity;
+}
+
+function updateVessel() {
+  const vessel = vesselFor(state.volume * 1e3);
+  if (vessel !== shownVessel) {
+    // Carry the same volume over, so the level eases from where it was in the new container
+    const shownMl = shownVessel ? shownFraction * shownVessel.capacity : state.volume * 1e3;
+    shownVessel = vessel;
+    shownFraction = shownMl / vessel.capacity;
+    const body = document.getElementById('vessel-body');
+    body.innerHTML = vesselMarkup(vessel);
+    document.getElementById('vessel-clip-path').setAttribute('d', `${vesselPath(vessel)} Z`);
+    body.classList.remove('swap');
+    void body.getBoundingClientRect();     // restarts the fade
+    body.classList.add('swap');
+    seedParticlePositions();
+  }
+  if (reduceMotion) shownFraction = targetFraction();
+  document.getElementById('vessel-label').textContent = vessel.label;
+  placeLiquid();
+}
+
+function placeLiquid() {
+  const y = levelY(shownVessel, shownFraction);
+  const liquid = document.getElementById('liquid');
+  liquid.setAttribute('y', y);
+  liquid.setAttribute('height', Math.max(0, 330 - y));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════════════════════════════
+// Each particle stands for a fixed number of moles, so the count follows the moles and the
+// crowding follows the concentration. Dilution changes neither the moles nor the count.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const MIN_PARTICLES = 20, MAX_PARTICLES = 80, IDEAL_PARTICLES = 50;
+const PARTICLE_SCALE = 0.72;
+const particles = [];     // { u, v, du, dv, isBase, el, use }
+let particleScale = null; // mol per particle
+
+// The 1, 2 or 5 × 10ⁿ mol per particle that gives closest to the ideal count
+function chooseScale(moles) {
+  const decade = Math.floor(Math.log10(moles / IDEAL_PARTICLES));
+  let best = null;
+  for (const e of [decade - 1, decade, decade + 1]) {
+    for (const m of [1, 2, 5]) {
+      const scale = m * 10 ** e;
+      if (best === null || Math.abs(moles / scale - IDEAL_PARTICLES) < Math.abs(moles / best - IDEAL_PARTICLES)) best = scale;
+    }
+  }
+  return best;
+}
+
+function particleCount() {
+  const count = particleScale ? Math.round(state.totalMoles / particleScale) : 0;
+  if (count < MIN_PARTICLES || count > MAX_PARTICLES) particleScale = chooseScale(state.totalMoles);
+  return Math.round(state.totalMoles / particleScale);
+}
+
+// A place in the liquid, weighted by the container's width so that density stays even
+function randomPosition(p) {
+  for (let tries = 0; tries < 40; tries++) {
+    p.v = 0.03 + Math.random() * 0.94;
+    const y = levelY(shownVessel, targetFraction() * p.v);
+    if (Math.random() * 140 <= halfWidthAt(shownVessel, y)) break;
+  }
+  p.u = (Math.random() * 2 - 1);
+}
+
+function seedParticlePositions() {
+  for (const p of particles) randomPosition(p);
+}
+
+function makeParticle(isBase) {
+  const el = document.createElementNS(SVG_NS, 'g');
+  const use = document.createElementNS(SVG_NS, 'use');
+  const ring = document.createElementNS(SVG_NS, 'circle');
+  ring.setAttribute('class', 'flash-ring');
+  ring.setAttribute('r', 14);
+  el.appendChild(use);
+  el.appendChild(ring);
+  document.getElementById('particles').appendChild(el);
+  const p = { u: 0, v: 0, du: 0, dv: 0, isBase, el, use };
+  setParticleForm(p, isBase);
+  randomPosition(p);
+  return p;
+}
+
+function setParticleForm(p, isBase) {
+  p.isBase = isBase;
+  p.use.setAttribute('href', isBase ? '#glyph-base' : '#glyph-acid');
+}
+
+let flashTimer = null;
+
+// Brings the particles to the current count and split. flash marks the ones that changed form.
+function syncParticles(flash = false) {
+  const total = particleCount(), { fb } = composition();
+  while (particles.length > total) particles.pop().el.remove();
+  while (particles.length < total) particles.push(makeParticle(false));
+
+  const targetBase = Math.round(total * fb);
+  let difference = targetBase - particles.filter(p => p.isBase).length;
+  const changed = [];
+  for (const p of particles) {
+    if (difference > 0 && !p.isBase) { setParticleForm(p, true); changed.push(p); difference--; }
+    else if (difference < 0 && p.isBase) { setParticleForm(p, false); changed.push(p); difference++; }
+  }
+  if (flash && changed.length) {
+    for (const p of particles) p.el.classList.remove('conv');
+    void document.getElementById('particles').getBoundingClientRect();    // restarts the pulse
+    for (const p of changed) p.el.classList.add('conv');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { for (const p of particles) p.el.classList.remove('conv'); }, 1200);
+  }
+  lastFlashed = flash ? changed.length : 0;
+  placeParticles();
+}
+let lastFlashed = 0;
+
+function placeParticles() {
+  if (!shownVessel) return;
+  for (const p of particles) {
+    const y = levelY(shownVessel, shownFraction * p.v);
+    const x = CX + p.u * halfWidthAt(shownVessel, y) * 0.86;
+    p.el.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)}) scale(${PARTICLE_SCALE})`);
+  }
+}
+
+// ── Glyphs ─────────────────────────────────────────────────────
+function siteMarkup(buffer, isBase) {
+  const { siteX: x, siteY: y } = buffer;
+  if (isBase) {
+    return `<circle cx="${x}" cy="${y}" r="4.6" fill="#FFFFFF" stroke="#685C53" stroke-width="1.5"/>` +
+      (buffer.baseCharge ? `<text x="${x}" y="${y + 3.3}" font-size="9" font-weight="700" text-anchor="middle" fill="#000000">${buffer.baseCharge}</text>` : '');
+  }
+  return `<circle cx="${x}" cy="${y}" r="5" fill="#C8102E"/><text x="${x}" y="${y + 2.8}" font-size="7.5" font-weight="700" text-anchor="middle" fill="#FFFFFF">H</text>`;
+}
+
+function glyphMarkup(buffer, isBase) {
+  if (!buffer.core) {
+    return isBase
+      ? '<circle r="6.5" fill="#685C53"/><text y="3.2" font-size="10" font-weight="700" text-anchor="middle" fill="#FFFFFF">−</text>'
+      : '<circle r="6.5" fill="#C8102E"/><text y="3" font-size="8.5" font-weight="700" text-anchor="middle" fill="#FFFFFF">H</text>';
+  }
+  return `<path d="${buffer.core}" fill="none" stroke="#404040" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>${siteMarkup(buffer, isBase)}`;
+}
+
+function buildGlyphs() {
+  const buffer = BUFFERS[state.buffer];
+  document.getElementById('glyph-defs').innerHTML =
+    `<g id="glyph-acid" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, false)}</g>` +
+    `<g id="glyph-base" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, true)}</g>`;
+  const entry = (isBase, name, site) =>
+    `<span class="legend-item"><svg viewBox="-20 -12 40 24" aria-hidden="true" font-family="Segoe UI, Arial, sans-serif">${glyphMarkup(buffer, isBase)}</svg>${name}${site ? ` (${site})` : ''}</span>`;
+  document.getElementById('particle-legend').innerHTML =
+    entry(false, buffer.acid, buffer.acidSite) + entry(true, buffer.base, buffer.baseSite);
+}
+
+// ── Motion ─────────────────────────────────────────────────────
+function stepParticles() {
+  for (const p of particles) {
+    p.du = p.du * 0.95 + (Math.random() - 0.5) * 0.0016;
+    p.dv = p.dv * 0.95 + (Math.random() - 0.5) * 0.0012;
+    p.u += p.du;
+    p.v += p.dv;
+    if (Math.abs(p.u) > 1) { p.u = Math.sign(p.u); p.du = -p.du; }
+    if (p.v < 0.03) { p.v = 0.03; p.dv = -p.dv; }
+    if (p.v > 0.97) { p.v = 0.97; p.dv = -p.dv; }
+  }
+}
+
+function animate() {
+  stepParticles();
+  const target = targetFraction();
+  if (Math.abs(target - shownFraction) > 1e-4) {
+    shownFraction += (target - shownFraction) * 0.12;
+    placeLiquid();
+  }
+  placeParticles();
+  requestAnimationFrame(animate);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TITRATION CURVE
+// ═══════════════════════════════════════════════════════════════
+const curveCanvas = document.getElementById('curve');
+const cc = curveCanvas.getContext('2d');
+let CW = 620, CH = 400;
+const PLOT = { left: 48, right: 16, top: 16, bottom: 44 };
+const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+function sizeCurve() {
+  CW = Math.max(280, Math.round(curveCanvas.getBoundingClientRect().width));
+  CH = Math.max(280, Math.round(CW * 0.645));
+  curveCanvas.width = CW * dpr;
+  curveCanvas.height = CH * dpr;
+}
+
+let hoverEq = null;
+
+function curveRange() {
+  const eq = equivalents(), pH = currentPH();
+  return {
+    xMin: Math.min(0, eq - 0.1),
+    xMax: Math.max(1.2, eq + 0.1),
+    yMin: Math.min(0, Math.floor(pH - 0.5)),
+    yMax: Math.max(14, Math.ceil(pH + 0.5)),
+  };
+}
+
+function drawCurve() {
+  const range = curveRange(), { xMin, xMax, yMin, yMax } = range;
+  const w = CW - PLOT.left - PLOT.right, h = CH - PLOT.top - PLOT.bottom;
+  const px = eq => PLOT.left + (eq - xMin) / (xMax - xMin) * w;
+  const py = pH => PLOT.top + (yMax - pH) / (yMax - yMin) * h;
+  const pKa = state.pKa;
+
+  cc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cc.clearRect(0, 0, CW, CH);
+  cc.fillStyle = '#FFFFFF';
+  cc.fillRect(0, 0, CW, CH);
+
+  // Buffering region
+  const bandTop = py(Math.min(pKa + 1, yMax)), bandBottom = py(Math.max(pKa - 1, yMin));
+  cc.fillStyle = 'rgba(255,205,255,0.55)';
+  cc.fillRect(PLOT.left, bandTop, w, bandBottom - bandTop);
+  cc.fillStyle = '#000000';
+  cc.font = '12px "Segoe UI",Arial';
+  cc.textAlign = 'left'; cc.textBaseline = 'top';
+  cc.fillText('Buffering region (pKa ± 1)', PLOT.left + 6, bandTop + 3);
+
+  // Axes
+  cc.strokeStyle = 'rgba(104,92,83,0.3)';
+  cc.lineWidth = 1;
+  cc.fillStyle = '#000000';
+  cc.textAlign = 'right'; cc.textBaseline = 'middle';
+  for (let pH = Math.ceil(yMin / 2) * 2; pH <= yMax; pH += 2) {
+    cc.beginPath(); cc.moveTo(PLOT.left, py(pH)); cc.lineTo(PLOT.left + w, py(pH)); cc.stroke();
+    cc.fillText(String(pH), PLOT.left - 6, py(pH));
+  }
+  const xStep = xMax - xMin > 2.5 ? Math.ceil((xMax - xMin) / 6) : 0.2;
+  cc.textAlign = 'center'; cc.textBaseline = 'top';
+  for (let i = Math.ceil(xMin / xStep); i * xStep <= xMax + 1e-9; i++) {
+    const eq = i * xStep;
+    cc.beginPath(); cc.moveTo(px(eq), PLOT.top); cc.lineTo(px(eq), PLOT.top + h); cc.stroke();
+    cc.fillText(String(+eq.toFixed(1)), px(eq), PLOT.top + h + 5);
+  }
+  cc.strokeStyle = '#685C53';
+  cc.lineWidth = 1.5;
+  cc.strokeRect(PLOT.left, PLOT.top, w, h);
+  cc.font = 'bold 13px "Segoe UI",Arial';
+  cc.fillText('Equivalents of OH⁻ added', PLOT.left + w / 2, CH - 20);
+  cc.save();
+  cc.translate(14, PLOT.top + h / 2); cc.rotate(-Math.PI / 2);
+  cc.textBaseline = 'middle';
+  cc.fillText('pH', 0, 0);
+  cc.restore();
+
+  // pKa guides and dot at the half-equivalence point
+  cc.strokeStyle = '#685C53';
+  cc.lineWidth = 1;
+  cc.setLineDash([5, 4]);
+  cc.beginPath();
+  cc.moveTo(PLOT.left, py(pKa)); cc.lineTo(px(0.5), py(pKa));
+  cc.moveTo(px(0.5), py(pKa)); cc.lineTo(px(0.5), PLOT.top + h);
+  cc.stroke();
+  cc.setLineDash([]);
+
+  // Curve
+  cc.strokeStyle = '#000000';
+  cc.lineWidth = 2.5;
+  cc.lineJoin = 'round';
+  cc.beginPath();
+  for (let i = 0; i <= 300; i++) {
+    const eq = xMin + i / 300 * (xMax - xMin), y = py(curvePH(eq));
+    if (i === 0) cc.moveTo(px(eq), y); else cc.lineTo(px(eq), y);
+  }
+  cc.stroke();
+
+  cc.fillStyle = '#685C53';
+  cc.beginPath(); cc.arc(px(0.5), py(pKa), 5, 0, Math.PI * 2); cc.fill();
+  cc.fillStyle = '#000000';
+  cc.font = 'bold 12px "Segoe UI",Arial';
+  cc.textAlign = 'left'; cc.textBaseline = 'top';
+  cc.fillText(`pKa = ${pKa.toFixed(2)}`, px(0.5) + 8, py(pKa) + 6);
+
+  // Hover position
+  if (hoverEq !== null) {
+    const pH = curvePH(hoverEq);
+    cc.strokeStyle = '#000000';
+    cc.lineWidth = 1.5;
+    cc.fillStyle = '#FFFFFF';
+    cc.beginPath(); cc.arc(px(hoverEq), py(pH), 5, 0, Math.PI * 2); cc.fill(); cc.stroke();
+  }
+
+  // Current state
+  const eq = equivalents(), pH = currentPH();
+  cc.strokeStyle = '#FFFFFF';
+  cc.lineWidth = 2;
+  cc.fillStyle = '#C8102E';
+  cc.beginPath(); cc.arc(px(eq), py(pH), 7, 0, Math.PI * 2); cc.fill(); cc.stroke();
+
+  curveCanvas.setAttribute('aria-label',
+    `Titration curve of pH against equivalents of OH⁻. The buffer is at ${eq.toFixed(2)} equivalents and pH ${pH.toFixed(2)}, with pKa ${pKa.toFixed(2)} at 0.5 equivalents.`);
+}
+
+function hoverAt(clientX) {
+  const rect = curveCanvas.getBoundingClientRect();
+  const x = (clientX - rect.left) * CW / rect.width;
+  const { xMin, xMax } = curveRange();
+  const w = CW - PLOT.left - PLOT.right;
+  if (x < PLOT.left || x > PLOT.left + w) { clearHover(); return; }
+  hoverEq = xMin + (x - PLOT.left) / w * (xMax - xMin);
+  document.getElementById('curve-readout').textContent =
+    `Equivalents of OH⁻: ${hoverEq.toFixed(2)}, pH: ${curvePH(hoverEq).toFixed(2)}`;
+  drawCurve();
+}
+
+function clearHover() {
+  if (hoverEq === null) return;
+  hoverEq = null;
+  document.getElementById('curve-readout').textContent = 'Hover over or touch the plot to read a point on the curve.';
+  drawCurve();
+}
+
+curveCanvas.addEventListener('pointermove', e => hoverAt(e.clientX));
+curveCanvas.addEventListener('pointerdown', e => hoverAt(e.clientX));
+curveCanvas.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') clearHover(); });
+
+// ═══════════════════════════════════════════════════════════════
+//  RENDERING THE PAGE
+// ═══════════════════════════════════════════════════════════════
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let lastDilution = null;
+
+const setText = (id, text) => { document.getElementById(id).textContent = text; };
+
+// A number field shows the value unless the student is typing in it
+function setInput(id, value) {
+  const el = document.getElementById(id);
+  if (document.activeElement !== el) el.value = value;
+}
+
+const VOL_SLIDER_STEPS = 1000;
+const sliderToVolume = pos => +(MIN_VOLUME * (MAX_VOLUME / MIN_VOLUME) ** (pos / VOL_SLIDER_STEPS)).toPrecision(3);
+const volumeToSlider = litres => Math.round(Math.log(litres / MIN_VOLUME) / Math.log(MAX_VOLUME / MIN_VOLUME) * VOL_SLIDER_STEPS);
+
+function updateControls() {
+  const buffer = BUFFERS[state.buffer], c = composition();
+  document.getElementById('buffer-select').value = state.buffer;
+  setText('forms-label', `Acid form: ${buffer.acid}, Base form: ${buffer.base}`);
+  setText('range-label', `Useful range (pKa ± 1): pH ${(state.pKa - 1).toFixed(2)} to ${(state.pKa + 1).toFixed(2)}`);
+  const note = document.getElementById('buffer-note');
+  note.textContent = buffer.note ?? '';
+  note.hidden = !buffer.note;
+  document.getElementById('pka-field').hidden = !buffer.editablePKa;
+  setInput('pka-input', String(+state.pKa.toFixed(2)));
+
+  setInput('conc-input', formatPlain(totalConc() * CONC_FACTOR[state.concUnit]));
+  const volUnit = document.getElementById('vol-unit').value;
+  setInput('vol-input', formatPlain(state.volume * VOL_FACTOR[volUnit]));
+  setInput('vol-slider', volumeToSlider(state.volume));
+  setInput('ph-slider', Math.max(0, Math.min(14, c.pH)).toFixed(2));
+  setInput('ph-input', c.pH.toFixed(2));
+}
+
+const formatPlain = x => String(+x.toPrecision(5));
+
+function updateReadout() {
+  const buffer = BUFFERS[state.buffer], c = composition();
+  setText('readout-ph', c.pH.toFixed(2));
+  setText('ratio-label', `[${buffer.base}]/[${buffer.acid}]`);
+  setText('readout-ratio', formatNumber(c.ratio, 3));
+  setText('acid-conc-label', `[${buffer.acid}]`);
+  setText('base-conc-label', `[${buffer.base}]`);
+  setText('readout-acid-conc', formatConc(c.acidConc));
+  setText('readout-base-conc', formatConc(c.baseConc));
+  setText('acid-mol-label', `Moles of ${buffer.acid}`);
+  setText('base-mol-label', `Moles of ${buffer.base}`);
+  setText('readout-acid-mol', formatMoles(c.acidMoles));
+  setText('readout-base-mol', formatMoles(c.baseMoles));
+  setText('readout-total', formatConc(totalConc()));
+  setText('readout-volume', formatVolume(state.volume));
+
+  const distance = Math.abs(c.pH - state.pKa), status = document.getElementById('status');
+  if (distance <= 1) {
+    status.className = 'good';
+    status.textContent = 'Good buffering (within pKa ± 1)';
+  } else {
+    status.className = 'poor';
+    status.textContent = `Poor buffering: pH is ${distance.toFixed(2)} units from pKa`;
+  }
+  document.getElementById('capacity-warning').hidden = !capacityExceeded();
+  setText('particle-scale', `Each particle ≈ ${formatMoles(particleScale)}. Particle count shows moles; crowding shows concentration.`);
+  document.getElementById('vessel-svg').setAttribute('aria-label',
+    `${shownVessel.label} holding ${formatVolume(state.volume)} of ${buffer.name} buffer, with ${particles.filter(p => !p.isBase).length} acid-form and ${particles.filter(p => p.isBase).length} base-form particles.`);
+}
+
+function updateHistory() {
+  const list = document.getElementById('history');
+  list.innerHTML = '';
+  for (const entry of state.history) {
+    const li = document.createElement('li');
+    li.textContent = entry.label;
+    list.appendChild(li);
+  }
+  document.getElementById('history-empty').hidden = state.history.length > 0;
+  document.getElementById('undo-button').disabled = state.history.length === 0;
+}
+
+function updateDilution() {
+  const box = document.getElementById('dilution-calc');
+  box.hidden = !lastDilution;
+  if (!lastDilution) return;
+  const { c1, v1, c2, v2, pHBefore, pH, overrun } = lastDilution, drift = pH - pHBefore;
+  box.innerHTML =
+    `<b>C₁V₁ = C₂V₂:</b> ${formatConc(c1)} × ${formatVolume(v1)} = C₂ × ${formatVolume(v2)}, so C₂ = ${formatConc(c2)}.<br>` +
+    `Moles of buffer stay at ${formatMoles(state.totalMoles)}.<br>` +
+    `pH ${pHBefore.toFixed(3)} → ${pH.toFixed(3)} (change ${drift >= 0 ? '+' : '−'}${Math.abs(drift).toFixed(3)}).<br>` +
+    (overrun
+      ? `<b>Teaching point:</b> this solution is past its buffer, so excess strong acid or base sets the pH, and dilution moves it about 1 unit per 10-fold.`
+      : `<b>Teaching point:</b> the [base]/[acid] ratio barely depends on dilution, so pH holds. The small drift is real: as a buffer becomes very dilute, the H⁺ and OH⁻ from water itself start to matter.`);
+}
+
+function render(flash = false) {
+  updateVessel();
+  syncParticles(flash);
+  updateControls();
+  updateReadout();
+  updateHistory();
+  updateDilution();
+  drawCurve();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  WIRING
+// ═══════════════════════════════════════════════════════════════
+function showError(id, message) {
+  document.getElementById(id).textContent = message ?? '';
+}
+
+const numberFrom = id => parseFloat(document.getElementById(id).value);
+const litresFrom = (inputId, unitId) => numberFrom(inputId) / VOL_FACTOR[document.getElementById(unitId).value];
+
+document.getElementById('buffer-select').innerHTML =
+  Object.entries(BUFFERS).map(([key, b]) => `<option value="${key}">${b.name} (pKa ${b.pKa.toFixed(2)})</option>`).join('');
+
+document.getElementById('buffer-select').addEventListener('change', e => { showError('buffer-error', setBuffer(e.target.value)); });
+document.getElementById('pka-input').addEventListener('change', e => {
+  showError('buffer-error', setGenericPKa(parseFloat(e.target.value)));
+  updateControls();
+});
+document.getElementById('conc-input').addEventListener('change', e => {
+  showError('buffer-error', setConcentration(parseFloat(e.target.value) / CONC_FACTOR[state.concUnit]));
+  updateControls();
+});
+document.getElementById('conc-unit').addEventListener('change', e => { state.concUnit = e.target.value; render(); });
+document.getElementById('vol-input').addEventListener('change', () => {
+  showError('buffer-error', setVolume(litresFrom('vol-input', 'vol-unit')));
+  updateControls();
+});
+document.getElementById('vol-unit').addEventListener('change', () => { updateControls(); });
+document.getElementById('vol-slider').addEventListener('input', e => { showError('buffer-error', setVolume(sliderToVolume(+e.target.value))); });
+document.getElementById('ph-slider').addEventListener('input', e => { showError('buffer-error', setPH(+e.target.value)); });
+document.getElementById('ph-input').addEventListener('change', e => {
+  showError('buffer-error', setPH(parseFloat(e.target.value)));
+  updateControls();
+});
+
+function chooseReagent(reagent) {
+  state.reagent = reagent;
+  for (const [id, name] of [['reagent-hcl', 'HCl'], ['reagent-naoh', 'NaOH']]) {
+    const btn = document.getElementById(id);
+    btn.classList.toggle('active', name === reagent);
+    btn.setAttribute('aria-pressed', String(name === reagent));
+  }
+}
+document.getElementById('reagent-hcl').addEventListener('click', () => chooseReagent('HCl'));
+document.getElementById('reagent-naoh').addEventListener('click', () => chooseReagent('NaOH'));
+document.getElementById('add-button').addEventListener('click', () => {
+  showError('add-error', addStrong(state.reagent, numberFrom('stock-input'), litresFrom('add-vol-input', 'add-vol-unit')));
+});
+document.getElementById('water-button').addEventListener('click', () => {
+  showError('dilute-error', addWater(litresFrom('water-input', 'water-unit')));
+});
+document.getElementById('final-button').addEventListener('click', () => {
+  showError('dilute-error', diluteToFinal(litresFrom('final-input', 'final-unit')));
+});
+document.getElementById('undo-button').addEventListener('click', undoLast);
+document.getElementById('reset').addEventListener('click', reset);
+
+window.addEventListener('resize', () => { sizeCurve(); drawCurve(); });
+
+// ── Init ───────────────────────────────────────────────────────
+sizeCurve();
+setNetBaseForPH(state.pKa);
+buildGlyphs();
+render();
+if (!reduceMotion) requestAnimationFrame(animate);
+</script>
+</body>
+</html>
