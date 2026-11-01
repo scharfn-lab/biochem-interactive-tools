@@ -49,7 +49,7 @@ function makeTarget(id) {
   return el;
 }
 
-function loadPage({ reduceMotion = false } = {}) {
+function loadFreshPage({ reduceMotion = false } = {}) {
   const elements = new Map(IDS.map(id => [id, makeTarget(id)]));
   const document = makeTarget('document');
   document.getElementById = id => elements.get(id) ?? null;
@@ -59,7 +59,7 @@ function loadPage({ reduceMotion = false } = {}) {
   let frames = 0;
   // Inputs start as the markup has them, like a browser
   for (const m of HTML.matchAll(/<input[^>]*\bid="([^"]+)"[^>]*\bvalue="([^"]*)"/g)) elements.get(m[1]).value = m[2];
-  for (const [id, value] of [['conc-unit', 'mM'], ['vol-unit', 'mL'], ['add-vol-unit', 'mL'], ['water-unit', 'mL'], ['final-unit', 'mL']]) {
+  for (const [id, value] of [['conc-unit', 'mM'], ['vol-unit', 'mL'], ['add-vol-unit', 'mL']]) {
     elements.get(id).value = value;
   }
   const window = makeTarget('window');
@@ -88,20 +88,20 @@ function loadPage({ reduceMotion = false } = {}) {
   };
 }
 
+function loadPage(options) {
+  const page = loadFreshPage(options);
+  page.run('setVolume(0.05); shownFraction = targetFraction(); placeLiquid()');
+  page.el('stock-input').value = '1';
+  page.el('add-vol-input').value = '0.5';
+  page.setUnits('vol-unit', 'mL');
+  return page;
+}
+
 function assertClose(actual, expected, tol, label) {
   assert.ok(Math.abs(actual - expected) <= tol, `${label}: expected ${expected} ± ${tol}, got ${actual}`);
 }
 
 // ── Page wiring ────────────────────────────────────────────────
-test('loads with the default 50 mM, 50 mL generic buffer at pH = pKa', () => {
-  const page = loadPage();
-  assertClose(page.pH(), 4.76, 1e-6, 'pH');
-  assert.equal(page.text('readout-ph'), '4.76');
-  assert.equal(page.el('conc-input').value, '50');
-  assert.equal(page.el('vol-input').value, '50');
-  assert.equal(page.el('capacity-warning').hidden, true);
-});
-
 test('every id the script looks up exists in the markup', () => {
   const used = [...SCRIPT.matchAll(/getElementById\('([^']+)'\)/g)].map(m => m[1]);
   assert.ok(used.length > 0);
@@ -138,18 +138,6 @@ test('0.25 mL of 1 M HCl gives the pH 4.58 from the specification', () => {
   page.enter('add-vol-input', 0.25);
   page.click('add-button');
   assertClose(page.pH(), 4.58, 0.005, 'pH');
-});
-
-test('diluting 10-fold leaves the moles unchanged and the pH nearly so', () => {
-  const page = loadPage();
-  page.run("setBuffer('acetate')");
-  page.enter('final-input', 500);
-  page.click('final-button');
-  assert.equal(page.el('vol-input').value, '500');
-  assert.equal(page.el('conc-input').value, '5');
-  assertClose(page.pH(), 4.76, 0.01, 'pH');
-  assertClose(page.run('state.totalMoles'), 0.0025, 1e-12, 'total moles');
-  assertClose(page.run('composition().acidMoles + composition().baseMoles'), 0.0025, 1e-12, 'moles');
 });
 
 const CONTAINERS = [
@@ -211,24 +199,22 @@ test('values typed in a unit are read in that unit', () => {
   assertClose(page.run('state.volume'), 5.1e-4, 1e-12, 'added µL');
 });
 
-test('overshooting the buffer warns and gives the true strong acid pH', () => {
+test('overshooting the buffer gives the true strong acid pH', () => {
   const page = loadPage();
   page.run("setBuffer('acetate')");
   page.enter('add-vol-input', 10);
   page.click('add-button');
-  assert.equal(page.el('capacity-warning').hidden, false);
   // 10 mmol H⁺ against 1.25 mmol of A⁻ in 60 mL: about 0.146 M H⁺, plus a little from HA
   assertClose(page.pH(), -Math.log10(8.75e-3 / 0.06), 0.01, 'pH');
   assert.match(page.text('status'), /^Poor buffering: pH is \d+\.\d\d units from pKa$/);
 });
 
-test('overshooting with base warns and gives the true strong base pH', () => {
+test('overshooting with base gives the true strong base pH', () => {
   const page = loadPage();
   page.run("setBuffer('acetate')");
   page.click('reagent-naoh');
   page.enter('add-vol-input', 10);
   page.click('add-button');
-  assert.equal(page.el('capacity-warning').hidden, false);
   assertClose(page.pH(), 14 + Math.log10(8.75e-3 / 0.06), 0.01, 'pH');
 });
 
@@ -282,17 +268,6 @@ test('each buffer has its pKa, useful range and form labels', () => {
   }
 });
 
-test('only the generic buffer lets the student edit the pKa', () => {
-  const page = loadPage();
-  assert.equal(page.el('pka-field').hidden, false);
-  page.enter('pka-input', 6);
-  assert.equal(page.run('state.pKa'), 6);
-  assertClose(page.pH(), 4.76, 1e-6, 'pH holds');
-  assert.equal(page.text('range-label'), 'Useful range (pKa ± 1): pH 5.00 to 7.00');
-  page.run("setBuffer('mops')");
-  assert.equal(page.el('pka-field').hidden, true);
-});
-
 test('bicarbonate carries the one-line note about blood pH', () => {
   const page = loadPage();
   assert.equal(page.el('buffer-note').hidden, true);
@@ -335,13 +310,6 @@ test('invalid entries are refused with a message and change nothing', () => {
   page.enter('add-vol-input', 0);
   page.click('add-button');
   assert.notEqual(page.text('add-error'), '');
-  page.enter('final-input', 10);
-  page.click('final-button');
-  assert.match(page.text('dilute-error'), /larger/);
-  page.enter('water-input', 5);
-  page.setUnits('water-unit', 'L');
-  page.click('water-button');
-  assert.match(page.text('dilute-error'), /2 L/);
   assert.equal(page.run('JSON.stringify([state.volume, state.totalMoles, state.netBase])'), before);
 });
 
@@ -366,16 +334,8 @@ test('additions are listed and Undo last restores each state in turn', () => {
   assert.equal(page.el('undo-button').disabled, true);
 });
 
-test('a dilution can be undone too', () => {
-  const page = loadPage();
-  page.click('water-button');
-  assert.equal(page.el('vol-input').value, '100');
-  page.click('undo-button');
-  assert.equal(page.el('vol-input').value, '50');
-});
-
 test('a new recipe starts a new history', () => {
-  for (const change of ['setPH(5)', 'setConcentration(0.1)', 'setVolume(0.1)', "setBuffer('mes')"]) {
+  for (const change of ['setPH(5)', 'setConcentration(0.1)', 'setVolume(0.1)', "setBuffer('mes')", 'setTemperature(10)']) {
     const page = loadPage();
     page.click('add-button');
     page.run(change);
@@ -388,37 +348,19 @@ test('Reset returns to the starting amounts for the chosen buffer', () => {
   page.run("setBuffer('tris')");
   page.setUnits('conc-unit', 'M');
   page.setUnits('vol-unit', 'L');
+  page.run('setTemperature(10)');
   page.click('add-button');
-  page.click('water-button');
   page.click('reset');
   assertClose(page.pH(), 8.07, 1e-6, 'pH');
   assert.equal(page.el('conc-input').value, '50');
-  assert.equal(page.el('vol-input').value, '50');
+  assert.equal(page.el('vol-input').value, '500');
+  assert.equal(page.run('state.temperature'), 25);
+  assert.equal(page.el('temp-input').value, '25');
   assert.equal(page.run('state.history.length'), 0);
   assert.equal(page.run('state.buffer'), 'tris');
 });
 
 // ── Dilution ───────────────────────────────────────────────────
-test('diluting and adding water show no explanation, only the result', () => {
-  assert.ok(!IDS.includes('dilution-calc'));
-  assert.doesNotMatch(HTML, /C₁V₁|Teaching point/);
-  const page = loadPage();
-  page.click('final-button');
-  assert.equal(page.el('vol-input').value, '500');
-  page.click('water-button');
-  assert.equal(page.el('vol-input').value, '550');
-  assert.equal(page.text('dilute-error'), '');
-});
-
-test('a very dilute buffer shows real pH drift', () => {
-  const page = loadPage();
-  page.run('setVolume(1e-3)');
-  page.enter('final-input', 2);
-  page.setUnits('final-unit', 'L');
-  page.click('final-button');
-  assert.ok(page.pH() - 4.76 > 0.2, `pH ${page.pH()}`);
-});
-
 // ── Containers ─────────────────────────────────────────────────
 test('the fill level is volume over capacity', () => {
   const page = loadPage();
@@ -490,17 +432,6 @@ test('doubling the moles doubles the particles within a scale', () => {
   assert.equal(page.run('particles.length'), 2 * n);
 });
 
-test('dilution keeps the same particles and spreads them out', () => {
-  const page = loadPage();
-  page.run('setVolume(0.02)');
-  page.run('setVolume(0.05)');
-  const count = page.run('particles.length'), split = page.run('particles.filter(p => p.isBase).length');
-  page.run('addWater(0.15)');
-  assert.equal(page.run('particles.length'), count);
-  assert.equal(page.run('particles.filter(p => p.isBase).length'), split);
-  assert.equal(page.run('shownVessel.key'), 'beaker');
-});
-
 test('the particle split follows the acid/base ratio', () => {
   const page = loadPage();
   page.enter('ph-input', 5.76);
@@ -568,7 +499,7 @@ test('the curve runs through the pKa at half equivalence', () => {
 
 test('the current state always lies on the curve', () => {
   const page = loadPage();
-  for (const action of ['0', "addStrong('HCl', 1, 0.0005)", "addStrong('NaOH', 1, 0.002)", 'addWater(0.1)', "addStrong('HCl', 5, 0.01)", 'setPH(9)']) {
+  for (const action of ['0', "addStrong('HCl', 1, 0.0005)", "addStrong('NaOH', 1, 0.002)", 'setTemperature(10)', "addStrong('HCl', 5, 0.01)", 'setPH(9)']) {
     page.run(action);
     assertClose(page.run('curvePH(equivalents())'), page.pH(), 1e-9, action);
   }
@@ -581,9 +512,8 @@ test('the x axis holds 0 to 1.2 equivalents and extends past either end when ove
   assert.ok(page.run('equivalents()') < 0);
   assert.ok(page.run('curveRange().xMin') < page.run('equivalents()'));
   page.run('reset()');
-  page.run("addStrong('NaOH', 5, 0.002)");
+  page.run("addStrong('NaOH', 5, 0.01)");
   assert.ok(page.run('curveRange().xMax') > page.run('equivalents()') && page.run('equivalents()') > 1.2);
-  assert.equal(page.el('capacity-warning').hidden, false);
 });
 
 test('the y axis extends when strong acid pushes pH below zero', () => {
@@ -591,15 +521,6 @@ test('the y axis extends when strong acid pushes pH below zero', () => {
   page.run("addStrong('HCl', 12, 0.05)");
   assert.ok(page.pH() < 0, `pH ${page.pH()}`);
   assert.ok(page.run('curveRange().yMin') < page.pH());
-});
-
-test('the capacity warning turns on only past the ends of the buffer', () => {
-  const page = loadPage();
-  for (const [ml, exceeded] of [[0.1, false], [1.2, false], [1.3, true]]) {
-    page.run('reset()');
-    page.run(`addStrong('HCl', 1, ${ml / 1000})`);
-    assert.equal(page.el('capacity-warning').hidden, !exceeded, `${ml} mL`);
-  }
 });
 
 test('hovering reads out equivalents and pH, and leaving clears it', () => {
@@ -654,14 +575,6 @@ test('moles use the fitting unit', () => {
   assert.equal(page.run('formatVolume(0.0001)'), '100 µL');
   assert.equal(page.run('formatVolume(2)'), '2 L');
   assert.match(page.run('formatNumber(0.00012)'), /^1\.20 × 10⁻⁴$/);
-});
-
-test('diluting past the buffer moves the pH about one unit per 10-fold', () => {
-  const page = loadPage();
-  page.run("addStrong('HCl', 1, 0.01)");
-  const before = page.pH();
-  page.run('diluteToFinal(0.6)');
-  assertClose(page.pH() - before, 1, 0.02, '10-fold moves pH one unit');
 });
 
 test('curve labels sit clear of the curve', () => {
@@ -746,4 +659,190 @@ test('the curve column is 20% narrower than before', () => {
   // The panel was 614 px wide at full size, so its 582 px canvas is now 466 px after 32 px of padding
   assert.match(HTML, /grid-template-columns: 330px minmax\(0, 340px\) minmax\(0, 498px\)/);
   assert.match(HTML, /#column-curve \{ max-width: 498px; \}/);
+});
+
+// ── Starting values ────────────────────────────────────────────
+test('loads as a 50 mM, 500 mL generic buffer at pH = pKa, in the 1 L flask', () => {
+  const page = loadFreshPage();
+  assertClose(page.pH(), 4.76, 1e-6, 'pH');
+  assert.equal(page.text('readout-ph'), '4.76');
+  assert.equal(page.el('conc-input').value, '50');
+  assert.equal(page.el('vol-input').value, '500');
+  assertClose(page.run('state.volume'), 0.5, 1e-12, 'volume');
+  assert.equal(page.run('shownVessel.key'), 'flask1');
+  assert.equal(page.run('particles.length'), 50);
+  assert.equal(page.run('state.temperature'), 25);
+});
+
+test('strong acid and base start at 5 M and 0.1 mL', () => {
+  const page = loadFreshPage();
+  assert.equal(page.el('stock-input').value, '5');
+  assert.equal(page.el('add-vol-input').value, '0.1');
+  page.click('add-button');
+  // 0.5 mmol of acid against 12.5 mmol of each form
+  assertClose(page.pH(), 4.76 + Math.log10(12 / 13), 0.002, 'pH');
+  assert.match(page.el('history').children.at(-1).textContent, /100 µL of 5 M HCl/);
+});
+
+test('Reset returns to the starting 500 mL', () => {
+  const page = loadFreshPage();
+  page.run('setVolume(0.02)');
+  page.click('reset');
+  assert.equal(page.el('vol-input').value, '500');
+  assert.equal(page.run('shownVessel.key'), 'flask1');
+});
+
+// ── Removed from the page ──────────────────────────────────────
+test('there is no dilution box', () => {
+  for (const id of ['water-input', 'water-unit', 'water-button', 'final-input', 'final-unit', 'final-button', 'dilute-error', 'dilution-calc']) {
+    assert.ok(!IDS.includes(id), id);
+  }
+  assert.doesNotMatch(HTML, />Dilution</);
+  assert.doesNotMatch(SCRIPT, /addWater|diluteToFinal/);
+});
+
+test('buffer capacity is never announced, even far past the buffer', () => {
+  assert.doesNotMatch(HTML, /Buffer capacity|capacity-warning|capacityExceeded/);
+  const page = loadPage();
+  page.run("addStrong('HCl', 5, 0.01)");
+  assert.ok(page.run('equivalents()') < 0, 'past the end of the buffer');
+  assert.ok(page.run('curveRange().xMin') < page.run('equivalents()'), 'the curve still extends to the point');
+});
+
+test('the note under the curve no longer defines an equivalent', () => {
+  assert.doesNotMatch(HTML, /One equivalent/);
+  assert.match(HTML, /Drawn at the current total concentration/);
+});
+
+// ── Buffer box layout ──────────────────────────────────────────
+test('concentration and volume sit side by side, then pKa beside Set pH', () => {
+  const at = marker => HTML.indexOf(marker);
+  assert.ok(at('class="side-by-side"') < at('id="conc-input"') && at('id="conc-input"') < at('id="vol-input"'));
+  assert.ok(at('id="vol-input"') < at('class="pka-and-ph"'));
+  assert.ok(at('class="pka-and-ph"') < at('id="pka-input"') && at('id="pka-input"') < at('id="ph-input"'));
+  assert.ok(at('id="ph-input"') < at('id="temp-input"'));
+  assert.match(HTML, /\.side-by-side \{ display: grid; grid-template-columns: 1fr 1fr;/);
+  assert.match(HTML, /\.pka-and-ph \{ display: grid; grid-template-columns: 72px minmax\(0, 1fr\);/);
+});
+
+test('the pKa box always shows, editable only for the generic buffer', () => {
+  const page = loadFreshPage();
+  assert.equal(page.el('pka-input').disabled, false);
+  assert.equal(page.el('pka-input').value, '4.76');
+  page.enter('pka-input', 6);
+  assert.equal(page.run('state.pKa'), 6);
+  assertClose(page.pH(), 4.76, 1e-6, 'pH holds');
+  assert.equal(page.text('range-label'), 'Useful range (pKa ± 1): pH 5.00 to 7.00');
+  for (const [key, pKa] of [['mops', '7.20'], ['tris', '8.07'], ['bicarbonate', '6.10']]) {
+    page.run(`setBuffer('${key}')`);
+    assert.equal(page.el('pka-input').disabled, true, key);
+    assert.equal(page.el('pka-input').value, pKa, key);
+  }
+  page.run("setBuffer('generic')");
+  assert.equal(page.el('pka-input').disabled, false);
+  assert.equal(page.el('pka-input').value, '4.76');
+  assert.match(HTML, /input\[type=number\]:disabled \{ background: #E4E4E4;/);
+});
+
+// ── Temperature ────────────────────────────────────────────────
+test('pKw follows the table and is exactly 14 at 25 °C', () => {
+  const page = loadFreshPage();
+  assert.equal(page.run('pKwAt(25)'), 14);
+  assert.equal(page.run('pKwAt(0)'), 14.94);
+  assert.equal(page.run('pKwAt(37)'), 13.62);
+  assertClose(page.run('pKwAt(35)'), 13.68, 0.001, 'between entries');
+  assert.equal(page.run('pKwAt(60)'), 13.02);
+  assert.match(page.text('pkw-note'), /pKw = 14\.00 at 25 °C/);
+  page.enter('temp-input', 37);
+  assert.match(page.text('pkw-note'), /pKw = 13\.62 at 37 °C/);
+});
+
+test('cooling a Tris buffer raises its pKa and pH by 0.028 per °C', () => {
+  const page = loadFreshPage();
+  page.run("setBuffer('tris')");
+  page.enter('temp-input', 4);
+  assertClose(page.run('state.pKa'), 8.07 + 0.028 * 21, 1e-9, 'pKa');
+  assert.equal(page.el('pka-input').value, '8.66');
+  assertClose(page.pH(), 8.658, 0.005, 'pH');
+  assert.equal(page.text('range-label'), 'Useful range (pKa ± 1): pH 7.66 to 9.66');
+});
+
+test('warming a buffer keeps its contents and moves only what depends on temperature', () => {
+  const page = loadFreshPage();
+  page.run("setBuffer('hepes')");
+  const before = page.run('[state.volume, state.totalMoles, state.netBase].join()');
+  page.enter('temp-input', 37);
+  assert.equal(page.run('[state.volume, state.totalMoles, state.netBase].join()'), before);
+  assertClose(page.run('state.pKa'), 7.5 - 0.014 * 12, 1e-9, 'pKa');
+  assertClose(page.pH(), 7.332, 0.002, 'pH');
+});
+
+test('acetate barely shifts and the generic pKa stays as entered', () => {
+  const page = loadFreshPage();
+  page.run("setBuffer('acetate')");
+  page.enter('temp-input', 45);
+  assertClose(page.pH(), 4.764, 0.002, 'acetate');
+  page.run("setBuffer('generic')");
+  assert.equal(page.run('state.pKa'), 4.76);
+  page.enter('temp-input', 10);
+  assert.equal(page.run('state.pKa'), 4.76);
+});
+
+test('choosing a buffer at another temperature uses its pKa there', () => {
+  const page = loadFreshPage();
+  page.enter('temp-input', 37);
+  page.run("setBuffer('tris')");
+  assertClose(page.pH(), 8.07 - 0.028 * 12, 1e-6, 'starts at the pKa for 37 °C');
+});
+
+test('setting the pH holds at the chosen temperature, with its own water', () => {
+  const page = loadFreshPage();
+  page.enter('temp-input', 37);
+  page.enter('ph-input', 12);
+  assertClose(page.pH(), 12, 1e-9, 'pH');
+  assertClose(page.run('KW'), 10 ** -13.62, 1e-20, 'Kw');
+});
+
+test('temperatures outside 0 to 60 °C are refused and change nothing', () => {
+  const page = loadFreshPage();
+  for (const value of [-5, 70, 'abc']) {
+    page.enter('temp-input', value);
+    assert.match(page.text('buffer-error'), /0 to 60 °C/);
+    assert.equal(page.run('state.temperature'), 25);
+    assert.equal(page.el('temp-input').value, '25');
+  }
+  page.enter('temp-input', 0);
+  assert.equal(page.text('buffer-error'), '');
+  assert.equal(page.run('state.temperature'), 0);
+});
+
+test('the buffer dropdown does not repeat a pKa that changes with temperature', () => {
+  const page = loadFreshPage();
+  assert.doesNotMatch(page.el('buffer-select').innerHTML, /pKa/);
+});
+
+test('a pKa the student typed survives a temperature change', () => {
+  const page = loadFreshPage();
+  page.enter('pka-input', 6);
+  page.enter('temp-input', 40);
+  assert.equal(page.run('state.pKa'), 6);
+  assert.equal(page.el('pka-input').value, '6.00');
+});
+
+test('Reset puts water back to its 25 °C Kw', () => {
+  const page = loadFreshPage();
+  page.enter('temp-input', 37);
+  page.click('reset');
+  assertClose(page.run('KW'), 1e-14, 1e-20, 'Kw');
+  assert.match(page.text('pkw-note'), /pKw = 14\.00 at 25 °C/);
+});
+
+test('the markup starts with the same defaults as the script', () => {
+  assert.match(HTML, /id="vol-input"[^>]*value="500"/);
+  assert.match(HTML, /id="conc-input"[^>]*value="50"/);
+  assert.match(HTML, /id="temp-input"[^>]*value="25"/);
+});
+
+test('the subtitle no longer offers dilution', () => {
+  assert.doesNotMatch(HTML.match(/class="subtitle">(.*?)</)[1], /dilute/i);
 });

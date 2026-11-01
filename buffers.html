@@ -80,6 +80,10 @@
     .input-row { display: flex; gap: 6px; align-items: center; }
     .input-row input[type=number] { flex: 1 1 auto; min-width: 0; width: 60px; }
     .input-row select { flex-shrink: 0; }
+    .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .pka-and-ph { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; margin-bottom: 10px; }
+    .side-by-side > *, .pka-and-ph > * { min-width: 0; }
+    .side-by-side select { padding-inline: 4px; }
 
     input[type=number], select {
       padding: 7px 8px;
@@ -92,6 +96,8 @@
       font-size: 14px;
     }
     select { max-width: 100%; }
+    input[type=number]:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; cursor: not-allowed; }
+    #pka-input, #temp-input { width: 100%; }
     #buffer-select { width: 100%; }
     input[type=range] { width: 100%; height: 24px; accent-color: var(--ut-crimson); cursor: pointer; }
 
@@ -162,15 +168,6 @@
     /* ── Curve ── */
     #curve { display: block; width: 100%; height: auto; touch-action: pan-y; cursor: crosshair; border-radius: 8px; }
     #curve-readout { font-size: 0.85em; color: var(--ut-taupe); margin-top: 6px; min-height: 1.3em; }
-    #capacity-warning {
-      background: #FFEBEE;
-      border: 2px solid var(--ut-crimson);
-      border-radius: 8px;
-      padding: 7px 10px;
-      font-weight: 600;
-      font-size: 0.9em;
-      margin-bottom: 8px;
-    }
 
     /* ── History ── */
     #history { list-style: none; max-height: 150px; overflow-y: auto; font-size: 0.85em; margin-bottom: 8px; }
@@ -181,7 +178,7 @@
 <body>
 
 <h1>Buffer Visualizer</h1>
-<p class="subtitle">Set the pH, add strong acid or base, and dilute to see how a buffer responds</p>
+<p class="subtitle">Set the pH and add strong acid or base to see how a buffer responds</p>
 
 <div id="top-bar"><button id="reset">Reset</button></div>
 
@@ -197,38 +194,46 @@
         <div id="range-label"></div>
         <p class="hint" id="buffer-note" hidden></p>
       </div>
-      <div class="field" id="pka-field">
-        <label for="pka-input">pKa</label>
-        <input type="number" id="pka-input" min="0" max="14" step="0.01" value="4.76">
+      <div class="side-by-side">
+        <div>
+          <label for="conc-input">Buffer concentration</label>
+          <div class="input-row">
+            <input type="number" id="conc-input" min="0" step="any" value="50">
+            <select id="conc-unit" aria-label="Concentration unit">
+              <option value="mM" selected>mM</option>
+              <option value="M">M</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="vol-input">Volume</label>
+          <div class="input-row">
+            <input type="number" id="vol-input" min="0" step="any" value="500">
+            <select id="vol-unit" aria-label="Volume unit">
+              <option value="µL">µL</option>
+              <option value="mL" selected>mL</option>
+              <option value="L">L</option>
+            </select>
+          </div>
+          <input type="range" id="vol-slider" min="0" max="1000" step="1" aria-label="Volume, 100 µL to 2 L">
+        </div>
       </div>
-      <div class="field">
-        <label for="conc-input">Total buffer concentration</label>
-        <div class="input-row">
-          <input type="number" id="conc-input" min="0" step="any" value="50">
-          <select id="conc-unit" aria-label="Concentration unit">
-            <option value="mM" selected>mM</option>
-            <option value="M">M</option>
-          </select>
+      <div class="pka-and-ph">
+        <div id="pka-field">
+          <label for="pka-input">pKa</label>
+          <input type="number" id="pka-input" min="0" max="14" step="0.01" value="4.76">
+        </div>
+        <div>
+          <label for="ph-input">Set pH</label>
+          <div class="input-row">
+            <input type="range" id="ph-slider" min="0" max="14" step="0.01" aria-label="pH">
+            <input type="number" id="ph-input" min="0" max="14" step="0.01" style="flex:0 0 70px;">
+          </div>
         </div>
       </div>
       <div class="field">
-        <label for="vol-input">Volume</label>
-        <div class="input-row">
-          <input type="number" id="vol-input" min="0" step="any" value="50">
-          <select id="vol-unit" aria-label="Volume unit">
-            <option value="µL">µL</option>
-            <option value="mL" selected>mL</option>
-            <option value="L">L</option>
-          </select>
-        </div>
-        <input type="range" id="vol-slider" min="0" max="1000" step="1" aria-label="Volume, 100 µL to 2 L">
-      </div>
-      <div class="field">
-        <label for="ph-input">Set pH</label>
-        <div class="input-row">
-          <input type="range" id="ph-slider" min="0" max="14" step="0.01" aria-label="pH">
-          <input type="number" id="ph-input" min="0" max="14" step="0.01" style="flex:0 0 84px;">
-        </div>
+        <label for="temp-input">Temperature (°C)</label>
+        <input type="number" id="temp-input" min="0" max="60" step="1" value="25" style="width:84px;">
       </div>
       <p class="error" id="buffer-error" role="alert"></p>
     </section>
@@ -243,12 +248,12 @@
       </div>
       <div class="field">
         <label for="stock-input">Stock concentration (M)</label>
-        <input type="number" id="stock-input" min="0" step="any" value="1" style="width:100%;">
+        <input type="number" id="stock-input" min="0" step="any" value="5" style="width:100%;">
       </div>
       <div class="field">
         <label for="add-vol-input">Volume added</label>
         <div class="input-row">
-          <input type="number" id="add-vol-input" min="0" step="any" value="0.5">
+          <input type="number" id="add-vol-input" min="0" step="any" value="0.1">
           <select id="add-vol-unit" aria-label="Volume added unit">
             <option value="µL">µL</option>
             <option value="mL" selected>mL</option>
@@ -259,34 +264,6 @@
       <p class="error" id="add-error" role="alert"></p>
     </section>
 
-    <section class="panel">
-      <h2 class="panel-title">Dilution</h2>
-      <div class="field">
-        <label for="water-input">Add water</label>
-        <div class="input-row">
-          <input type="number" id="water-input" min="0" step="any" value="50">
-          <select id="water-unit" aria-label="Water volume unit">
-            <option value="µL">µL</option>
-            <option value="mL" selected>mL</option>
-            <option value="L">L</option>
-          </select>
-          <button id="water-button">Add water</button>
-        </div>
-      </div>
-      <div class="field">
-        <label for="final-input">Dilute to final volume</label>
-        <div class="input-row">
-          <input type="number" id="final-input" min="0" step="any" value="500">
-          <select id="final-unit" aria-label="Final volume unit">
-            <option value="µL">µL</option>
-            <option value="mL" selected>mL</option>
-            <option value="L">L</option>
-          </select>
-          <button id="final-button">Dilute</button>
-        </div>
-      </div>
-      <p class="error" id="dilute-error" role="alert"></p>
-    </section>
   </div>
 
   <!-- ── Container and readout ── -->
@@ -316,10 +293,9 @@
   <div class="column" id="column-curve">
     <section class="panel">
       <h2 class="panel-title">Titration Curve</h2>
-      <div id="capacity-warning" role="alert" hidden>Buffer capacity exceeded</div>
       <canvas id="curve" role="img"></canvas>
       <p id="curve-readout">Hover over or touch the plot to read a point on the curve.</p>
-      <p class="hint">One equivalent is one mole of OH⁻ per mole of total buffer. Drawn at the current total concentration; the volume of titrant is not included in the curve. All values assume 25 °C and ideal solutions (p<i>K</i><sub>w</sub> = 14).</p>
+      <p class="hint">Drawn at the current total concentration; the volume of titrant is not included in the curve. <span id="pkw-note"></span></p>
     </section>
 
     <section class="panel">
@@ -336,6 +312,7 @@
 //  BUFFER DATA
 // ═══════════════════════════════════════════════════════════════
 // Every buffer on the page. pKa values are the commonly tabulated 25 °C figures.
+//   dpKadT      change in pKa per °C, used to shift the pKa linearly away from 25 °C
 //   acid, base  labels for the acid and base forms, used everywhere the page names them
 //   acidSite, baseSite   what the highlighted protonation site is in each form's glyph
 //   baseCharge  the mark on the glyph's site in the base form: '−' if anionic there, '' if neutral
@@ -346,40 +323,42 @@ const BUFFERS = {
     name: 'Generic HA / A⁻', pKa: 4.76, acid: 'HA', base: 'A⁻', editablePKa: true,
   },
   acetate: {
-    name: 'Acetate', pKa: 4.76, acid: 'CH₃COOH', base: 'CH₃COO⁻',
+    name: 'Acetate', pKa: 4.76, dpKadT: 0.0002, acid: 'CH₃COOH', base: 'CH₃COO⁻',
     acidSite: 'carboxyl –COOH', baseSite: 'carboxylate –COO⁻', baseCharge: '−',
     core: 'M-13,5 L-5,0 M-5,0 L-5,-8 M-3,0 L-3,-8 M-5,0 L3,4', siteX: 6, siteY: 5,
   },
   mes: {
-    name: 'MES', pKa: 6.15, acid: 'MES±', base: 'MES⁻',
+    name: 'MES', pKa: 6.15, dpKadT: -0.011, acid: 'MES±', base: 'MES⁻',
     acidSite: 'ring N–H⁺', baseSite: 'ring N', baseCharge: '',
     core: 'M-1,0 L-5,-7 L-13,-7 L-17,0 L-13,7 L-5,7 Z M3,0 L9,4 L15,-1', siteX: 0, siteY: 0,
   },
   mops: {
-    name: 'MOPS', pKa: 7.20, acid: 'MOPS±', base: 'MOPS⁻',
+    name: 'MOPS', pKa: 7.20, dpKadT: -0.015, acid: 'MOPS±', base: 'MOPS⁻',
     acidSite: 'ring N–H⁺', baseSite: 'ring N', baseCharge: '',
     core: 'M-3,0 L-7,-7 L-15,-7 L-19,0 L-15,7 L-7,7 Z M1,0 L6,5 L11,0 L16,5', siteX: -2, siteY: 0,
   },
   hepes: {
-    name: 'HEPES', pKa: 7.50, acid: 'HEPES±', base: 'HEPES⁻',
+    name: 'HEPES', pKa: 7.50, dpKadT: -0.014, acid: 'HEPES±', base: 'HEPES⁻',
     acidSite: 'piperazine N–H⁺', baseSite: 'piperazine N', baseCharge: '',
     core: 'M2,0 L-2,-7 L-10,-7 L-14,0 L-10,7 L-2,7 Z M-14,0 L-19,4 M6,0 L12,4 L17,-1', siteX: 3, siteY: 0,
   },
   tris: {
-    name: 'Tris', pKa: 8.07, acid: 'TrisH⁺', base: 'Tris',
+    name: 'Tris', pKa: 8.07, dpKadT: -0.028, acid: 'TrisH⁺', base: 'Tris',
     acidSite: 'amine –NH₃⁺', baseSite: 'amine –NH₂', baseCharge: '',
     core: 'M-6,0 L-14,-7 M-6,0 L-15,0 M-6,0 L-14,7 M-6,0 L2,0', siteX: 5, siteY: 0,
   },
   bicarbonate: {
-    name: 'Bicarbonate', pKa: 6.1, acid: 'CO₂/H₂CO₃', base: 'HCO₃⁻',
+    name: 'Bicarbonate', pKa: 6.1, dpKadT: -0.0055, acid: 'CO₂/H₂CO₃', base: 'HCO₃⁻',
     acidSite: 'H₂CO₃ –OH', baseSite: 'HCO₃⁻ –O⁻', baseCharge: '−',
     core: 'M-5,0 L-13,-6 M-5,0 L-5,-9 M-3,0 L-3,-9 M-5,0 L3,3', siteX: 6, siteY: 4,
     note: 'Closed system here. Blood (pH 7.4) holds HCO₃⁻/CO₂ near 20:1, outside pKa ± 1, and stays buffered because lungs and kidneys keep regulating CO₂ and HCO₃⁻.',
   },
 };
 
-const DEFAULTS = { buffer: 'generic', concentration: 0.05, volume: 0.05 };
-const KW = 1e-14;
+const DEFAULTS = { buffer: 'generic', concentration: 0.05, volume: 0.5, temperature: 25 };
+// pKw of water by temperature (°C), interpolated between these standard values
+const PKW_TABLE = [[0, 14.94], [10, 14.53], [20, 14.17], [25, 14.00], [30, 13.83], [37, 13.62], [40, 13.53], [50, 13.26], [60, 13.02]];
+const MIN_TEMPERATURE = 0, MAX_TEMPERATURE = 60;
 const MIN_VOLUME = 1e-4, MAX_VOLUME = 2;    // L: 100 µL to 2 L
 
 // ═══════════════════════════════════════════════════════════════
@@ -391,6 +370,7 @@ const MIN_VOLUME = 1e-4, MAX_VOLUME = 2;    // L: 100 µL to 2 L
 const state = {
   buffer: DEFAULTS.buffer,
   pKa: BUFFERS[DEFAULTS.buffer].pKa,
+  temperature: DEFAULTS.temperature,             // °C
   volume: DEFAULTS.volume,                       // L
   totalMoles: DEFAULTS.concentration * DEFAULTS.volume,
   netBase: 0,                                    // mol
@@ -398,6 +378,18 @@ const state = {
   reagent: 'HCl',
   history: [],                                   // { label, before: {volume, totalMoles, netBase} }
 };
+
+function pKwAt(temperature) {
+  for (let i = 1; i < PKW_TABLE.length; i++) {
+    const [t0, p0] = PKW_TABLE[i - 1], [t1, p1] = PKW_TABLE[i];
+    if (temperature <= t1) return p0 + (temperature - t0) / (t1 - t0) * (p1 - p0);
+  }
+  return PKW_TABLE.at(-1)[1];
+}
+
+const pKaAt = (key, temperature) => BUFFERS[key].pKa + (BUFFERS[key].dpKadT ?? 0) * (temperature - 25);
+
+let KW = 10 ** -pKwAt(DEFAULTS.temperature);
 
 const baseFraction = (H, Ka) => Ka / (Ka + H);
 
@@ -434,8 +426,6 @@ function composition() {
   };
 }
 
-const capacityExceeded = () => equivalents() < 0 || equivalents() > 1;
-
 // Sets the pH at the current amounts, leaving the volume alone
 function setNetBaseForPH(pH) {
   state.netBase = chargeForPH(pH, totalConc(), ka()) * state.volume;
@@ -460,7 +450,7 @@ function setPH(pH) {
 
 function setBuffer(key) {
   state.buffer = key;
-  state.pKa = BUFFERS[key].pKa;
+  state.pKa = pKaAt(key, state.temperature);
   setNetBaseForPH(state.pKa);
   clearHistory();
   buildGlyphs();
@@ -476,6 +466,20 @@ function setGenericPKa(pKa) {
   const pH = currentPH();
   state.pKa = pKa;
   setNetBaseForPH(pH);
+  clearHistory();
+  render();
+  return null;
+}
+
+// The same solution warmed or cooled: its contents stay put, so the pKa and pKw shift and the pH
+// follows. The generic pKa is the student's own number and stays as entered.
+function setTemperature(temperature) {
+  if (!Number.isFinite(temperature) || temperature < MIN_TEMPERATURE || temperature > MAX_TEMPERATURE) {
+    return `Enter a temperature from ${MIN_TEMPERATURE} to ${MAX_TEMPERATURE} °C.`;
+  }
+  state.temperature = temperature;
+  KW = 10 ** -pKwAt(temperature);
+  if (!BUFFERS[state.buffer].editablePKa) state.pKa = pKaAt(state.buffer, temperature);
   clearHistory();
   render();
   return null;
@@ -521,29 +525,6 @@ function addStrong(reagent, stockMolar, addedLitres) {
   return null;
 }
 
-function dilute(finalLitres) {
-  const pHBefore = currentPH(), before = snapshot();
-  state.volume = finalLitres;
-  state.history.push({
-    label: `Water to ${formatVolume(finalLitres)}: pH ${pHBefore.toFixed(2)} → ${currentPH().toFixed(2)}`,
-    before,
-  });
-  render();
-  return null;
-}
-
-function addWater(addedLitres) {
-  if (!Number.isFinite(addedLitres) || addedLitres <= 0) return 'Enter a volume of water above 0.';
-  if (state.volume + addedLitres > MAX_VOLUME + 1e-12) return 'That would take the volume past 2 L.';
-  return dilute(state.volume + addedLitres);
-}
-
-function diluteToFinal(finalLitres) {
-  if (!Number.isFinite(finalLitres) || finalLitres <= state.volume) return 'The final volume must be larger than the current volume.';
-  if (finalLitres > MAX_VOLUME + 1e-12) return 'The final volume cannot be past 2 L.';
-  return dilute(finalLitres);
-}
-
 function undoLast() {
   const last = state.history.pop();
   if (!last) return;
@@ -552,8 +533,9 @@ function undoLast() {
 }
 
 function reset() {
-  const buffer = BUFFERS[state.buffer];
-  state.pKa = buffer.pKa;
+  state.temperature = DEFAULTS.temperature;
+  KW = 10 ** -pKwAt(state.temperature);
+  state.pKa = pKaAt(state.buffer, state.temperature);
   state.volume = DEFAULTS.volume;
   state.totalMoles = DEFAULTS.concentration * DEFAULTS.volume;
   state.concUnit = 'mM';
@@ -562,7 +544,7 @@ function reset() {
   particleScale = null;
   document.getElementById('conc-unit').value = 'mM';
   document.getElementById('vol-unit').value = 'mL';
-  for (const id of ['buffer-error', 'add-error', 'dilute-error']) showError(id, null);
+  for (const id of ['buffer-error', 'add-error']) showError(id, null);
   render();
 }
 
@@ -1017,8 +999,10 @@ function updateControls() {
   const note = document.getElementById('buffer-note');
   note.textContent = buffer.note ?? '';
   note.hidden = !buffer.note;
-  document.getElementById('pka-field').hidden = !buffer.editablePKa;
-  setInput('pka-input', String(+state.pKa.toFixed(2)));
+  document.getElementById('pka-input').disabled = !buffer.editablePKa;
+  setInput('pka-input', state.pKa.toFixed(2));
+  setInput('temp-input', String(state.temperature));
+  setText('pkw-note', `All values assume ideal solutions, with pKw = ${pKwAt(state.temperature).toFixed(2)} at ${state.temperature} °C.`);
 
   setInput('conc-input', formatPlain(totalConc() * CONC_FACTOR[state.concUnit]));
   const volUnit = document.getElementById('vol-unit').value;
@@ -1044,7 +1028,6 @@ function updateReadout() {
     status.className = 'poor';
     status.textContent = `Poor buffering: pH is ${distance.toFixed(2)} units from pKa`;
   }
-  document.getElementById('capacity-warning').hidden = !capacityExceeded();
   document.getElementById('vessel-svg').setAttribute('aria-label',
     `${shownVessel.label} holding ${formatVolume(state.volume)} of ${buffer.name} buffer, with ${particles.filter(p => !p.isBase).length} acid-form and ${particles.filter(p => p.isBase).length} base-form particles.`);
 }
@@ -1081,11 +1064,15 @@ const numberFrom = id => parseFloat(document.getElementById(id).value);
 const litresFrom = (inputId, unitId) => numberFrom(inputId) / VOL_FACTOR[document.getElementById(unitId).value];
 
 document.getElementById('buffer-select').innerHTML =
-  Object.entries(BUFFERS).map(([key, b]) => `<option value="${key}">${b.name} (pKa ${b.pKa.toFixed(2)})</option>`).join('');
+  Object.entries(BUFFERS).map(([key, b]) => `<option value="${key}">${b.name}</option>`).join('');
 
 document.getElementById('buffer-select').addEventListener('change', e => { showError('buffer-error', setBuffer(e.target.value)); });
 document.getElementById('pka-input').addEventListener('change', e => {
   showError('buffer-error', setGenericPKa(parseFloat(e.target.value)));
+  updateControls();
+});
+document.getElementById('temp-input').addEventListener('change', e => {
+  showError('buffer-error', setTemperature(parseFloat(e.target.value)));
   updateControls();
 });
 document.getElementById('conc-input').addEventListener('change', e => {
@@ -1117,12 +1104,6 @@ document.getElementById('reagent-hcl').addEventListener('click', () => chooseRea
 document.getElementById('reagent-naoh').addEventListener('click', () => chooseReagent('NaOH'));
 document.getElementById('add-button').addEventListener('click', () => {
   showError('add-error', addStrong(state.reagent, numberFrom('stock-input'), litresFrom('add-vol-input', 'add-vol-unit')));
-});
-document.getElementById('water-button').addEventListener('click', () => {
-  showError('dilute-error', addWater(litresFrom('water-input', 'water-unit')));
-});
-document.getElementById('final-button').addEventListener('click', () => {
-  showError('dilute-error', diluteToFinal(litresFrom('final-input', 'final-unit')));
 });
 document.getElementById('undo-button').addEventListener('click', undoLast);
 document.getElementById('reset').addEventListener('click', reset);
