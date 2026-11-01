@@ -769,7 +769,7 @@ test('the quiz never changes the conditions, and clicks do not place the point',
   const section = HTML.slice(HTML.indexOf('// ── Quiz Mode ──'), HTML.indexOf('// Hover readout'));
   assert.doesNotMatch(section, /state\.(pH|bpg|pco2|po2|coh|activity|show|hbModel)\b/);
   assert.match(HTML, /function placeSelectedPoint\(e\) \{\s+if \(quiz\.active\) return;/);
-  assert.match(HTML, /if \(quiz\.active\) \{\s+drawCurves\(ctx, g, curves\);\s+drawCurveLetters/, 'no delivery markings, arrow or red point');
+  assert.match(HTML, /if \(quiz\.active\) \{\s+drawNormalHbLabel\(ctx, g, curves\);\s+drawCurves\(ctx, g, curves\);\s+drawCurveLetters/, 'no delivery markings, arrow or red point');
 });
 
 test('feedback uses the shared answer colors with ✓ and ✗', () => {
