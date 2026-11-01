@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oxygen Binding</title>
+  <style>
+    :root {
+      --ut-crimson:  #C8102E;
+      --ut-taupe:    #685C53;
+      --ut-lavender: #FFCDFF;
+      --ut-purple:   #6A0DAD;
+      --bg-page:     #FFFFFF;
+      --bg-panel:    #FFF8FF;
+      --bg-active:   #FFCDD2;
+      --text-primary:   #000000;
+      --text-secondary: #685C53;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    [hidden] { display: none !important; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      color: var(--ut-crimson);
+      font-size: 1.7em;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.85em;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    #main-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+      max-width: 1044px;
+    }
+
+    canvas { display: block; }
+
+    :focus-visible {
+      outline: 3px solid var(--ut-crimson);
+      outline-offset: 2px;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+      padding: 18px;
+    }
+
+    .panel-section-title {
+      font-size: 0.75em;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ut-crimson);
+      margin-bottom: 10px;
+    }
+
+    /* ── Controls ── */
+    #sliders {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px 24px;
+    }
+
+    .slider-control label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-bottom: 6px;
+    }
+
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+
+    input[type=range] {
+      flex: 1;
+      min-width: 0;
+      height: 4px;
+      accent-color: var(--ut-crimson);
+      cursor: pointer;
+    }
+
+    input[type=number] {
+      flex: 0 0 74px;
+      width: 74px;
+      padding: 6px 8px;
+      background: #FFFFFF;
+      border: 1px solid var(--ut-taupe);
+      border-radius: 6px;
+      color: #000000;
+      font: inherit;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    input[type=number]:focus { border-color: var(--ut-crimson); }
+    input[aria-invalid="true"] { border: 2px solid var(--ut-crimson); padding: 5px 7px; }
+
+    .field-error { font-size: 0.8em; color: var(--ut-crimson); margin-top: 4px; }
+    .field-error:empty { display: none; }
+
+    .note {
+      font-size: 0.8em;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+    .note b { color: var(--ut-crimson); font-weight: 600; }
+
+    #toggle-section { margin-top: 16px; }
+
+    #toggles, #activity-buttons, #bottom-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font: inherit;
+      font-size: 0.88em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    button:hover { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    button.active { background: var(--bg-active); border-color: var(--ut-crimson); color: #000000; }
+
+    #activity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.88em; font-weight: 600; }
+    #activity button { font-weight: 400; padding: 4px 12px; }
+
+    #co-control { margin-top: 14px; max-width: 420px; }
+
+    #bottom-actions { margin-top: 16px; }
+
+    /* ── Plot and results ── */
+    #plot-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    #plot-panel { min-width: 0; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 16px;
+      margin-bottom: 8px;
+      font-size: 0.85em;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-item svg { flex-shrink: 0; }
+
+    #plot {
+      width: 100%;
+      border-radius: 6px;
+      background: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      cursor: crosshair;
+      touch-action: pan-y;   /* keep vertical page scrolling on phones; sideways drags scrub the readout */
+    }
+
+    .plot-hint { font-size: 0.8em; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
+    th, td { padding: 5px 4px; border-bottom: 1px solid #BFBFBF; text-align: right; }
+    thead th { border-bottom: 2px solid var(--ut-taupe); text-align: center; font-weight: 600; }
+    thead td { border-bottom: 2px solid var(--ut-taupe); }
+    tbody th { text-align: left; font-weight: 600; }
+    th .unit { display: block; font-weight: 400; font-size: 0.9em; color: var(--text-secondary); }
+
+    .shift { margin-top: 10px; font-size: 0.88em; line-height: 1.4; }
+    .shift b { font-weight: 600; }
+
+    @media (max-width: 960px) {
+      #plot-row { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 720px) {
+      #sliders { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .panel { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Oxygen Binding</h1>
+<p class="subtitle">How pH, 2,3-BPG and CO₂ shift the hemoglobin O₂ saturation curve</p>
+
+<main id="main-layout">
+
+  <section class="panel" aria-labelledby="controls-title">
+    <h2 class="panel-section-title" id="controls-title">Conditions</h2>
+    <div id="sliders">
+      <div class="slider-control">
+        <label for="pH-number">pH</label>
+        <div class="slider-row">
+          <input type="range" id="pH-range" min="6.8" max="7.8" step="0.01" aria-label="pH slider">
+          <input type="number" id="pH-number" min="6.8" max="7.8" step="0.01">
+        </div>
+        <p class="field-error" id="pH-error" role="status"></p>
+      </div>
+      <div class="slider-control">
+        <label for="bpg-number">[2,3-BPG] (mM)</label>
+        <div class="slider-row">
+          <input type="range" id="bpg-range" min="0" max="8" step="0.1" aria-label="2,3-BPG slider">
+          <input type="number" id="bpg-number" min="0" max="8" step="0.1">
+        </div>
+        <p class="field-error" id="bpg-error" role="status"></p>
+      </div>
+      <div class="slider-control">
+        <label for="pco2-number">pCO₂ (torr)</label>
+        <div class="slider-row">
+          <input type="range" id="pco2-range" min="20" max="80" step="1" aria-label="pCO₂ slider">
+          <input type="number" id="pco2-number" min="20" max="80" step="1">
+        </div>
+        <p class="field-error" id="pco2-error" role="status"></p>
+      </div>
+    </div>
+    <p class="note">In the body, CO₂ also lowers pH, but the sliders are kept separate so you can see each effect on its own.</p>
+
+    <div id="toggle-section">
+      <h2 class="panel-section-title">Show</h2>
+      <div id="toggles" role="group" aria-label="Curves and markers to show">
+        <button type="button" data-toggle="myoglobin">Myoglobin reference</button>
+        <button type="button" data-toggle="normal">Normal Hb reference</button>
+        <button type="button" data-toggle="markers">Lung/tissue markers</button>
+        <button type="button" data-toggle="fetal">Fetal Hb</button>
+        <button type="button" data-toggle="co">Carbon monoxide</button>
+      </div>
+
+      <div id="activity" hidden>
+        <span id="activity-label">Tissue pO₂:</span>
+        <div id="activity-buttons" role="group" aria-labelledby="activity-label">
+          <button type="button" data-activity="rest">Rest (40 torr)</button>
+          <button type="button" data-activity="exercise">Exercise (20 torr)</button>
+        </div>
+      </div>
+
+      <div id="co-control" hidden>
+        <div class="slider-control">
+          <label for="coh-number">COHb (%)</label>
+          <div class="slider-row">
+            <input type="range" id="coh-range" min="0" max="50" step="1" aria-label="COHb slider">
+            <input type="number" id="coh-number" min="0" max="50" step="1">
+          </div>
+          <p class="field-error" id="coh-error" role="status"></p>
+        </div>
+        <p class="note"><b>Why CO is doubly harmful:</b> less capacity to carry O₂, and the remaining O₂ is released less readily.</p>
+      </div>
+    </div>
+
+    <div id="bottom-actions">
+      <button type="button" id="reset">Reset to normal physiological conditions</button>
+    </div>
+  </section>
+
+  <div id="plot-row">
+    <section class="panel" id="plot-panel" aria-labelledby="plot-title">
+      <h2 class="panel-section-title" id="plot-title">O₂ saturation curve</h2>
+      <div class="legend" id="legend"></div>
+      <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
+      <p class="plot-hint">Hover or tap the plot to read the nearest curve.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="results-title">
+      <h2 class="panel-section-title" id="results-title">Results</h2>
+      <div id="results-table"></div>
+      <div id="results-shift"></div>
+      <p class="note" id="co-results-note" hidden>With CO, Y is a fraction of all Hb, and P<sub>50</sub> describes the sites still free. The fetal curve is shown without CO.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+// ═══ 1. STATE ═════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+
+const state = {
+  pH: 7.4, bpg: 5, pco2: 40, coh: 20,
+  show: { myoglobin: true, normal: true, markers: true, fetal: false, co: false },
+  activity: 'rest',
+  hover: null,
+};
+
+
+// ═══ 2. OXYGEN-BINDING MODEL (no DOM access) ══════════════════
+
+// Every adjustable constant of the empirical model.
+const MODEL = {
+  myoglobin: { p50: 2.8, n: 1 },
+
+  hemoglobin: {
+    p50: 26,              // torr, at the normal conditions below
+    n: 2.8,
+    normal: { pH: 7.4, bpg: 5, pco2: 40 },
+    bohr: -0.48,          // Δlog₁₀P50 / ΔpH
+    strippedP50: 1,       // torr, at 0 mM BPG
+    bpgHalf: 1,           // mM; smaller values make the BPG effect level off sooner
+    p50AtHighCO2: 30,     // torr, at the pCO₂ below with everything else normal
+    highCO2: 80,          // torr
+  },
+
+  fetal: {
+    p50: 19,              // torr, at normal conditions
+    n: 2.8,
+    bpgStrength: 0.25,    // fraction of the adult BPG effect (on the log scale)
+  },
+
+  carbonMonoxide: {
+    referenceFraction: 0.2,   // At this fraction of blocked sites...
+    p50Ratio: 18 / 26,        // ...P50 is multiplied by this (18 torr from 26)
+    nAtReference: 2.2,        // ...and n falls to this
+    minimumN: 1,
+  },
+
+  tissue: { lung: 100, rest: 40, exercise: 20 },   // pO₂ in torr
+};
+
+// A Hill curve: Y = cap × pO₂ⁿ / (P50ⁿ + pO₂ⁿ). The cap is 1 unless CO blocks some sites.
+function saturation(curve, pO2) {
+  if (pO2 <= 0) return 0;
+  const ratio = (curve.p50 / pO2) ** curve.n;
+  return curve.cap / (1 + ratio);
+}
+
+// How far along the BPG effect is: 0 at 0 mM, 1 at the normal level, then leveling off.
+function bpgProgress(bpg) {
+  const { bpgHalf, normal } = MODEL.hemoglobin;
+  return (bpg / (bpgHalf + bpg)) * ((normal.bpg + bpgHalf) / normal.bpg);
+}
+
+// Multiplies P50 by this for a given BPG level; a hyperbola in log P50.
+function bpgFactor(bpg) {
+  const { p50, strippedP50 } = MODEL.hemoglobin;
+  return 10 ** (Math.log10(p50 / strippedP50) * (bpgProgress(bpg) - 1));
+}
+
+function bohrFactor(pH) {
+  const { bohr, normal } = MODEL.hemoglobin;
+  return 10 ** (bohr * (pH - normal.pH));
+}
+
+// Carbamate effect, linear in log P50 so that it reaches the target at high pCO₂.
+function co2Factor(pco2) {
+  const { p50, p50AtHighCO2, highCO2, normal } = MODEL.hemoglobin;
+  return (p50AtHighCO2 / p50) ** ((pco2 - normal.pco2) / (highCO2 - normal.pco2));
+}
+
+function adultCurve({ pH, bpg, pco2 }) {
+  const { p50, n } = MODEL.hemoglobin;
+  return { p50: p50 * bohrFactor(pH) * bpgFactor(bpg) * co2Factor(pco2), n, cap: 1 };
+}
+
+// CO blocks a fraction f of the sites. The rest bind O₂ more tightly and less cooperatively.
+function withCarbonMonoxide(curve, f) {
+  const { referenceFraction, p50Ratio, nAtReference, minimumN } = MODEL.carbonMonoxide;
+  const scale = f / referenceFraction;
+  return {
+    p50: curve.p50 * p50Ratio ** scale,
+    n: Math.max(minimumN, curve.n - (curve.n - nAtReference) * scale),
+    cap: 1 - f,
+  };
+}
+
+function fetalCurve({ pH, bpg, pco2 }) {
+  const { p50, n, bpgStrength } = MODEL.fetal;
+  return { p50: p50 * bohrFactor(pH) * bpgFactor(bpg) ** bpgStrength * co2Factor(pco2), n, cap: 1 };
+}
+
+const myoglobinCurve = () => ({ ...MODEL.myoglobin, cap: 1 });
+const normalHbCurve = () => adultCurve(MODEL.hemoglobin.normal);
+
+function delivery(curve, tissuePO2) {
+  const lung = saturation(curve, MODEL.tissue.lung);
+  const tissue = saturation(curve, tissuePO2);
+  return { lung, tissue, delivered: lung - tissue };
+}
+
+// Compared with normal Hb, on P50. Within 1% counts as the same.
+function shiftFrom(p50, normalP50 = MODEL.hemoglobin.p50) {
+  const ratio = p50 / normalP50;
+  if (ratio > 1.01) return 'right';
+  if (ratio < 0.99) return 'left';
+  return 'none';
+}
+
+function curvePoints(curve, step = 0.25, max = 120) {
+  const pts = [];
+  for (let p = 0; p <= max + 1e-9; p += step) pts.push({ x: p, y: saturation(curve, p) });
+  return pts;
+}
+
+
+// ═══ 3. PLOTTING ══════════════════════════════════════════════
+
+// All colors match the :root tokens above.
+const COLORS = { crimson: '#C8102E', taupe: '#685C53', purple: '#6A0DAD', gray: '#828282', grid: '#BFBFBF', text: '#000000', band: 'rgba(255, 205, 255, 0.55)' };
+const FONT = "'Segoe UI', Arial, sans-serif";
+
+// Each curve differs by line style or markers as well as color.
+const STYLES = {
+  adjustable: { color: COLORS.crimson, dash: [], width: 2.75 },
+  myoglobin:  { color: COLORS.taupe, dash: [9, 5], width: 2 },
+  normal:     { color: COLORS.gray, dash: [3, 3], width: 2 },
+  fetal:      { color: COLORS.purple, dash: [], width: 2.25, diamonds: true },
+};
+const PLOT = { xMax: 120, aspect: 450 / 700, minHeight: 300, left: 58, right: 58, top: 24, bottom: 46, diamonds: 9 };
+
+const plot = { canvas: $('plot'), cssWidth: 0, cssHeight: 0, dpr: 1 };
+
+function currentCurve() {
+  const base = adultCurve(state);
+  return state.show.co ? withCarbonMonoxide(base, state.coh / 100) : base;
+}
+
+function adjustableName() {
+  return state.show.co ? `Adjustable Hb + ${state.coh}% COHb` : 'Adjustable Hb';
+}
+
+// The curves to draw, bottom to top. Dashed references go over the solid curves so that both
+// stay visible when they overlap at normal conditions.
+function visibleCurves() {
+  const list = [];
+  if (state.show.fetal) list.push({ key: 'fetal', name: 'Fetal Hb', curve: fetalCurve(state) });
+  list.push({ key: 'adjustable', name: adjustableName(), curve: currentCurve() });
+  if (state.show.myoglobin) list.push({ key: 'myoglobin', name: 'Myoglobin', curve: myoglobinCurve() });
+  if (state.show.normal) list.push({ key: 'normal', name: 'Normal Hb', curve: normalHbCurve() });
+  return list.map(c => ({ ...c, style: STYLES[c.key], pts: curvePoints(c.curve) }));
+}
+
+function resizeCanvas() {
+  const cssWidth = plot.canvas.parentElement.clientWidth;
+  if (!cssWidth) return;
+  const cssHeight = Math.max(PLOT.minHeight, Math.round(cssWidth * PLOT.aspect));
+  const dpr = window.devicePixelRatio || 1;
+  plot.canvas.style.height = `${cssHeight}px`;
+  plot.canvas.width = Math.round(cssWidth * dpr);
+  plot.canvas.height = Math.round(cssHeight * dpr);
+  Object.assign(plot, { cssWidth, cssHeight, dpr });
+}
+
+function geometry() {
+  const W = plot.cssWidth, H = plot.cssHeight;
+  const narrow = W < 460;
+  const left = narrow ? 50 : PLOT.left, right = narrow ? 46 : PLOT.right;
+  const plotW = W - left - right, plotH = H - PLOT.top - PLOT.bottom;
+  return {
+    W, H, left, right, top: PLOT.top, plotW, plotH,
+    xStep: plotW < 280 ? 40 : 20,
+    sx: p => left + p / PLOT.xMax * plotW,
+    sy: y => PLOT.top + plotH - y * plotH,
+  };
+}
+
+function drawAxes(ctx, g) {
+  const bottom = g.top + g.plotH, rightEdge = g.left + g.plotW;
+
+  // Dashed guides
+  ctx.strokeStyle = COLORS.grid;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  for (let p = g.xStep; p <= PLOT.xMax; p += g.xStep) { ctx.moveTo(g.sx(p), g.top); ctx.lineTo(g.sx(p), bottom); }
+  for (let y = 0.2; y <= 1.001; y += 0.2) { ctx.moveTo(g.left, g.sy(y)); ctx.lineTo(rightEdge, g.sy(y)); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Axis lines
+  ctx.strokeStyle = COLORS.taupe;
+  ctx.beginPath();
+  ctx.moveTo(g.left, g.top);
+  ctx.lineTo(g.left, bottom);
+  ctx.lineTo(rightEdge, bottom);
+  ctx.lineTo(rightEdge, g.top);
+  ctx.stroke();
+
+  // Ticks
+  ctx.fillStyle = COLORS.text;
+  ctx.font = `12px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let p = 0; p <= PLOT.xMax; p += g.xStep) ctx.fillText(String(p), g.sx(p), bottom + 5);
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 5; i++) {
+    const y = i / 5;
+    ctx.textAlign = 'right';
+    ctx.fillText(y.toFixed(1), g.left - 6, g.sy(y));
+    ctx.textAlign = 'left';
+    ctx.fillText(`${i * 20}%`, rightEdge + 6, g.sy(y));
+  }
+
+  // Titles
+  ctx.font = `600 13px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('pO₂ (torr)', g.left + g.plotW / 2, g.H - 4);
+  ctx.save();
+  ctx.translate(11, g.top + g.plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Fractional saturation, Y', 0, 0);
+  ctx.restore();
+}
+
+function labelWithHalo(ctx, text, x, y) {
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
+}
+
+function drawMarkers(ctx, g, curve) {
+  const tissueP = MODEL.tissue[state.activity];
+  const { lung, tissue, delivered } = delivery(curve, tissueP);
+  const xLung = g.sx(MODEL.tissue.lung), xTissue = g.sx(tissueP);
+  const yLung = g.sy(lung), yTissue = g.sy(tissue);
+
+  // The band of O₂ handed over between lung and tissue
+  ctx.fillStyle = COLORS.band;
+  ctx.fillRect(g.left, yLung, xLung - g.left, yTissue - yLung);
+
+  ctx.strokeStyle = COLORS.text;
+  ctx.lineWidth = 1.25;
+  ctx.setLineDash([6, 3]);
+  ctx.beginPath();
+  for (const x of [xLung, xTissue]) { ctx.moveTo(x, g.top); ctx.lineTo(x, g.top + g.plotH); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = `600 12px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Lung', xLung, g.top - 4);
+  ctx.fillText(state.activity === 'rest' ? 'Tissue (rest)' : 'Tissue (exercise)', xTissue, g.top - 4);
+
+  // Named in the plot, since the band's fill alone wouldn't say what it is. Just left of the lung
+  // line the curve runs along the top of the band, which leaves the middle of the band clear.
+  if (yTissue - yLung >= 18) {
+    ctx.font = `600 11px ${FONT}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const percent = `${(delivered * 100).toFixed(1)}%`;
+    const full = `O₂ delivered: ${percent}`;
+    const room = (xLung - xTissue) * 0.75;   // the left of that span is where the curve still climbs
+    labelWithHalo(ctx, ctx.measureText(full).width <= room ? full : `${percent} O₂`, xLung - 6, (yLung + yTissue) / 2);
+  }
+}
+
+function drawCurves(ctx, g, curves) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(g.left, g.top - 2, g.plotW, g.plotH + 4);
+  ctx.clip();
+  for (const { style, pts } of curves) {
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.width;
+    ctx.lineJoin = 'round';
+    ctx.setLineDash(style.dash);
+    ctx.beginPath();
+    pts.forEach((pt, i) => (i ? ctx.lineTo(g.sx(pt.x), g.sy(pt.y)) : ctx.moveTo(g.sx(pt.x), g.sy(pt.y))));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (style.diamonds) {
+      for (let i = 1; i <= PLOT.diamonds; i++) {
+        const pt = pts[Math.round(i / (PLOT.diamonds + 1) * (pts.length - 1))];
+        drawDiamond(ctx, g.sx(pt.x), g.sy(pt.y), style.color);
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function drawDiamond(ctx, x, y, color) {
+  const r = 5;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r, y);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r, y);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1.5;
+  ctx.fill();
+  ctx.stroke();
+}
+
+// P50 marked on the adjustable curve. With CO, half of the free sites means Y = cap/2.
+function drawP50(ctx, g, curve) {
+  if (curve.p50 > PLOT.xMax) return;
+  const x = g.sx(curve.p50), y = g.sy(curve.cap / 2);
+  ctx.strokeStyle = COLORS.crimson;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([1.5, 3]);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, g.top + g.plotH);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fillStyle = COLORS.crimson;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = COLORS.text;
+  ctx.font = `600 12px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  labelWithHalo(ctx, 'P₅₀', x + 8, y + 12);
+}
+
+function nearestPoint(curves, g, px, py) {
+  let best = null, bestDist = Infinity;
+  for (const entry of curves) {
+    for (const pt of entry.pts) {
+      const dist = (g.sx(pt.x) - px) ** 2 + (g.sy(pt.y) - py) ** 2;
+      if (dist < bestDist) { bestDist = dist; best = { entry, pt }; }
+    }
+  }
+  return best;
+}
+
+function drawHover(ctx, g, curves) {
+  const { x: px, y: py } = state.hover;
+  if (px < g.left || px > g.left + g.plotW || py < g.top || py > g.top + g.plotH) return;
+
+  ctx.strokeStyle = COLORS.taupe;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
+  ctx.moveTo(px, g.top); ctx.lineTo(px, g.top + g.plotH);
+  ctx.moveTo(g.left, py); ctx.lineTo(g.left + g.plotW, py);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const { entry, pt } = nearestPoint(curves, g, px, py);
+  ctx.beginPath();
+  ctx.arc(g.sx(pt.x), g.sy(pt.y), 5, 0, Math.PI * 2);
+  ctx.fillStyle = entry.style.color;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+
+  const lines = [entry.name, `pO₂ = ${pt.x.toFixed(1)} torr`, `Y = ${pt.y.toFixed(3)} (${(pt.y * 100).toFixed(1)}%)`];
+  ctx.font = `12px ${FONT}`;
+  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16;
+  const boxH = lines.length * 16 + 10;
+  let boxX = px + 12, boxY = py + 12;
+  if (boxX + boxW > g.W - 2) boxX = px - boxW - 12;
+  if (boxX < 2) boxX = 2;
+  if (boxY + boxH > g.H - 2) boxY = py - boxH - 12;
+  if (boxY < 2) boxY = 2;
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = COLORS.taupe;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxW, boxH, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.text;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  lines.forEach((line, i) => {
+    ctx.font = `${i === 0 ? '600 ' : ''}12px ${FONT}`;
+    ctx.fillText(line, boxX + 8, boxY + 6 + i * 16);
+  });
+}
+
+function drawPlot() {
+  if (!plot.cssWidth) return;
+  const ctx = plot.canvas.getContext('2d');
+  ctx.setTransform(plot.dpr, 0, 0, plot.dpr, 0, 0);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, plot.cssWidth, plot.cssHeight);
+  const g = geometry();
+  const curves = visibleCurves();
+  const adjustable = currentCurve();
+  if (state.show.markers) drawMarkers(ctx, g, adjustable);
+  drawAxes(ctx, g);
+  drawCurves(ctx, g, curves);
+  drawP50(ctx, g, adjustable);
+  if (state.hover) drawHover(ctx, g, curves);
+}
+
+let frame = 0;
+function scheduleDraw() {
+  if (frame) return;
+  frame = requestAnimationFrame(() => {
+    frame = 0;
+    drawPlot();
+  });
+}
+
+
+// ═══ 4. LEGEND AND RESULTS ════════════════════════════════════
+
+function legendSwatch(style) {
+  const dash = style.dash.length ? ` stroke-dasharray="${style.dash.join(' ')}"` : '';
+  const diamond = style.diamonds ? `<path d="M18 2 L23 7 L18 12 L13 7 Z" fill="${style.color}" stroke="#FFFFFF" stroke-width="1.5"/>` : '';
+  return `<svg width="36" height="14" aria-hidden="true"><line x1="0" y1="7" x2="36" y2="7" stroke="${style.color}" stroke-width="${style.width}"${dash}/>${diamond}</svg>`;
+}
+
+function renderLegend() {
+  // The adjustable curve first, whatever the drawing order.
+  const entries = visibleCurves().sort((a, b) => (b.key === 'adjustable') - (a.key === 'adjustable'));
+  $('legend').innerHTML = entries.map(c => `<span class="legend-item">${legendSwatch(c.style)}${c.name}</span>`).join('');
+}
+
+const fmtY = y => `${y.toFixed(3)} (${(y * 100).toFixed(1)}%)`;
+
+const SHIFT_TEXT = {
+  right: '→ Shifted right (lower affinity)',
+  left: '← Shifted left (higher affinity)',
+  none: '= Same as normal Hb',
+};
+
+function renderResults() {
+  const tissueP = MODEL.tissue[state.activity];
+  const columns = [{ name: 'Adjustable Hb', curve: currentCurve() }];
+  if (state.show.fetal) columns.push({ name: 'Fetal Hb', curve: fetalCurve(state) });
+  const data = columns.map(c => ({ ...c, ...delivery(c.curve, tissueP) }));
+  const row = (label, unit, value) => `<tr><th scope="row">${label}${unit ? ` <span class="unit">${unit}</span>` : ''}</th>${data.map(d => `<td>${value(d)}</td>`).join('')}</tr>`;
+
+  $('results-table').innerHTML = `<table><thead><tr><td></td>${data.map(d => `<th scope="col">${d.name}</th>`).join('')}</tr></thead><tbody>` +
+    row('P<sub>50</sub>', 'torr', d => d.curve.p50.toFixed(1)) +
+    row('Hill coefficient, n', '', d => d.curve.n.toFixed(2)) +
+    row('Y at lung', `${MODEL.tissue.lung} torr`, d => fmtY(d.lung)) +
+    row('Y at tissue', `${tissueP} torr`, d => fmtY(d.tissue)) +
+    row('% O₂ delivered', 'Y(lung) − Y(tissue)', d => `${(d.delivered * 100).toFixed(1)}%`) +
+    '</tbody></table>';
+  $('results-shift').innerHTML = data.map(d => `<p class="shift"><b>${d.name}:</b> ${SHIFT_TEXT[shiftFrom(d.curve.p50)]}</p>`).join('');
+  $('co-results-note').hidden = !state.show.co;
+}
+
+function updateCanvasLabel() {
+  const names = visibleCurves().map(c => c.name).join(', ');
+  const c = currentCurve();
+  const { delivered } = delivery(c, MODEL.tissue[state.activity]);
+  plot.canvas.setAttribute('aria-label',
+    `Fractional O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}. Adjustable Hb has P50 ${c.p50.toFixed(1)} torr and delivers ${(delivered * 100).toFixed(1)}% of its O₂ capacity. Values are in the results panel.`);
+}
+
+
+// ═══ 5. UI WIRING ═════════════════════════════════════════════
+
+const SLIDERS = [
+  { key: 'pH', decimals: 2, name: 'pH' },
+  { key: 'bpg', decimals: 1, name: '[2,3-BPG]' },
+  { key: 'pco2', decimals: 0, name: 'pCO₂' },
+  { key: 'coh', decimals: 0, name: 'COHb' },
+];
+const NORMAL_CONDITIONS = { ...MODEL.hemoglobin.normal, coh: 20 };
+
+function setPressed(button, on) {
+  button.classList.toggle('active', on);
+  button.setAttribute('aria-pressed', String(on));
+}
+
+// Single hub: every control change comes through here.
+function render() {
+  for (const { key, decimals } of SLIDERS) {
+    $(`${key}-range`).value = state[key];
+    const number = $(`${key}-number`);
+    // Leave a field alone while someone is typing in it.
+    if (document.activeElement !== number) number.value = state[key].toFixed(decimals);
+  }
+  document.querySelectorAll('[data-toggle]').forEach(b => setPressed(b, state.show[b.dataset.toggle]));
+  document.querySelectorAll('[data-activity]').forEach(b => setPressed(b, b.dataset.activity === state.activity));
+  $('activity').hidden = !state.show.markers;
+  $('co-control').hidden = !state.show.co;
+  state.hover = null;
+  renderLegend();
+  renderResults();
+  updateCanvasLabel();
+  drawPlot();
+}
+
+function clearFieldError(key) {
+  $(`${key}-number`).removeAttribute('aria-invalid');
+  $(`${key}-error`).textContent = '';
+}
+
+for (const { key, decimals, name } of SLIDERS) {
+  const range = $(`${key}-range`), number = $(`${key}-number`);
+  const min = Number(range.min), max = Number(range.max);
+
+  range.addEventListener('input', () => {
+    state[key] = Number(range.value);
+    clearFieldError(key);
+    number.value = state[key].toFixed(decimals);
+    render();
+  });
+
+  // An out-of-range entry is flagged, and the plot keeps its last good value.
+  number.addEventListener('input', () => {
+    const value = number.value.trim() === '' ? NaN : Number(number.value);
+    if (!Number.isFinite(value) || value < min || value > max) {
+      number.setAttribute('aria-invalid', 'true');
+      $(`${key}-error`).textContent = `${name} must be from ${min} to ${max}.`;
+      return;
+    }
+    clearFieldError(key);
+    state[key] = value;
+    render();
+  });
+
+  number.addEventListener('blur', () => {
+    clearFieldError(key);
+    number.value = state[key].toFixed(decimals);
+  });
+}
+
+document.querySelectorAll('[data-toggle]').forEach(button => button.addEventListener('click', () => {
+  const key = button.dataset.toggle;
+  state.show[key] = !state.show[key];
+  render();
+}));
+
+document.querySelectorAll('[data-activity]').forEach(button => button.addEventListener('click', () => {
+  state.activity = button.dataset.activity;
+  render();
+}));
+
+// Returns the blood to normal, and leaves which reference curves are showing as they are.
+$('reset').addEventListener('click', () => {
+  Object.assign(state, NORMAL_CONDITIONS, { activity: 'rest' });
+  state.show.co = false;
+  SLIDERS.forEach(({ key }) => clearFieldError(key));
+  render();
+});
+
+// Hover readout. A touch has no "leave", so its readout stays until the next tap elsewhere.
+function setHover(e) {
+  const rect = plot.canvas.getBoundingClientRect();
+  state.hover = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  scheduleDraw();
+}
+plot.canvas.addEventListener('pointerdown', setHover);
+plot.canvas.addEventListener('pointermove', setHover);
+plot.canvas.addEventListener('pointerleave', e => {
+  if (e.pointerType !== 'mouse') return;
+  state.hover = null;
+  scheduleDraw();
+});
+document.addEventListener('pointerdown', e => {
+  if (e.target !== plot.canvas && state.hover) {
+    state.hover = null;
+    scheduleDraw();
+  }
+});
+
+new ResizeObserver(() => {
+  if (plot.canvas.parentElement.clientWidth === plot.cssWidth) return;
+  resizeCanvas();
+  drawPlot();
+}).observe($('plot-wrap'));
+
+
+// ═══ 6. STARTUP ═══════════════════════════════════════════════
+
+resizeCanvas();
+render();
+</script>
+</body>
+</html>
