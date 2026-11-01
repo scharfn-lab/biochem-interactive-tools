@@ -679,6 +679,21 @@ test('a right answer after the hint still gets credit, and empty after the hint 
   assert.equal(checkPIWith(page, '').textContent, 'The pI is 5.55.');
 });
 
+test('the quiz accepts the textbook average too, and it counts as correct', () => {
+  const page = loadPage();
+  page.el('quiz-toggle').fire('click');
+  page.run(`setSequence('DD'); clearAnswers(); refresh();`);
+  page.el('breakdown-btn').fire('click');
+  page.el('quiz-pi').value = '3.6';
+  page.el('quiz-pi-check').fire('click');
+  assert.equal(page.el('quiz-pi-result').textContent, '✓ pI: correct. The exact pI is 3.40 and the textbook average is 3.60.');
+  assert.deepEqual(page.json('breakdown.pi'), { correct: 1, incorrect: 0 });
+
+  page.run(`setSequence('HHH'); clearAnswers(); refresh();`);
+  page.el('quiz-reveal').fire('click');
+  assert.equal(page.el('quiz-pi-result').textContent, '✗ pI: the exact pI is 7.26 and the textbook average is 7.00.');
+});
+
 test('the wrong-guess count starts over with each new peptide', () => {
   const page = loadPage();
   enterSeq(page, 'G');
@@ -702,6 +717,69 @@ test('the range uses the two pKa values on either side of the neutral form', () 
   for (const [seq, pi] of [['G', 5.55], ['K', 9.4], ['D', 3.6]]) {
     const [low, high] = page0.json(`relevantPKas(ionizableGroups('${seq}'))`);
     close((low + high) / 2, pi, 0.005, seq);
+  }
+});
+
+test('the textbook average and the exact pI are both accepted, each within ±0.1', () => {
+  // Hand-worked: Asp-Asp averages 3.1 and 4.1 to 3.60, His-His-His averages 6.0 and 8.0 to 7.00
+  const cases = [
+    ['DD', 3.4, 3.6, ['3.40', '3.60', '3.32', '3.69', '3.5'], ['3.25', '3.75', '5']],
+    ['HHH', 7.26, 7, ['7.26', '7.00', '6.91', '7.34', '7.1'], ['6.85', '7.40', '6']],
+  ];
+  for (const [seq, exact, average, accepted, rejected] of cases) {
+    close(pI(seq), exact, 0.005, seq);
+    close(page0.run(`textbookPI(ionizableGroups('${seq}'))`), average, 1e-9, seq);
+    const page = loadPage();
+    for (const value of accepted) {
+      enterSeq(page, 'G');
+      enterSeq(page, seq);
+      assert.equal(checkPIWith(page, value).className, 'quiz-result right', `${seq}: ${value}`);
+    }
+    for (const value of rejected) {
+      enterSeq(page, 'G');
+      enterSeq(page, seq);
+      assert.equal(checkPIWith(page, value).className, 'quiz-result wrong', `${seq}: ${value}`);
+    }
+  }
+});
+
+test('feedback names both values only when they differ by more than the tolerance', () => {
+  const both = 'the exact pI is 3.40 and the textbook average is 3.60';
+  const page = loadPage();
+  enterSeq(page, 'DD');
+  assert.equal(checkPIWith(page, '3.6').textContent, `✓ pI: correct. The exact pI is 3.40 and the textbook average is 3.60.`);
+  enterSeq(page, 'G');
+  enterSeq(page, 'DD');
+  assert.equal(checkPIWith(page, '').textContent, 'The exact pI is 3.40 and the textbook average is 3.60.');
+  enterSeq(page, 'G');
+  enterSeq(page, 'DD');
+  checkPIWith(page, '9');
+  assert.equal(checkPIWith(page, '9').textContent, `✗ pI: ${both}.`);
+
+  enterSeq(page, 'ADEHKR');  // 7.01 and 7.00 agree within the tolerance
+  assert.equal(checkPIWith(page, '7').textContent, '✓ pI: correct. The actual pI is 7.01.');
+  enterSeq(page, 'G');
+  assert.equal(checkPIWith(page, '').textContent, 'The pI is 5.55.');
+});
+
+test('the first wrong guess still keeps both values back', () => {
+  const page = loadPage();
+  enterSeq(page, 'DD');
+  const text = checkPIWith(page, '9').textContent;
+  assert.match(text, /Evaluate the structure between pH 3\.1 and pH 4\.1/);
+  assert.doesNotMatch(text, /3\.40|3\.60/);
+});
+
+test('following the hint and averaging is always accepted, for any peptide', () => {
+  const page = loadPage();
+  const codes = 'GAVLIPFWMSTCYNQDEKRH'.split('');
+  for (const a of codes) {
+    for (const b of codes) {
+      enterSeq(page, 'G');
+      enterSeq(page, `${a}-${b}-${a}`);
+      const average = page.run('textbookPI(currentGroups())');
+      assert.equal(checkPIWith(page, average.toFixed(2)).className, 'quiz-result right', `${a}${b}${a}`);
+    }
   }
 });
 

@@ -847,19 +847,43 @@ function formatSequence(seq, format) {
   return format === 'one' ? seq : seq.split('').map(c => RESIDUES[c]).join('-');
 }
 
-// The feedback for a pI answer. A first wrong guess gets a pH range to evaluate, not the answer.
+// The textbook pI: the average of the two pKa values either side of the neutral form
+function textbookPI(groups) {
+  const [low, high] = relevantPKas(groups);
+  return (low + high) / 2;
+}
+
+// States the pI, adding the textbook average only when it would change whether an answer is accepted
+function piStatement(groups) {
+  const exact = findPI(groups);
+  const average = textbookPI(groups);
+  return withinTolerance(average, exact, PI_TOLERANCE)
+    ? `the actual pI is ${exact.toFixed(2)}`
+    : `the exact pI is ${exact.toFixed(2)} and the textbook average is ${average.toFixed(2)}`;
+}
+
+const capitalizeFirst = text => text[0].toUpperCase() + text.slice(1);
+
+// The feedback for a pI answer. Either the exact pI or the textbook average counts as right.
+// A first wrong guess gets a pH range to evaluate, not the answer.
 function piFeedback(groups, answer, wrongGuesses) {
-  const actual = findPI(groups).toFixed(2);
-  if (answer === null) return { kind: 'info', outcome: 'shown', text: `The pI is ${actual}.` };
-  if (withinTolerance(answer, findPI(groups), PI_TOLERANCE)) {
-    return { kind: 'right', outcome: 'right', text: `✓ pI: correct. The actual pI is ${actual}.` };
+  const exact = findPI(groups);
+  const statement = piStatement(groups);
+  if (answer === null) {
+    const text = withinTolerance(textbookPI(groups), exact, PI_TOLERANCE)
+      ? `The pI is ${exact.toFixed(2)}.`
+      : `${capitalizeFirst(statement)}.`;
+    return { kind: 'info', outcome: 'shown', text };
+  }
+  if (withinTolerance(answer, exact, PI_TOLERANCE) || withinTolerance(answer, textbookPI(groups), PI_TOLERANCE)) {
+    return { kind: 'right', outcome: 'right', text: `✓ pI: correct. ${capitalizeFirst(statement)}.` };
   }
   if (wrongGuesses === 0) {
     const [low, high] = relevantPKas(groups);
     const range = low === high ? `near pH ${low.toFixed(1)}` : `between pH ${low.toFixed(1)} and pH ${high.toFixed(1)}`;
     return { kind: 'wrong', outcome: 'hint', text: `✗ pI: not within ±${PI_TOLERANCE}. Evaluate the structure ${range}, then try again.` };
   }
-  return { kind: 'wrong', outcome: 'shown', text: `✗ pI: the actual pI is ${actual}.` };
+  return { kind: 'wrong', outcome: 'shown', text: `✗ pI: ${statement}.` };
 }
 
 function checkPI() {
@@ -949,7 +973,7 @@ function revealQuiz() {
   const groups = currentGroups();
   if (!quizField.seq.done) finishField('seq', false, 'wrong', `✗ Sequence: the peptide is ${formatSequence(sequence, quizFormat)}.`);
   if (!quizField.charge.done) finishField('charge', false, 'wrong', `✗ Net charge: the net charge is ${formatSigned(netCharge(groups, pH))}.`);
-  if (!quizField.pi.done) finishField('pi', false, 'wrong', `✗ pI: the actual pI is ${findPI(groups).toFixed(2)}.`);
+  if (!quizField.pi.done) finishField('pi', false, 'wrong', `✗ pI: ${piStatement(groups)}.`);
 }
 
 const QUIZ_PH_VALUES = [2, 7, 13];
