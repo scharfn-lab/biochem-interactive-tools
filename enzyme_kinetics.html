@@ -13,11 +13,11 @@
       --bg-page:     #FFFFFF;
       --bg-panel:    #FFF8FF;
       --bg-active:   #FFCDD2;
-      --bg-disabled: #F0F0F0;
+      --bg-disabled: #E4E4E4;
       --text-primary:   #000000;
       --text-secondary: #685C53;
       --text-accent:    #C8102E;
-      --text-disabled:  #5F5F5F;
+      --text-disabled:  #404040;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,15 +67,16 @@
     }
 
     /* ── Buttons ── */
-    #action-buttons, #param-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons, .entry-tools {
+    #param-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons, .entry-tools {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
     }
-    #top-buttons { display: flex; flex-direction: column; gap: 8px; }
-    #action-buttons, #param-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons { justify-content: center; }
+    #top-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    #param-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons { justify-content: center; }
     #top-buttons button { padding: 7px 15px; }
+    #param-buttons { margin-top: -12px; }   /* sits close to the row of buttons above it */
     #param-buttons button { padding: 5.6px 12px; font-size: 0.7em; }
     #topic-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
@@ -92,7 +93,7 @@
     }
     button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
     button.active { background: var(--bg-active); border-color: var(--ut-crimson); color: #000000; }
-    button:disabled { background: var(--bg-disabled); color: var(--text-disabled); cursor: not-allowed; }
+    button:disabled { background: var(--bg-disabled); border-color: #BFBFBF; color: var(--text-disabled); cursor: not-allowed; }
 
     /* ── Control panel ── */
     .panel {
@@ -279,8 +280,12 @@
     .rates-layout .plot-card.collapsed { align-self: start; }
     .rates-layout #plot-hint { grid-column: 1 / -1; margin-top: 0; }
     .rates-layout #entry-box { order: 2; }
-    #collect-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; align-items: start; }
-    #collect-controls .note { margin-top: 0; }
+    #experiment-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 20px; align-items: start; }
+    #experiment-layout.collect { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #collect-notes .note { margin-top: 0; }
+    #collect-run { margin-top: 10px; }
+    #window-control { max-width: 200px; margin: 10px auto 0; }
+    .plot-card.zoomed #window-control { max-width: 300px; }
 
     /* Measuring Rates controls */
     #rates-settings-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
@@ -289,7 +294,7 @@
     #demo-s-buttons button.reference { background: #BFBFBF; border: 1px dashed #000000; color: #000000; }
     .readout { font-size: 0.85em; line-height: 1.5; }
     .control-label { display: block; font-size: 0.82em; font-weight: 600; margin-bottom: 4px; }
-    #run-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
+    #run-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
     #run-row .field { flex: 1; min-width: 0; }
     #run-row button { flex-shrink: 0; padding: 7px 10px; }
     #run-message:empty { display: none; }
@@ -304,7 +309,7 @@
     #workspace.quiz-wide { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side"; }
     #quiz-progress { flex-shrink: 0; }
     #quiz-question .readout { margin-bottom: 8px; }
-    .quiz-item { margin-top: 10px; border: 0; padding: 0; min-width: 0; }
+    .quiz-item { margin-top: 8px; padding: 4px 6px; border: 2px solid transparent; border-radius: 6px; min-width: 0; }
     .quiz-item > label, .quiz-item > legend { display: block; font-size: 0.82em; font-weight: 600; margin-bottom: 4px; padding: 0; }
     .quiz-number { display: flex; align-items: center; gap: 3px; }
     .quiz-number input { flex: 1; min-width: 0; }
@@ -312,8 +317,12 @@
     .quiz-option input { margin-top: 2px; accent-color: var(--ut-crimson); flex-shrink: 0; }
     .quiz-options-inline { display: flex; flex-wrap: wrap; gap: 2px 12px; }
     .quiz-item.correct > legend::after, .quiz-item.correct > label::after { content: ' ✓'; }
-    .quiz-item.wrong > legend::after, .quiz-item.wrong > label::after { content: ' ✗'; color: var(--ut-crimson); }
-    .quiz-item.correct { background: var(--ut-lavender); box-shadow: 0 0 0 4px var(--ut-lavender); border-radius: 2px; }
+    .quiz-item.wrong > legend::after, .quiz-item.wrong > label::after { content: ' ✗'; }
+    .quiz-item input[type=text]:disabled { background: var(--bg-disabled); border-color: #BFBFBF; color: var(--text-disabled); }
+    .quiz-item.correct { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .quiz-item.wrong { background: #FFEBEE; border-color: #C8102E; color: #000000; }
+    .quiz-item.correct input[type=text] { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .quiz-item.wrong input[type=text] { background: #FFEBEE; border-color: #C8102E; color: #000000; }
     #quiz-run { margin-top: 12px; }
     .quiz-run-row { display: flex; gap: 8px; }
     .quiz-run-row input { flex: 1; min-width: 0; }
@@ -333,7 +342,7 @@
     #mm-footer { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; }
     #mm-footer .note { margin-top: 0; }
     #mm-footer .plot-tools { flex-shrink: 0; }
-    .plot-tools button { padding: 3px 12px; font-size: 0.8em; }
+    .plot-tools button { padding: 3px 12px; font-size: 0.8em; line-height: 1.2; }
     #entry-feedback { font-size: 0.82em; line-height: 1.5; margin-top: 8px; }
     #entry-feedback:empty { display: none; }
 
@@ -341,10 +350,29 @@
 
     .entry-tools { margin-top: 10px; }
     .entry-tools button { padding: 5px 14px; }
-    #entry-note-inhibition, #entry-note-rates { margin: 0 0 8px; }
+    #entry-note-inhibition { margin: 0 0 8px; }
     .score { font-size: 0.85em; }
 
     .table-scroll { overflow-x: auto; }
+
+    /* Score breakdown */
+    .score-links { display: flex; justify-content: center; gap: 20px; }
+    .score-link {
+      background: none;
+      border: none;
+      padding: 2px 4px;
+      color: var(--ut-taupe);
+      font-size: 0.85em;
+      text-decoration: underline;
+    }
+    .score-link:hover:not(:disabled) { background: none; color: var(--ut-crimson); }
+    #score-breakdown { margin-top: 12px; padding: 12px; }
+    #score-breakdown thead th.correct-col { color: #1565C0; }
+    #score-breakdown thead th.incorrect-col { color: #8B0000; }
+    #score-breakdown tbody th { white-space: normal; }
+    #score-breakdown tbody th.score-group { color: var(--ut-crimson); font-size: 0.85em; font-weight: 600; }
+    #score-breakdown tfoot th, #score-breakdown tfoot td { font-weight: 700; border-bottom: none; text-align: right; }
+    #score-breakdown tfoot th { text-align: left; }
 
     table {
       width: 100%;
@@ -373,13 +401,15 @@
     .cell-wrap { display: flex; align-items: center; gap: 3px; }
     .entry-cell input { min-width: 44px; padding: 4px 3px; font-size: 13px; text-align: right; }
     .mark { flex: 0 0 13px; font-weight: 700; text-align: center; }
-    .entry-cell.correct { background: var(--ut-lavender); }
-    .entry-cell.wrong { outline: 2px solid var(--ut-crimson); outline-offset: -2px; }
-    .entry-cell.wrong .mark { color: var(--ut-crimson); }
+    .entry-cell.correct { background: #DBEAFE; outline: 2px solid #1565C0; outline-offset: -2px; }
+    .entry-cell.wrong { background: #FFEBEE; outline: 2px solid #C8102E; outline-offset: -2px; }
+    .entry-cell.correct input { background: #DBEAFE; border-color: #1565C0; color: #000000; }
+    .entry-cell.wrong input { background: #FFEBEE; border-color: #C8102E; color: #000000; }
+    .entry-cell .mark { color: #000000; }
 
     @media (max-width: 640px) {
       .rates-layout #plot-column { grid-template-columns: minmax(0, 1fr); }
-      #collect-controls { grid-template-columns: minmax(0, 1fr); }
+      #experiment-layout.collect { grid-template-columns: minmax(0, 1fr); }
       #demo-s-buttons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       #top-row { flex-direction: column; }
       #model-box, #scheme-box { flex: none; }
@@ -409,9 +439,7 @@
       <button type="button" id="tab-kinetics">Kinetics</button>
       <button type="button" id="tab-inhibition">Inhibition</button>
     </div>
-    <div id="action-buttons">
-      <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode</button>
-    </div>
+    <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode</button>
   </div>
 
   <!-- Enzyme model and reaction scheme -->
@@ -465,11 +493,6 @@
     <button type="button" id="random">Select Random Parameters</button>
     <button type="button" id="reset">Reset to defaults</button>
   </div>
-
-  <section class="panel box" id="rates-settings" aria-labelledby="rates-settings-title">
-    <h2 class="panel-section-title" id="rates-settings-title">Enzyme concentration and units</h2>
-    <div id="rates-settings-fields"></div>
-  </section>
 
   <div id="workspace">
 
@@ -566,23 +589,24 @@
 
       <section class="panel box" id="experiment-box" aria-labelledby="experiment-title">
         <h2 class="panel-section-title" id="experiment-title">Experiment</h2>
-        <div id="demo-controls">
-          <span class="control-label">Selected starting [S]</span>
-          <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
-          <p class="readout" id="demo-readout" aria-live="polite"></p>
-        </div>
-        <div id="collect-controls">
-          <div>
-            <div id="run-row">
-              <div class="field"><label for="runS">Starting [S] (<span data-u="conc">µM</span>)</label><input type="number" id="runS" step="any" min="0"></div>
-              <button type="button" id="run-experiment">Run Experiment</button>
+        <div id="experiment-layout">
+          <div id="experiment-left">
+            <div id="rates-settings-fields"></div>
+            <div id="collect-run">
+              <div id="run-row">
+                <div class="field"><label for="runS">[Substrate] (<span data-u="conc">µM</span>)</label><input type="number" id="runS" step="any" min="0"></div>
+                <button type="button" id="run-experiment">Run Experiment</button>
+              </div>
+              <p id="run-message" role="status"></p>
             </div>
-            <p id="run-message" role="status"></p>
-            <label class="control-label" for="measure-window" id="window-readout"></label>
-            <input type="range" id="measure-window" min="1" max="100" step="1">
           </div>
-          <div>
-            <p class="note">Each run adds one point, using the slope over this window. Try a wide range of [S], until the rate levels off, then widen the window and watch the points fall as substrate runs out.</p>
+          <div id="demo-controls">
+            <span class="control-label">Selected starting [S]</span>
+            <div id="demo-s-buttons" role="group" aria-label="Selected starting substrate concentration"></div>
+            <p class="readout" id="demo-readout" aria-live="polite"></p>
+          </div>
+          <div id="collect-notes">
+            <p class="note">Enter a [Substrate] to show the product formation over time plot and add a data point to the M-M plot for the initial rate at that [Substrate]. Run additional experiments at higher [S] to observe the effect of substrate on the rate of the reaction.</p>
             <ul id="run-list"></ul>
           </div>
         </div>
@@ -593,9 +617,8 @@
       <!-- Vmax and Km entry -->
       <section class="panel box" id="entry-box" aria-labelledby="entry-title">
         <h2 class="panel-section-title" id="entry-title">Determine V<sub>max</sub> and K<sub>m</sub></h2>
-        <p class="note" id="entry-note-rates">Estimate from your M-M plot: V<sub>max</sub> is where the rate levels off, and K<sub>m</sub> is the [S] that gives ½V<sub>max</sub>. Answers count within ±10%.</p>
         <p class="note" id="entry-note-inhibition">For the inhibited curves, enter the apparent values (V<sub>max</sub><sup>app</sup> and K<sub>m</sub><sup>app</sup>).</p>
-        <div class="table-scroll" id="entry-table" role="region" aria-label="Vmax and Km answers" tabindex="0"></div>
+        <div class="table-scroll" id="entry-table" role="region" aria-label="Answers" tabindex="0"></div>
         <div class="entry-tools">
           <button type="button" id="entry-check">Check</button>
           <button type="button" id="entry-reveal">Reveal</button>
@@ -619,6 +642,10 @@
           <div class="legend" id="product-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="product-canvas" role="img"></canvas></div>
           <p class="note" id="product-note">Initial rate is measured because the rate decreases as substrate is consumed.</p>
+          <div id="window-control">
+            <label class="control-label" for="measure-window">Measurement window</label>
+            <input type="range" id="measure-window" min="1" max="100" step="1">
+          </div>
         </div>
       </section>
       <section class="panel plot-card" data-panel="mm" aria-labelledby="mm-title">
@@ -633,8 +660,8 @@
           <div class="legend" id="mm-legend"></div>
           <div class="canvas-wrap"><canvas class="plot-canvas" id="mm-canvas" role="img"></canvas></div>
           <div id="mm-footer">
-            <p class="note" id="mm-note">One data point on the plot represents the initial rate at a particular [S].</p>
-            <div class="plot-tools"><button type="button" id="guides" aria-pressed="false">Show Guides</button></div>
+            <p class="note" id="mm-note">One data point represents the initial rate at a particular [S].</p>
+            <div class="plot-tools"><button type="button" id="guides" aria-pressed="false">Show<br>Guides</button></div>
           </div>
         </div>
       </section>
@@ -653,6 +680,13 @@
       </section>
       <p class="plot-hint" id="plot-hint">Hover or tap a plot to read the nearest point.</p>
     </div>
+  </div>
+  <div id="score-area" hidden>
+    <div class="score-links">
+      <button type="button" class="score-link" id="score-reset">Reset score</button>
+      <button type="button" class="score-link" id="breakdown-btn" aria-expanded="false" aria-controls="score-breakdown">Score breakdown</button>
+    </div>
+    <div class="panel table-scroll" id="score-breakdown" hidden></div>
   </div>
 </main>
 
@@ -1057,6 +1091,15 @@ function isCorrect(answer, truth, tolerance = 0.02) {
 
 // Reading a curve by eye can't match the precision of working from a line's equation.
 const READ_FROM_PLOT_TOLERANCE = 0.1;
+// A ratio of two values read from a plot. With each off by 10%, it can be off by up to 22%.
+const READ_RATIO_TOLERANCE = 0.25;
+
+// The score breakdown's rows, in tab order, named as each question names itself.
+const BREAKDOWN_GROUPS = [
+  ['Measuring Rates', [['initialRate', 'Initial rate from a curve'], ['runExperiments', 'V<sub>max</sub>, K<sub>m</sub> and k<sub>cat</sub> from your data'], ['predictRate', 'Predict a rate'], ['whyInitial', 'Why initial rates?']]],
+  ['Kinetics', [['whatChanged', 'What changed?'], ['fromLine', 'Constants from a line'], ['efficiency', 'Catalytic efficiency'], ['predictEffect', 'Predict the effect']]],
+  ['Inhibition', [['identifyType', 'Identify the inhibitor'], ['findKi', 'Find the inhibition constant'], ['apparent', 'Apparent values'], ['mechanism', 'Match the mechanism']]],
+];
 
 
 // ── Quiz questions ──
@@ -2090,14 +2133,27 @@ function entryRows() {
   if (state.params.mode === 'kinetics') {
     rows.push({ key: 'kcatOverKm', html: 'k<sub>cat</sub>/K<sub>m</sub>', plain: 'kcat/Km', unit: `${conc}⁻¹ ${time}⁻¹` });
   }
+  if (state.params.mode === 'rates') {
+    rows.push(
+      { key: 'kcat', html: 'k<sub>cat</sub>', plain: 'kcat', unit: `${time}⁻¹` },
+      { key: 'kcatOverKm', html: 'Catalytic efficiency', plain: 'Catalytic efficiency', unit: `${conc}⁻¹ ${time}⁻¹`, tolerance: READ_RATIO_TOLERANCE },
+    );
+  }
   return rows;
+}
+
+// Measuring Rates works these out from what the plot shows, with [E]total from the Experiment box.
+function entryTruth(curve, key) {
+  if (state.params.mode !== 'rates') return curve.k[key];
+  const kcat = curve.k.appVmax / state.params.Etot;
+  if (key === 'kcat') return kcat;
+  if (key === 'kcatOverKm') return kcat / curve.k.appKm;
+  return curve.k[key];
 }
 
 function methodHint() {
   const mode = state.params.mode;
-  if (mode === 'rates') {
-    return '<b>Method:</b> V<sub>max</sub> is where the rate levels off at high [S], and K<sub>m</sub> is the [S] that gives ½V<sub>max</sub>. Narrow the measurement window if your points look low.';
-  }
+  if (mode === 'rates') return '';   // students work out how to find these themselves
   let text = 'V<sub>max</sub> = 1/(y-intercept) and K<sub>m</sub> = slope/(y-intercept) of the Lineweaver–Burk line.';
   if (mode === 'inhibition') text += ' For an inhibited line, these give the apparent values.';
   if (mode === 'kinetics') text += ' k<sub>cat</sub>/K<sub>m</sub> is that condition\'s k<sub>cat</sub> divided by its K<sub>m</sub>.';
@@ -2110,7 +2166,7 @@ function workedAnswers() {
   return state.model.curves.map(c => {
     const { slope, yInt, appVmax, appKm, kcatOverKm } = c.k;
     if (state.params.mode === 'rates') {
-      return `<div><b>True values:</b> V<sub>max</sub> = ${fmtSig(appVmax)} ${conc}/${time}; K<sub>m</sub> = ${fmtSig(appKm)} ${conc}</div>`;
+      return `<div><b>True values:</b> V<sub>max</sub> = ${fmtSig(appVmax)} ${conc}/${time}; K<sub>m</sub> = ${fmtSig(appKm)} ${conc}; k<sub>cat</sub> = ${fmtSig(entryTruth(c, 'kcat'))} ${time}⁻¹; catalytic efficiency = ${fmtSig(entryTruth(c, 'kcatOverKm'))} ${conc}⁻¹ ${time}⁻¹</div>`;
     }
     const parts = [
       `V<sub>max</sub> = 1/${fmtSig(yInt)} = ${fmtSig(appVmax)} ${conc}/${time}`,
@@ -2131,6 +2187,19 @@ function columnName(curve) {
   return state.params.mode === 'kinetics' ? curveName(curve) : INHIBITION_COLUMNS[curve.id];
 }
 
+// One enzyme, with its answers side by side.
+function ratesEntryTable() {
+  const curve = state.model.curves[0];
+  const rows = entryRows();
+  const head = rows.map(row => `<th scope="col">${row.html} <span class="unit">(${row.unit})</span></th>`).join('');
+  const cells = rows.map((row, r) => {
+    if (entry.revealed) return `<td class="revealed">${fmtSig(entryTruth(curve, row.key))}</td>`;
+    return `<td class="entry-cell" data-row="${r}" data-col="0"><span class="cell-wrap">` +
+      `<input type="text" autocomplete="off" spellcheck="false" aria-label="${row.plain}"><span class="mark"></span></span></td>`;
+  }).join('');
+  return `<table><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody></table>`;
+}
+
 function renderEntryTable() {
   const curves = state.model.curves;
   const head = curves.map(c => `<th scope="col">${columnName(c)}</th>`).join('');
@@ -2145,7 +2214,8 @@ function renderEntryTable() {
     return `<tr><th scope="row">${row.html} <span class="unit">(${row.unit})</span></th>${cells}</tr>`;
   }).join('');
 
-  $('entry-table').innerHTML = `<table><thead><tr><td></td>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  $('entry-table').innerHTML = state.params.mode === 'rates' ? ratesEntryTable()
+    : `<table><thead><tr><td></td>${head}</tr></thead><tbody>${body}</tbody></table>`;
   $('entry-check').disabled = entry.revealed;
   $('entry-reveal').disabled = entry.revealed;
   $('entry-score').textContent = '';
@@ -2165,8 +2235,8 @@ function checkCell(cell) {
   const input = cell.querySelector('input');
   if (input.value.trim() === '') return null;   // an unanswered cell is not marked wrong
   const row = entryRows()[Number(cell.dataset.row)];
-  const truth = state.model.curves[Number(cell.dataset.col)].k[row.key];
-  const tolerance = state.params.mode === 'rates' ? READ_FROM_PLOT_TOLERANCE : undefined;
+  const truth = entryTruth(state.model.curves[Number(cell.dataset.col)], row.key);
+  const tolerance = state.params.mode === 'rates' ? row.tolerance ?? READ_FROM_PLOT_TOLERANCE : undefined;
   const correct = isCorrect(parseAnswer(input.value), truth, tolerance);
   const mark = cell.querySelector('.mark');
   cell.classList.add(correct ? 'correct' : 'wrong');
@@ -2338,7 +2408,7 @@ function setPressed(button, on) {
   button.setAttribute('aria-pressed', String(on));
 }
 
-// [E]total and the units sit in the horizontal box on Measuring Rates and in Enzyme parameters elsewhere.
+// [E]total and the units sit in the Experiment box on Measuring Rates and in Enzyme parameters elsewhere.
 function placeSharedFields(rates) {
   const place = (id, parent) => {
     if ($(id).parentElement !== parent) parent.appendChild($(id));
@@ -2360,16 +2430,20 @@ function syncFieldStates() {
   $('rates-view-buttons').hidden = !rates;
   $('experiment-box').hidden = !rates;
   $('demo-controls').hidden = collect;
-  $('collect-controls').hidden = !collect;
+  $('collect-run').hidden = !collect;
+  $('collect-notes').hidden = !collect;
+  $('experiment-layout').classList.toggle('collect', collect);
+  $('window-control').hidden = !collect;
   $('product-note').hidden = collect;
   $('mm-note').hidden = !rates;
   $('product-card').hidden = !rates;
   $('lb-card').hidden = rates;
-  $('rates-settings').hidden = !rates;
   $('workspace').classList.toggle('rates-layout', rates);
   document.querySelector('[data-panel="enzyme"]').hidden = rates;
   placeSharedFields(rates);
-  $('entry-note-rates').hidden = !rates;
+  $('entry-title').innerHTML = rates
+    ? 'Determine V<sub>max</sub>, K<sub>m</sub>, k<sub>cat</sub> and catalytic efficiency'
+    : 'Determine V<sub>max</sub> and K<sub>m</sub>';
   $('entry-box').hidden = rates && !collect;
   document.querySelectorAll('[data-type]').forEach(b => setPressed(b, b.dataset.type === state.type));
   $('entry-note-inhibition').hidden = !inhibition;
@@ -2419,9 +2493,9 @@ function showErrors(errors) {
 // The Measuring Rates controls, redrawn from the current runs and selection.
 function renderRatesControls() {
   if (!state.ratesData) return;
-  const { experiments, focus, tWindow } = state.ratesData;
+  const { experiments, focus } = state.ratesData;
   const { conc, time } = state.units;
-  const { selected, windowPct } = state.rates;
+  const { selected } = state.rates;
 
   $('demo-s-buttons').innerHTML = DEMO_S_FACTORS.map((f, i) => {
     const reference = DEMO_REFERENCES.indexOf(i);
@@ -2432,7 +2506,6 @@ function renderRatesControls() {
   if (state.ratesData.demo) {
     $('demo-readout').textContent = `[S] = ${fmtSig(focus.S0)} ${conc}, v₀ = ${fmtSig(focus.rate)} ${conc}/${time}`;
   } else {
-    $('window-readout').textContent = `Measurement window: first ${windowPct}% of the time axis (0 to ${fmtSig(tWindow)} ${time})`;
     $('run-list').innerHTML = runListHtml(experiments);
   }
 }
@@ -2508,7 +2581,39 @@ document.querySelectorAll('[data-type]').forEach(button => button.addEventListen
 
 const QUIZ_TITLES = { rates: 'Measuring Rates', kinetics: 'Kinetics', inhibition: 'Inhibition' };
 // Everything the quiz hides from the normal tab while it runs.
-const QUIZ_HIDDEN = ['rates-view-buttons', 'type-buttons', 'difference-buttons', 'rates-settings', 'inhib-box', 'experiment-box', 'entry-box', 'errors', 'product-note', 'mm-note', 'guides'];
+const QUIZ_HIDDEN = ['rates-view-buttons', 'type-buttons', 'difference-buttons', 'inhib-box', 'experiment-box', 'entry-box', 'errors', 'product-note', 'mm-note', 'guides', 'window-control'];
+
+// Results for the session, by question type: { correct, incorrect }. A later try still counts as
+// correct, and showing the answer counts as incorrect.
+let breakdown = {};
+
+function renderScoreBreakdown() {
+  const count = type => ({ correct: 0, incorrect: 0, ...breakdown[type] });
+  const rows = BREAKDOWN_GROUPS.map(([group, types]) =>
+    `<tr><th scope="rowgroup" colspan="3" class="score-group">${group}</th></tr>` +
+    types.map(([type, title]) => `<tr><th scope="row">${title}</th><td>${count(type).correct}</td><td>${count(type).incorrect}</td></tr>`).join('')).join('');
+  const sum = key => Object.values(breakdown).reduce((total, c) => total + c[key], 0);
+  $('score-breakdown').innerHTML = `<table><thead><tr><th scope="col">Question type</th>` +
+    `<th scope="col" class="correct-col">Correct Responses</th><th scope="col" class="incorrect-col">Incorrect Responses</th></tr></thead>` +
+    `<tbody>${rows}</tbody><tfoot><tr><th scope="row">Total</th><td>${sum('correct')}</td><td>${sum('incorrect')}</td></tr></tfoot></table>`;
+}
+
+function recordQuizResult(type, correct) {
+  breakdown[type] = breakdown[type] || { correct: 0, incorrect: 0 };
+  breakdown[type][correct ? 'correct' : 'incorrect']++;
+  renderScoreBreakdown();
+}
+
+$('breakdown-btn').addEventListener('click', () => {
+  const panel = $('score-breakdown');
+  panel.hidden = !panel.hidden;
+  $('breakdown-btn').setAttribute('aria-expanded', String(!panel.hidden));
+  if (!panel.hidden) renderScoreBreakdown();
+});
+$('score-reset').addEventListener('click', () => {
+  breakdown = {};
+  renderScoreBreakdown();
+});
 
 function quizItemHtml(item) {
   const id = `quiz-${item.key}`;
@@ -2602,6 +2707,7 @@ function markQuizItems(results) {
 
 function finishQuizQuestion(question, correct) {
   quiz.credits.push(quizCredit(quiz.attempt, correct));
+  recordQuizResult(question.type, correct);
   quiz.finished = true;
   quiz.keepRuns = true;
   const verdict = correct
@@ -2685,6 +2791,7 @@ function startQuiz() {
   QUIZ_HIDDEN.forEach(id => { $(id).hidden = true; });
   $('workspace').classList.remove('rates-layout');
   $('difficulty-buttons').hidden = false;
+  $('score-area').hidden = false;
   syncDifficultyButtons();
   $('random').disabled = true;
   $('reset').disabled = true;
@@ -2703,6 +2810,7 @@ function exitQuiz() {
   state.signature = '';
   $('quiz-box').hidden = true;
   $('difficulty-buttons').hidden = true;
+  $('score-area').hidden = true;
   $('plot-column').hidden = false;
   $('workspace').classList.remove('quiz-wide');
   ['mm', 'errors', 'guides'].forEach(id => {
@@ -2799,7 +2907,7 @@ $('demo-s-buttons').addEventListener('click', e => {
 });
 
 function runProblem(S0, runs) {
-  if (!Number.isFinite(S0) || S0 <= 0) return 'Enter a positive starting [S].';
+  if (!Number.isFinite(S0) || S0 <= 0) return 'Enter a positive [Substrate].';
   if (runs.includes(S0)) return 'You already ran this [S]. Try a different one.';
   if (runs.length >= MAX_RUNS) return `Remove a run first; this page holds ${MAX_RUNS}.`;
   return '';

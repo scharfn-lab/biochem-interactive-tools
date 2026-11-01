@@ -863,11 +863,11 @@ test('the product vs. time note says why the initial rate is measured', () => {
 });
 
 test('the data point note moved from the Experiment box to below the M-M plot', () => {
-  const experiment = HTML.slice(HTML.indexOf('id="experiment-box"'), HTML.indexOf('id="collect-controls"'));
+  const experiment = HTML.slice(HTML.indexOf('id="experiment-box"'), HTML.indexOf('id="collect-notes"'));
   assert.ok(!experiment.includes('One data point'));
   assert.ok(!experiment.includes('class="note"'));
   assert.equal(HTML.split('One data point').length, 2, 'it appears once');
-  const canvas = HTML.indexOf('id="mm-canvas"'), note = HTML.indexOf('id="mm-note">One data point on the plot represents the initial rate at a particular [S].<');
+  const canvas = HTML.indexOf('id="mm-canvas"'), note = HTML.indexOf('id="mm-note">One data point represents the initial rate at a particular [S].<');
   assert.ok(canvas > 0 && note > canvas, 'below the plot');
   assert.ok(note < HTML.indexOf('id="lb-canvas"'), 'still in the M-M card');
 });
@@ -880,7 +880,7 @@ test('the note shows only on Measuring Rates, and not during a quiz', () => {
 test('the six starting [S] buttons share one row, with the readout below them', () => {
   assert.equal(DEMO_S_COUNT(), 6);
   assert.match(HTML, /#demo-s-buttons \{ display: grid; grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);/);
-  const box = HTML.slice(HTML.indexOf('<div id="demo-controls">'), HTML.indexOf('id="collect-controls"'));
+  const box = HTML.slice(HTML.indexOf('<div id="demo-controls">'), HTML.indexOf('id="collect-notes"'));
   assert.ok(box.indexOf('id="demo-s-buttons"') > 0 && box.indexOf('id="demo-s-buttons"') < box.indexOf('id="demo-readout"'));
   assert.doesNotMatch(HTML, /#demo-controls, #collect-controls/, 'the box is no longer two columns');
 });
@@ -928,11 +928,92 @@ test('Random and Reset sit below the tab buttons on every tab, 20% smaller', () 
   for (const row of ['id="rates-view-buttons"', 'id="type-buttons"', 'id="difference-buttons"']) {
     assert.ok(at(row) < at('<div id="param-buttons">'), row);
   }
-  assert.ok(at('<div id="param-buttons">') < at('id="rates-settings"'));
-  const row = HTML.slice(at('<div id="param-buttons">'), at('id="rates-settings"'));
+  assert.ok(at('<div id="param-buttons">') < at('<div id="workspace">'));
+  const row = HTML.slice(at('<div id="param-buttons">'), at('<div id="workspace">'));
   assert.ok(row.includes('id="random"') && row.includes('id="reset"'));
-  const actions = HTML.slice(at('<div id="action-buttons">'), at('<!-- Enzyme model and reaction scheme -->'));
-  assert.ok(actions.includes('id="quiz-toggle"') && !actions.includes('id="random"'), 'Quiz Mode stays on top');
+  assert.match(HTML, /#param-buttons \{ margin-top: -12px; \}/);
   assert.match(HTML, /#param-buttons button \{ padding: 5\.6px 12px; font-size: 0\.7em; \}/);
   assert.doesNotMatch(HTML.replace(/<[^>]*param-buttons[^>]*>/, ''), /\$\('param-buttons'\)\.hidden/, 'never hidden by a tab');
+});
+
+// ── Measuring Rates layout and answers ─────────────────────────
+test('Quiz Mode sits to the right of Inhibition', () => {
+  assert.match(HTML, /id="tab-inhibition">Inhibition<\/button>\s*<\/div>\s*<button type="button" id="quiz-toggle"/);
+  assert.doesNotMatch(HTML, /action-buttons/);
+});
+
+test('Show Guides takes two rows', () => {
+  assert.ok(HTML.includes('>Show<br>Guides</button>'));
+});
+
+test('the Experiment box holds [E]total and the units on the left, with [Substrate] and Run below', () => {
+  assert.doesNotMatch(HTML, /id="rates-settings"|rates-settings-title|\$\('rates-settings'\)/);
+  const box = HTML.slice(HTML.indexOf('id="experiment-box"'), HTML.indexOf('id="entry-box"'));
+  const at = marker => box.indexOf(marker);
+  assert.ok(at('id="experiment-left"') < at('id="rates-settings-fields"'));
+  assert.ok(at('id="rates-settings-fields"') < at('id="runS"') && at('id="runS"') < at('id="run-experiment"'));
+  assert.ok(at('id="run-experiment"') < at('id="collect-notes"'));
+  assert.ok(box.includes('<label for="runS">[Substrate] ('));
+  assert.ok(!box.includes('Starting [S]'));
+  assert.ok(box.includes('>Enter a [Substrate] to show the product formation over time plot and add a data point to the M-M plot for the initial rate at that [Substrate]. Run additional experiments at higher [S] to observe the effect of substrate on the rate of the reaction.<'));
+  assert.doesNotMatch(box, /Each run adds|measure-window/);
+});
+
+test('the measurement window slider sits below the product plot, with no percent wording', () => {
+  const card = HTML.slice(HTML.indexOf('id="product-card"'), HTML.indexOf('data-panel="mm"'));
+  assert.ok(card.indexOf('id="product-canvas"') < card.indexOf('id="measure-window"'));
+  assert.ok(card.includes('>Measurement window</label>'));
+  assert.doesNotMatch(HTML, /first \$\{windowPct\}|window-readout/);
+  assert.match(HTML, /const QUIZ_HIDDEN = \[[^\]]*'window-control'/);
+});
+
+test('the rates answer box tells students nothing about how to find the values', () => {
+  assert.doesNotMatch(HTML, /entry-note-rates|Estimate from your M-M plot|Answers count within/);
+  const hint = HTML.slice(HTML.indexOf('function methodHint'), HTML.indexOf('// The same method with this'));
+  assert.match(hint, /if \(mode === 'rates'\) return '';/);
+});
+
+test('kcat and catalytic efficiency follow Vmax and Km on Measuring Rates', () => {
+  const rows = HTML.slice(HTML.indexOf('function entryRows'), HTML.indexOf('// Measuring Rates works these out'));
+  const at = marker => rows.indexOf(marker);
+  assert.ok(at("key: 'appVmax'") < at("key: 'appKm'") && at("key: 'appKm'") < at("key: 'kcat'") && at("key: 'kcat'") < at('Catalytic efficiency'));
+  assert.ok(!HTML.slice(HTML.indexOf('function ratesEntryTable'), HTML.indexOf('function renderEntryTable')).includes('/K<sub>m</sub>'), 'the heading gives no formula');
+});
+
+test('acceptable Vmax and Km estimates give an accepted catalytic efficiency', () => {
+  const tol = vm.runInContext('READ_RATIO_TOLERANCE', page);
+  assert.ok(1.1 / 0.9 - 1 <= tol && 1 - 0.9 / 1.1 <= tol);
+});
+
+test('the page uses the shared answer and disabled colors', () => {
+  assert.match(HTML, /\.entry-cell\.correct \{ background: #DBEAFE; outline: 2px solid #1565C0;/);
+  assert.match(HTML, /\.entry-cell\.wrong \{ background: #FFEBEE; outline: 2px solid #C8102E;/);
+  assert.match(HTML, /\.quiz-item\.correct \{ background: #DBEAFE; border-color: #1565C0; color: #000000; \}/);
+  assert.match(HTML, /\.quiz-item\.wrong \{ background: #FFEBEE; border-color: #C8102E; color: #000000; \}/);
+  assert.match(HTML, /--bg-disabled: #E4E4E4;/);
+  assert.match(HTML, /--text-disabled: +#404040;/);
+  assert.doesNotMatch(HTML, /(correct|wrong)[^{\n]*\{[^}]*lavender/);
+});
+
+// ── Score breakdown ────────────────────────────────────────────
+test('the breakdown has one row per question type, named as the question names itself', () => {
+  const groups = vm.runInContext('BREAKDOWN_GROUPS', page);
+  const rows = [...groups].flatMap(g => [...g[1]].map(r => [...r]));
+  const built = [...HTML.matchAll(/type: '(\w+)', title: '([^']+)'/g)].map(m => [m[1], m[2]]);
+  assert.deepEqual(rows, built);
+  const types = vm.runInContext('QUIZ_TYPES', page);
+  assert.deepEqual(rows.map(r => r[0]), [...types.rates, ...types.kinetics, ...types.inhibition]);
+});
+
+test('Reset score and Score breakdown sit together at the bottom', () => {
+  const area = HTML.slice(HTML.indexOf('id="score-area"'), HTML.indexOf('</main>'));
+  assert.ok(area.indexOf('>Reset score<') > 0 && area.indexOf('>Reset score<') < area.indexOf('>Score breakdown<'));
+  assert.ok(area.includes('aria-expanded="false"'));
+  assert.ok(HTML.indexOf('id="score-area"') > HTML.indexOf('id="plot-hint"'));
+});
+
+test('an answered quiz box left blank is grayed out, and an empty run asks for a [Substrate]', () => {
+  assert.match(HTML, /\.quiz-item input\[type=text\]:disabled \{ background: var\(--bg-disabled\); border-color: #BFBFBF; color: var\(--text-disabled\); \}/);
+  assert.ok(HTML.indexOf('.quiz-item input[type=text]:disabled') < HTML.indexOf('.quiz-item.correct input[type=text]'), 'a marked answer keeps its color');
+  assert.ok(HTML.includes("'Enter a positive [Substrate].'"));
 });

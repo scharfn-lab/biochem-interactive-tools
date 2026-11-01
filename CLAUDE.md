@@ -79,7 +79,7 @@ For the quiz, `buildQuizSet()` and `QUESTION_BUILDERS` produce plain-data questi
 
 ## Architecture: enzyme_kinetics.html
 
-`commit()` is the hub: it validates the fields into `state.params`, keeping the last valid values, and `buildModel()` turns those into curves. Section 2 of the script touches no DOM, and the test file runs it in a vm. `state.mode` is `'rates'`, `'kinetics'` or `'inhibition'`. On Measuring Rates, `readRaw()` substitutes the hidden enzyme from `state.rates.enzymes`, so Km and kcat never reach the page's fields there. Demonstration and Collect Data use different enzymes because the × Km buttons reveal Km. `placeSharedFields()` moves [E]total and the units between the horizontal box and Enzyme parameters. `seriesFor()` lists what a plot draws, bottom to top, and `buildRatesData()` builds the progress curves from the integrated rate law.
+`commit()` is the hub: it validates the fields into `state.params`, keeping the last valid values, and `buildModel()` turns those into curves. Section 2 of the script touches no DOM, and the test file runs it in a vm. `state.mode` is `'rates'`, `'kinetics'` or `'inhibition'`. On Measuring Rates, `readRaw()` substitutes the hidden enzyme from `state.rates.enzymes`, so Km and kcat never reach the page's fields there. Demonstration and Collect Data use different enzymes because the × Km buttons reveal Km. `placeSharedFields()` moves [E]total and the units between the Experiment box and Enzyme parameters. `entryTruth()` works out kcat and catalytic efficiency there from what the plot shows, and the page gives no method for finding any of these answers. `seriesFor()` lists what a plot draws, bottom to top, and `buildRatesData()` builds the progress curves from the integrated rate law.
 
 For the quiz, `buildQuizSet()` and `QUESTION_BUILDERS` produce plain-data questions, each with a `scene`. `drawQuizScene()` sets `state.params` directly and `commit()` does nothing during a quiz, so `exitQuiz()` can rebuild the tab from its own fields. Hard Mode uses `amountInVolume()`, which never pairs units that divide directly into the plot's concentration unit.
 
@@ -150,7 +150,6 @@ Every page uses these same colors, so a student sees the same signal on every to
 | Grayed out (disabled box) | `#E4E4E4` | `#BFBFBF` | `#404040` |
 
 These pages don't match yet, and should be brought in line when they're next changed:
-- **enzyme_kinetics.html:** correct answers use lavender, wrong answers have a crimson outline with no pink background, and disabled boxes use `#F0F0F0` with `#5F5F5F` text
 - **chemistry_quiz.html:** its dark theme uses green and red for answers
 - **amino_acids.html:** the correct background is right, but correct entry boxes have a crimson border and the all-correct message has a taupe border
 - **cell_membrane.html:** its disabled button uses `#A0A0A0`
@@ -165,7 +164,6 @@ Every page with a quiz tracks each student's results the same way, so a student 
 - **Storage:** results last for the session in a plain object such as `breakdown`, and aren't saved. An open table updates as answers come in, and "Reset score" clears it.
 
 These pages have a quiz but don't track results this way yet, and should gain it when they're next changed:
-- **enzyme_kinetics.html**
 - **buffers.html**
 - **chemistry_quiz.html**
 
