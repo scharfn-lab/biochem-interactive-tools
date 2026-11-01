@@ -939,8 +939,17 @@ test('Random and Reset sit below the tab buttons on every tab, 20% smaller', () 
 
 // ── Measuring Rates layout and answers ─────────────────────────
 test('Quiz Mode sits to the right of Inhibition', () => {
-  assert.match(HTML, /id="tab-inhibition">Inhibition<\/button>\s*<\/div>\s*<button type="button" id="quiz-toggle"/);
+  assert.match(HTML, /id="tab-inhibition">Inhibition<\/button>\s*<\/div>\s*(<!--.*?-->\s*)?<button type="button" id="quiz-toggle"/);
   assert.doesNotMatch(HTML, /action-buttons/);
+});
+
+test('Quiz Mode is grayed out and marked as coming soon, with its code kept', () => {
+  assert.match(HTML, /id="quiz-toggle" aria-pressed="false" disabled>Quiz Mode<br>\(Coming soon\)<\/button>/);
+  assert.match(HTML, /#top-buttons #quiz-toggle \{[^}]*font-size: 0\.72em;/);
+  for (const name of ['function startQuiz', 'function exitQuiz', "$('quiz-toggle').addEventListener"]) {
+    assert.ok(HTML.includes(name), name);
+  }
+  assert.doesNotMatch(HTML, /\$\('quiz-toggle'\)\.disabled/, 'nothing turns it back on');
 });
 
 test('Show Guides takes two rows', () => {

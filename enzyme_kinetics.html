@@ -76,6 +76,7 @@
     #top-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
     #param-buttons, #type-buttons, #difference-buttons, #rates-view-buttons, #difficulty-buttons { justify-content: center; }
     #top-buttons button { padding: 7px 15px; }
+    #top-buttons #quiz-toggle { padding: 3px 12px; font-size: 0.72em; line-height: 1.25; }
     #param-buttons { margin-top: -12px; }   /* sits close to the row of buttons above it */
     #param-buttons button { padding: 5.6px 12px; font-size: 0.7em; }
     #topic-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -440,7 +441,8 @@
       <button type="button" id="tab-kinetics">Kinetics</button>
       <button type="button" id="tab-inhibition">Inhibition</button>
     </div>
-    <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode</button>
+    <!-- Off until the quiz is ready: remove disabled and the second line, and the code below still works. -->
+    <button type="button" id="quiz-toggle" aria-pressed="false" disabled>Quiz Mode<br>(Coming soon)</button>
   </div>
 
   <!-- Enzyme model and reaction scheme -->
