@@ -946,7 +946,7 @@ test('Randomly chosen questions use one name type for the pair', () => {
   page.run(`setDisplayMode('interact')`);
   for (const [r, type] of [[0, 'c1'], [0.5, 'c3'], [0.9, 'name']]) {
     setRandom(page, r);
-    page.run('nextQuestion()');
+    page.run('nextQuestion(); interactQuestion.fromStructure = false; renderQuestion()');
     assert.equal(page.run('interactQuestion.nameType'), type);
     const { a, b } = page.json('interactQuestion');
     const name = code => page.run(`nameOfType(aaByCode('${code}'), '${type}')`);
@@ -962,6 +962,99 @@ test('structures stay hidden until a choice is entered', () => {
   assert.equal(structuresShown(page), true);
   assert.ok(page.el('pair-struct-a').innerHTML.includes(page.run(`aaByCode('F').smiles[7]`)));
   assert.ok(page.el('pair-struct-b').innerHTML.includes(page.run(`aaByCode('A').smiles[7]`)));
+});
+
+const askStructurePair = (page, a = 'D', b = 'K', nameType = 'c3') => {
+  page.run(`setDisplayMode('interact'); interactQuestion = { a: '${a}', b: '${b}', nameType: '${nameType}', fromStructure: true }; renderQuestion()`);
+};
+
+test('one question in five shows the structures instead of the names', () => {
+  const page = loadPage();
+  page.run(`setDisplayMode('interact')`);
+  for (const [r, expected] of [[0, true], [0.19, true], [0.2, false], [0.9, false]]) {
+    setRandom(page, r);
+    page.run('nextQuestion()');
+    assert.equal(page.run('interactQuestion.fromStructure'), expected, `random ${r}`);
+    assert.equal(structuresShown(page), expected, `random ${r}`);
+  }
+});
+
+test('a structure question hides the names everywhere until a choice is entered', () => {
+  const page = loadPage();
+  askStructurePair(page, 'D', 'K', 'name');
+  assert.equal(page.el('interact-prompt').innerHTML,
+    'Which interaction can form between the side chains of these two amino acids <strong>(pH 7)</strong>?');
+  assert.equal(structuresShown(page), true);
+  assert.ok(page.el('pair-struct-a').innerHTML.includes(page.run(`aaByCode('D').smiles[7]`)));
+  assert.ok(page.el('pair-struct-b').innerHTML.includes(page.run(`aaByCode('K').smiles[7]`)));
+  assert.equal(page.el('pair-name-a').textContent, '');
+  assert.equal(page.el('pair-name-b').textContent, '');
+  assert.equal(page.el('pair-note-a').textContent, '');
+  assert.equal(page.el('pair-struct-a').getAttribute('aria-label'), 'Structure of the first amino acid at pH 7');
+  assert.equal(page.el('pair-struct-b').getAttribute('aria-label'), 'Structure of the second amino acid at pH 7');
+});
+
+test('a wrong first answer on a structure question adds the names above the structures', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  for (const [type, a, b] of [['c1', 'D', 'K'], ['c3', 'Asp', 'Lys'], ['name', 'Aspartate', 'Lysine']]) {
+    askStructurePair(page, 'D', 'K', type);
+    enter(page, 'Hydrophobic');
+    assert.equal(page.el('pair-name-a').textContent, a);
+    assert.equal(page.el('pair-name-b').textContent, b);
+    assert.equal(page.el('pair-struct-a').getAttribute('aria-label'), `Structure of ${a} at pH 7`);
+    assert.equal(page.el('pair-note-a').textContent, '', 'descriptions would give the answer away');
+    assert.match(page.el('feedback').innerHTML, /Use the names above the structures to choose again/);
+    assert.doesNotMatch(page.el('interact-prompt').innerHTML, new RegExp(a), 'the prompt stays as asked');
+  }
+  assert.deepEqual(counts(page, 'Interactions'), [0, 0], 'a second chance has not been used up');
+  enter(page, 'Salt bridge');
+  assert.deepEqual(counts(page, 'Interactions'), [1, 0]);
+  assert.equal(page.el('pair-name-a').textContent, 'Aspartate (Asp)');
+  assert.match(page.el('pair-note-a').textContent, /^Side chain:/);
+});
+
+test('a structure question answered right or shown still ends with the names and reasons', () => {
+  const page = loadPage();
+  page.run('toggleScoreBreakdown()');
+  askStructurePair(page);
+  enter(page, 'Salt bridge');
+  assert.deepEqual(counts(page, 'Interactions'), [1, 0]);
+  assert.equal(page.el('pair-name-a').textContent, 'Aspartate (Asp)');
+  assert.equal(page.el('pair-name-b').textContent, 'Lysine (Lys)');
+  assert.match(page.el('pair-note-b').textContent, /^Side chain:/);
+
+  askStructurePair(page, 'F', 'A');
+  assert.equal(page.el('pair-name-a').textContent, '', 'the next question hides its names again');
+  page.run('showAnswers()');
+  assert.deepEqual(counts(page, 'Interactions'), [1, 1]);
+  assert.equal(page.el('pair-name-a').textContent, 'Phenylalanine (Phe)');
+});
+
+test('a structure question falls back to names when the renderer fails', () => {
+  const page = loadPage({ rdkit: false });
+  askStructurePair(page);
+  assert.equal(structuresShown(page), true);
+  assert.match(page.el('pair-struct-a').innerHTML, /Loading/);
+  page.loader.fail();
+  assert.equal(structuresShown(page), false);
+  assert.equal(page.el('interact-unavailable').hidden, true);
+  assert.ok(page.el('interact-prompt').innerHTML.includes('<strong>Asp</strong> and <strong>Lys</strong>'));
+  enter(page, 'Hydrophobic');
+  assert.match(page.el('feedback').innerHTML, /Use the structures to choose again/);
+  assert.equal(page.el('interact-unavailable').hidden, false);
+});
+
+test('the explorer is unaffected by structure questions', () => {
+  const page = loadPage();
+  askStructurePair(page);
+  page.run(`setInteractActivity('explore')`);
+  assert.equal(page.el('pair-name-a').textContent, 'Aspartate (Asp)');
+  assert.match(page.el('pair-note-a').textContent, /^Side chain:/);
+  setRandom(page, 0);
+  page.run('showRandomExplorePair()');
+  assert.equal(page.run('explorePair.fromStructure'), undefined);
+  assert.notEqual(page.el('pair-name-a').textContent, '');
 });
 
 test('a right first answer scores and shows the answer first, then its reason', () => {

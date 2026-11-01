@@ -1004,9 +1004,9 @@ let nameModeSource       = 'random'; // name mode: question asked from, 'random'
 let nameStructPH         = 7;      // active pH in name-mode structure view
 let questionBag          = [];     // amino acids left in this round, so all 20 come up
 let interactActivity     = 'quiz'; // interactions section: 'quiz' | 'explore'
-let interactQuestion     = null;   // { a, b, nameType, counted }, separate from the single amino acid question
+let interactQuestion     = null;   // { a, b, nameType, fromStructure, counted }, separate from the single amino acid question
 let interactTried        = [];     // wrong choices already entered for this question
-let interactRevealed     = false;  // true once a choice has been entered, so the structures show
+let interactRevealed     = false;  // true once a choice has been entered, so the structures and names show
 let explorePair          = { a: 'D', b: 'K' };
 
 // fields: which inp-* IDs to check
@@ -1210,6 +1210,7 @@ const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connecti
       showIdentifyUnavailable();
     }
   } else if (displayMode === 'interact') {
+    if (interactActivity === 'quiz' && interactQuestion) drawInteractPrompt();
     drawCurrentPair();
   } else if (displayMode === 'name') {
     drawNameModePrompt();
@@ -1825,6 +1826,8 @@ function interactionDetailsHTML(a, b) {
     <ul class="interact-reasons">${rows}</ul>`;
 }
 
+const INTERACT_STRUCTURE_SHARE = 0.2;   // how often a question shows structures instead of names
+
 // Picks an interaction evenly first, since rare ones like a disulfide would hardly ever come up by
 // pair. Only pairs with an interaction are asked, so every question has an answer to enter.
 function pickInteractionQuestion(previous) {
@@ -1843,9 +1846,13 @@ function pickInteractionQuestion(previous) {
   return {
     a: inOrder ? pick.a : pick.b,
     b: inOrder ? pick.b : pick.a,
-    nameType: randomNameField()
+    nameType: randomNameField(),
+    fromStructure: Math.random() < INTERACT_STRUCTURE_SHARE
   };
 }
+
+// A structure question falls back to names when there are no drawings to show
+const asksFromStructure = question => question.fromStructure && !rdkitFailed;
 
 function setInteractActivity(activity) {
   interactActivity = activity;
@@ -1869,10 +1876,7 @@ function renderInteractPanel() {
 
 function renderInteractQuiz() {
   if (!interactQuestion) interactQuestion = pickInteractionQuestion();
-  const { a, b, nameType } = interactQuestion;
-  document.getElementById('interact-prompt').innerHTML =
-    `Which interaction can form between the side chains of <strong>${nameOfType(aaByCode(a), nameType)}</strong> and ` +
-    `<strong>${nameOfType(aaByCode(b), nameType)}</strong> <strong>(pH ${INTERACT_PH})</strong>?`;
+  drawInteractPrompt();
   interactTried = [];
   interactRevealed = false;
   document.querySelectorAll('.interact-opt').forEach(btn => {
@@ -1885,12 +1889,24 @@ function renderInteractQuiz() {
   drawCurrentPair();
 }
 
+function drawInteractPrompt() {
+  const { a, b, nameType } = interactQuestion;
+  const pair = asksFromStructure(interactQuestion)
+    ? 'these two amino acids'
+    : `<strong>${nameOfType(aaByCode(a), nameType)}</strong> and <strong>${nameOfType(aaByCode(b), nameType)}</strong>`;
+  document.getElementById('interact-prompt').innerHTML =
+    `Which interaction can form between the side chains of ${pair} <strong>(pH ${INTERACT_PH})</strong>?`;
+}
+
 function drawCurrentPair() {
   const quiz = interactActivity === 'quiz';
   const pair = quiz ? interactQuestion : explorePair;
   if (!pair) return;
-  // The quiz keeps its structures hidden until the first choice is entered
-  const showStructures = !quiz || interactRevealed;
+  const fromStructure = quiz && asksFromStructure(pair);
+  // A name question keeps its structures hidden until the first choice is entered;
+  // a structure question keeps its names hidden until then
+  const showStructures = !quiz || interactRevealed || fromStructure;
+  const showNames = !fromStructure || interactRevealed;
   const unavailable = document.getElementById('interact-unavailable');
   unavailable.hidden = !(rdkitFailed && showStructures);
   unavailable.textContent = rdkitFailed ? RDKIT_FAILED_MSG : '';
@@ -1901,12 +1917,15 @@ function drawCurrentPair() {
   [['a', pair.a], ['b', pair.b]].forEach(([side, code]) => {
     const aa = aaByCode(code);
     const box = document.getElementById('pair-struct-' + side);
-    document.getElementById('pair-name-' + side).textContent =
-      showDetails ? `${aa.name} (${aa.code3})` : nameOfType(aa, pair.nameType);
+    const shownName = !showNames ? '' : showDetails ? `${aa.name} (${aa.code3})` : nameOfType(aa, pair.nameType);
+    document.getElementById('pair-name-' + side).textContent = shownName;
     document.getElementById('pair-note-' + side).textContent = showDetails ? describeSideChain(aa) : '';
     if (drawStructureInto(aa.smiles[INTERACT_PH], box, 300, 170)) {
+      const position = side === 'a' ? 'first' : 'second';
       box.setAttribute('role', 'img');
-      box.setAttribute('aria-label', `Structure of ${nameOfType(aa, showDetails ? 'name' : pair.nameType)} at pH ${INTERACT_PH}`);
+      box.setAttribute('aria-label', showNames
+        ? `Structure of ${nameOfType(aa, showDetails ? 'name' : pair.nameType)} at pH ${INTERACT_PH}`
+        : `Structure of the ${position} amino acid at pH ${INTERACT_PH}`);
     } else {
       box.removeAttribute('role');
       box.removeAttribute('aria-label');
@@ -1924,7 +1943,8 @@ function markInteractionButton(btn, className, mark, description) {
   btn.setAttribute('aria-label', `${interactionName(btn.dataset.interaction)}: ${description}`);
 }
 
-// Takes a clicked choice: the first wrong one earns a second chance, with the structures to help
+// Takes a clicked choice: the first wrong one earns a second chance, with whichever of the
+// structures or the names was held back to help
 function chooseInteraction(key) {
   if (answered || interactTried.includes(key)) return;
   const { a, b } = interactQuestion;
@@ -1942,8 +1962,9 @@ function chooseInteraction(key) {
   [...document.querySelectorAll('.interact-opt')].find(other => !other.disabled).focus();
   const fb = document.getElementById('feedback');
   fb.className = 'feedback show partial';
+  const help = asksFromStructure(interactQuestion) ? 'names above the structures' : 'structures';
   fb.innerHTML = `<div class="fb-title">Not quite. Try once more.</div>
-    <div class="fb-answers"><b>${interactionName(key)}</b> is not correct. Use the structures to choose again.</div>`;
+    <div class="fb-answers"><b>${interactionName(key)}</b> is not correct. Use the ${help} to choose again.</div>`;
   drawCurrentPair();
 }
 
