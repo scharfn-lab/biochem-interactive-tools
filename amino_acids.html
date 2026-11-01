@@ -550,8 +550,8 @@
   <div class="qtype-bar" id="source-bar" style="display:none" role="group" aria-label="Question type">
     <span class="qtype-label">Question type:</span>
     <button class="name-type-btn active" data-source="random"    aria-pressed="true"  onclick="setNameModeSource('random')">Randomly select</button>
-    <button class="name-type-btn"        data-source="name"      aria-pressed="false" onclick="setNameModeSource('name')">From Name</button>
-    <button class="name-type-btn"        data-source="structure" aria-pressed="false" onclick="setNameModeSource('structure')">From Structure</button>
+    <button class="name-type-btn"        data-source="name"      aria-pressed="false" onclick="setNameModeSource('name')">Show Name</button>
+    <button class="name-type-btn"        data-source="structure" aria-pressed="false" onclick="setNameModeSource('structure')">Show Structure</button>
   </div>
 
   <!-- Name type (only one can be selected): the name asked for in structure mode, the name shown in name mode -->
@@ -1146,7 +1146,7 @@ function resolveIdentifyName(aa) {
 
 // A random choice is kept on the question so re-rendering it doesn't change the name
 function activeNameType() {
-  // In name mode the row is only on screen for From Name, so its choice only applies there
+  // In name mode the row is only on screen for Show Name, so its choice only applies there
   const chosen = displayMode === 'name' && nameModeSource !== 'name' ? 'random' : selectedNameType();
   if (chosen !== 'random') return chosen;
   if (!current.randomNameType) current.randomNameType = randomNameField();
@@ -1180,7 +1180,7 @@ let rdkitReady   = false;
 let rdkitFailed  = false;
 let pendingSmiles = null;
 
-const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Determine Property with From Name.';
+const RDKIT_FAILED_MSG = 'Structure renderer failed to load. Check your connection and reload the page, or use Determine Property with Show Name.';
 
 // The global is missing when the CDN script itself could not be fetched
 (window.initRDKitModule

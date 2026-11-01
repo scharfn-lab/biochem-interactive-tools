@@ -1414,7 +1414,7 @@ test('the name type row sits below the question types and needs "Determine name"
   page.run(`toggleQuestionType('name'); setDisplayMode('identify')`);
   assert.equal(row.style.display, 'none');
   page.run(`setDisplayMode('name')`);
-  assert.equal(row.style.display, 'none', 'name mode only offers it for From Name');
+  assert.equal(row.style.display, 'none', 'name mode only offers it for Show Name');
   page.run(`setDisplayMode('structure')`);
   assert.equal(row.style.display, 'none', 'Determine name is still off');
 });
@@ -1569,7 +1569,7 @@ test('name mode grades the property of the amino acid shown', () => {
 test('the question type replaces Determine properties with three single choices', () => {
   const bar = MARKUP.match(/id="source-bar"[\s\S]*?<\/div>/)[0];
   assert.match(bar, />Question type:</);
-  assert.deepEqual([...bar.matchAll(/>([^<>]+)<\/button>/g)].map(m => m[1]), ['Randomly select', 'From Name', 'From Structure']);
+  assert.deepEqual([...bar.matchAll(/>([^<>]+)<\/button>/g)].map(m => m[1]), ['Randomly select', 'Show Name', 'Show Structure']);
 
   const page = loadPage();
   const selected = () => page.qa('[data-source]').filter(b => b.classList.contains('active')).map(b => b.dataset.source);
@@ -1587,7 +1587,7 @@ test('the question type replaces Determine properties with three single choices'
   assert.equal(page.el('qtype-bar').style.display, '');
 });
 
-test('the name type options appear only for From Name', () => {
+test('the name type options appear only for Show Name', () => {
   const page = loadPage();
   const row = page.el('name-toggles');
   page.run(`setDisplayMode('name')`);
@@ -1600,7 +1600,7 @@ test('the name type options appear only for From Name', () => {
   assert.equal(row.style.display, 'none');
 });
 
-test('From Name shows only the name and From Structure shows only the structure', () => {
+test('Show Name shows only the name and Show Structure shows only the structure', () => {
   const page = loadPage();
   page.run(`setDisplayMode('name')`);
   ask(page, 'D', 7);
@@ -1670,7 +1670,7 @@ test('Randomly select asks from a name or a structure per question and keeps it'
   page.run(`current = { aa: AA.find(a => a.code1 === 'W'), ph: 7, randomSource: 'name', randomNameType: 'name' }; renderQuestion()`);
   assert.match(boxHTML(page), />Tryptophan</);
   page.run(`setNameModeSource('name')`);
-  assert.match(boxHTML(page), />Trp</, 'From Name uses the saved choice');
+  assert.match(boxHTML(page), />Trp</, 'Show Name uses the saved choice');
 });
 
 // ── Identify mode: options ─────────────────────────────────────
@@ -1943,7 +1943,7 @@ test('RDKit arriving in name mode does not replace the names with a stale struct
   assert.equal(page.run('pendingSmiles'), null);
 });
 
-test('a From Structure question asked before RDKit loads is drawn once it arrives', () => {
+test('a Show Structure question asked before RDKit loads is drawn once it arrives', () => {
   const page = loadPage({ rdkit: false });
   page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
   ask(page, 'A', 7);
@@ -1951,7 +1951,7 @@ test('a From Structure question asked before RDKit loads is drawn once it arrive
   assert.ok(boxHTML(page).includes(page.run('current.aa.smiles[7]')));
 });
 
-test('switching to From Name before RDKit loads keeps the name on screen', () => {
+test('switching to Show Name before RDKit loads keeps the name on screen', () => {
   const page = loadPage({ rdkit: false });
   page.run(`setDisplayMode('name'); setNameModeSource('structure')`);
   ask(page, 'A', 7);
