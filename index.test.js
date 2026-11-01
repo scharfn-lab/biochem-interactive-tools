@@ -42,14 +42,14 @@ test('every tool belongs to a listed topic', () => {
 test('the topics are in the requested order', () => {
   assert.deepEqual(TOPICS, [
     'Acid-Base Chemistry', 'Amino Acids', 'Peptide Properties', 'Peptide Folding',
-    'Protein Structure', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics',
+    'Protein Purification', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics',
   ]);
 });
 
 test('the button rows have the requested headings and topics', () => {
   assert.deepEqual(TOPIC_GROUPS.map(g => [g.heading, [...g.topics]]), [
     ['Amino Acids + Peptides', ['Acid-Base Chemistry', 'Amino Acids', 'Peptide Properties', 'Peptide Folding']],
-    ['Proteins + Enzymes', ['Protein Structure', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics']],
+    ['Proteins + Enzymes', ['Protein Purification', 'Hemoglobin + Myoglobin', 'Enzymes', 'Enzyme Kinetics']],
   ]);
 });
 
