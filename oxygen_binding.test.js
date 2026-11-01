@@ -234,15 +234,15 @@ test('P₅₀, the pink band and the old results text are gone', () => {
   assert.doesNotMatch(HTML.slice(HTML.indexOf('function updateCanvasLabel'), HTML.indexOf('// ═══ 5.')), /P50|p50/);
 });
 
-test('the plot is 20% smaller: 552 px at most, from 690', () => {
-  assert.equal(690 * 0.8, 552);
-  assert.match(HTML, /#plot-wrap \{ max-width: 552px;/);
+test('the plot is 10% smaller: 497 px at most, from 552', () => {
+  assert.equal(Math.round(552 * 0.9), 497);
+  assert.match(HTML, /#plot-wrap \{ max-width: 497px;/);
 });
 
 // ── Curves and delivery points ─────────────────────────────────
 test('Normal Hb has a Hide checkbox at the top right of the curve, and no button', () => {
   assert.doesNotMatch(HTML, /data-toggle="normal"|>Normal Hb reference</);
-  const header = HTML.slice(HTML.indexOf('id="plot-panel"'), HTML.indexOf('id="affinity-box"'));
+  const header = HTML.slice(HTML.indexOf('id="plot-panel"'), HTML.indexOf('<canvas id="plot"'));
   assert.ok(header.indexOf('id="plot-title"') < header.indexOf('id="hide-normal"'), 'after the title, in the header row');
   assert.match(header, /type="checkbox" id="hide-normal">Hide Normal Hb/);
   assert.ok(HTML.includes('state.show.normal = !e.target.checked;'));
@@ -282,7 +282,7 @@ test('Results sits right of Conditions, and the schematic left of the curve', ()
   assert.ok(at('id="plot-row"') < at('id="schematic-title"'));
   assert.ok(at('id="schematic-title"') < at('id="plot-title"'));
   assert.match(HTML, /#controls-row \{ grid-template-columns: minmax\(0, 588px\) minmax\(0, 1fr\); \}/);
-  assert.match(HTML, /#plot-row \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 588px\); \}/);
+  assert.match(HTML, /#plot-row \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 533px\); \}/);
 });
 
 // ── Schematic ──────────────────────────────────────────────────
@@ -858,4 +858,20 @@ test('the curve legend has line keys on the first row and markings on the second
   const rows = fn.slice(fn.lastIndexOf("$('legend').innerHTML"));
   assert.equal(rows.split('legend-row').length - 1, 2, 'two rows');
   assert.ok(rows.indexOf('entries.map') < rows.indexOf('${dots}${selected}${arrow}'), 'lines first');
+});
+
+test('the plot comes right after the title row, with its legend below', () => {
+  const panel = HTML.slice(HTML.indexOf('id="plot-panel"'), HTML.indexOf('</main>'));
+  const at = text => panel.indexOf(text);
+  const headerEnd = panel.indexOf('</div>');
+  assert.ok(at('id="plot-title"') < at('id="affinity-box"') && at('id="affinity-box"') < at('id="hide-normal"'), 'the message shares the title row');
+  assert.ok(at('id="hide-normal"') < headerEnd && headerEnd < at('id="plot-wrap"'));
+  assert.ok(at('<canvas id="plot"') < at('id="legend"') && at('id="legend"') < at('id="plot-hint"'));
+  assert.match(HTML.slice(HTML.indexOf('#affinity-box {'), HTML.indexOf('#affinity-box.left')), /flex: 1;\s+min-width: 0;\s+min-height: 36px;/, 'in the title row, at a fixed height, so the plot stays put');
+});
+
+test('the schematic stays its size even though its box grew', () => {
+  assert.match(HTML, /#schematic-body \{ width: 100%; max-width: 402px;/);
+  const body = HTML.slice(HTML.indexOf('<div id="schematic-body">'), HTML.indexOf('id="plot-panel"'));
+  for (const id of ['id="schematic"', 'id="model-buttons"', 'id="po2-row"']) assert.ok(body.includes(id), id);
 });

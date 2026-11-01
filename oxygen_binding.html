@@ -173,19 +173,20 @@
     /* ── Plot and results ── */
     #controls-row, #plot-row { display: grid; gap: 18px; align-items: stretch; }
     #controls-row { grid-template-columns: minmax(0, 588px) minmax(0, 1fr); }
-    #plot-row { grid-template-columns: minmax(0, 1fr) minmax(0, 588px); }
+    #plot-row { grid-template-columns: minmax(0, 1fr) minmax(0, 533px); }
 
     #plot-panel { min-width: 0; }
-    #plot-wrap { max-width: 552px; margin: 0 auto; }
+    #plot-wrap { max-width: 497px; margin: 0 auto; }
 
-    /* Keeps its space when empty, so the plot doesn't jump as a slider crosses normal. */
+    /* Sits in the title row, which stays tall enough for its two lines, so the plot never moves. */
     #affinity-box {
+      flex: 1;
+      min-width: 0;
       min-height: 36px;
-      margin-bottom: 10px;
-      padding: 7px 10px;
+      padding: 3px 6px;
       border-radius: 6px;
       color: #FFFFFF;
-      font-size: 0.9em;
+      font-size: 0.72em;
       font-weight: 600;
       text-align: center;
       visibility: hidden;
@@ -200,7 +201,7 @@
       margin-bottom: 8px;
       font-size: 0.85em;
     }
-    #legend { flex-direction: column; gap: 4px; }
+    #legend { flex-direction: column; gap: 4px; margin: 10px 0 0; }
     .legend-row { display: flex; flex-wrap: wrap; gap: 4px 16px; }
     .legend-item { display: flex; align-items: center; gap: 6px; }
     .legend-item svg { flex-shrink: 0; }
@@ -228,6 +229,7 @@
     .o2-site { fill: var(--ut-crimson); stroke: #FFFFFF; stroke-width: 0.6; opacity: 0; transition: opacity 0.25s; }
     .o2-site.on { opacity: 1; }
     #schematic-key { flex: 1; min-width: 0; justify-content: center; margin: 0; }
+    #schematic-body { width: 100%; max-width: 402px; margin: 0 auto; }
     #po2-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 12px; }
     .subunit-off { display: none; }
     #po2-control { flex: none; }
@@ -278,7 +280,9 @@
     @media (max-width: 480px) {
       .panel { padding: 12px; }
       #sliders { grid-template-columns: minmax(0, 1fr); }
-      #affinity-box { min-height: 54px; }
+      #plot-panel .panel-header { flex-wrap: wrap; }
+      #affinity-box { order: 3; flex-basis: 100%; min-height: 0; }
+      #affinity-box:not(.left):not(.right) { display: none; }
     }
   </style>
 </head>
@@ -379,6 +383,7 @@
 
     <section class="panel" id="schematic-panel" aria-labelledby="schematic-title">
       <h2 class="panel-section-title" id="schematic-title">O₂ binding to myoglobin and hemoglobin</h2>
+      <div id="schematic-body">
       <svg id="schematic" viewBox="0 0 402 268" role="img">
         <text x="98" y="14" font-size="13" font-weight="600">Myoglobin</text>
         <text class="cell-name" x="98" y="29">in a cardiac muscle cell</text>
@@ -421,16 +426,17 @@
         </div>
         <div class="legend" id="schematic-key"><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="#C8102E"/></svg>O₂ bound</span><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="1" fill="#FFFFFF" stroke="#685C53" stroke-width="1.2"/></svg>T state</span><span class="legend-item"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="#FFFFFF" stroke="#685C53" stroke-width="1.2"/></svg>R state</span></div>
       </div>
+      </div>
     </section>
 
     <section class="panel" id="plot-panel" aria-labelledby="plot-title">
       <div class="panel-header">
         <h2 class="panel-section-title" id="plot-title">O₂ saturation curve</h2>
+        <p id="affinity-box" role="status"></p>
         <label class="check-label" id="hide-normal-label"><input type="checkbox" id="hide-normal">Hide Normal Hb</label>
       </div>
-      <p id="affinity-box" role="status"></p>
-      <div class="legend" id="legend"></div>
       <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
+      <div class="legend" id="legend"></div>
       <p class="plot-hint" id="plot-hint">Click or tap the plot to place the red point at that pO₂. Hover to read the nearest curve.</p>
     </section>
   </div>
