@@ -261,6 +261,7 @@
     .quiz-option.wrong, .quiz-match.wrong, #quiz-feedback.wrong { background: #FFEBEE; border-color: #C8102E; color: #000000; }
     #quiz-buttons { display: flex; gap: 8px; margin-top: 10px; }
     #quiz-feedback { margin-top: 10px; padding: 8px 12px; border: 2px solid transparent; border-radius: 8px; font-size: 0.9em; line-height: 1.45; }
+    #quiz-feedback.revealed { background: #FFFFFF; border-color: var(--ut-taupe); color: #000000; }
     #quiz-breakdown { margin-top: 14px; }
     #quiz-breakdown td { text-align: right; }
 
@@ -646,7 +647,6 @@ const QUIZ_CHANGES = {
 };
 const RIGHT_SHIFTS = ['pHDown', 'hUp', 'co2Up', 'bpgUp'], LEFT_SHIFTS = ['pHUp', 'hDown', 'co2Down', 'bpgDown'];
 const SHIFT_OPTIONS = { left: 'To the left', right: 'To the right', none: 'It does not shift' };
-const NO_CHANGE = 'No change';
 
 const pick = (list, rand) => list[Math.floor(rand() * list.length)];
 function shuffled(list, rand) {
@@ -720,28 +720,22 @@ const QUIZ_BUILDERS = {
   },
 
   // One right shift and one left shift, because causes in the same direction look alike on a plot.
+  // Normal Hb is always named, so students compare with it and don't have to remember it.
   match(rand) {
     const right = QUIZ_CHANGES[pick(RIGHT_SHIFTS, rand)], left = QUIZ_CHANGES[pick(LEFT_SHIFTS, rand)];
-    const threeCurves = rand() < 0.5;
     const entries = [
       { name: right.label, curve: changedCurve(right.conditions), direction: 'right', why: right.why },
       { name: left.label, curve: changedCurve(left.conditions), direction: 'left', why: left.why },
     ];
-    if (threeCurves) entries.push({ name: NO_CHANGE, curve: normalHbCurve(), direction: 'none' });
     const curves = lettered(entries, rand);
-    const answer = Object.fromEntries(curves.map(c => [curveChoice(c), c.name]));
     return {
       format: 'match',
-      prompt: threeCurves
-        ? 'One curve is at normal conditions, and the other two have each had one change. Match each curve to what happened.'
-        : 'Each lettered curve has had one change from Normal Hb (the dotted gray curve). Match each curve to its cause.',
+      prompt: 'Each lettered curve has had one change from Normal Hb. Compare each with Normal Hb, then match it to its cause.',
       rows: curves.map(curveChoice),
       options: shuffled(entries.map(e => e.name), rand),
-      answer,
-      explanation: curves.map(c => (c.direction === 'none'
-        ? `Curve ${c.letter} is at normal conditions.`
-        : `Curve ${c.letter} is shifted ${c.direction} (${c.name}). ${c.why}`)).join(' '),
-      curves: threeCurves ? curves : [NORMAL_REFERENCE(), ...curves],
+      answer: Object.fromEntries(curves.map(c => [curveChoice(c), c.name])),
+      explanation: curves.map(c => `Curve ${c.letter} is shifted ${c.direction} of Normal Hb (${c.name}). ${c.why}`).join(' '),
+      curves: [NORMAL_REFERENCE(), ...curves],
     };
   },
 
@@ -755,7 +749,7 @@ const QUIZ_BUILDERS = {
     const label = key => QUIZ_CHANGES[key].label;
     return {
       format: 'multi',
-      prompt: 'Curve A has shifted from Normal Hb (the dotted gray curve). Which changes could cause this?',
+      prompt: 'Curve A has shifted from Normal Hb. Which changes could cause this?',
       hint: 'Select all that apply.',
       options: shuffled([...chosen, ...distractors].map(label), rand),
       answer: chosen.map(label),
@@ -870,6 +864,15 @@ function createQuizDeck(rand) {
       return question;
     },
   };
+}
+
+// 'blank' reveals the answer, 'partial' asks for the rest of a match, and 'complete' is graded.
+function quizAnswerStatus(question, given) {
+  if (question.format === 'single') return given ? 'complete' : 'blank';
+  if (question.format === 'multi') return given.length ? 'complete' : 'blank';
+  const filled = question.rows.filter(row => given[row]).length;
+  if (filled === 0) return 'blank';
+  return filled === question.rows.length ? 'complete' : 'partial';
 }
 
 function gradeQuizAnswer(question, given) {
@@ -1170,10 +1173,18 @@ function drawCurveLetters(ctx, g, curves) {
   ctx.font = `700 14px ${FONT}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  for (const { letter, curve, style } of curves) {
-    if (!letter) continue;
-    ctx.fillStyle = style.color;
-    labelWithHalo(ctx, letter, g.sx(curve.p50) + 7, g.sy(0.5) + 7);
+  for (const { letter, key, curve, style } of curves) {
+    if (letter) {
+      ctx.fillStyle = style.color;
+      labelWithHalo(ctx, letter, g.sx(curve.p50) + 7, g.sy(0.5) + 7);
+    } else if (key === 'normal') {
+      // Higher up the curve than the letters, so that the name stays clear of them
+      const y = 0.72, pO2 = curve.p50 * (y / (1 - y)) ** (1 / curve.n);
+      ctx.fillStyle = COLORS.text;
+      ctx.font = `600 12px ${FONT}`;
+      labelWithHalo(ctx, 'Normal Hb', g.sx(pO2) + 8, g.sy(y) + 8);
+      ctx.font = `700 14px ${FONT}`;
+    }
   }
 }
 
@@ -1552,36 +1563,36 @@ function renderQuizQuestion() {
   showQuizPlot();
 }
 
-// What the student has entered, or null if the question isn't finished.
+// What the student has entered so far.
 function readQuizAnswer() {
   const q = quiz.question;
   if (q.format === 'match') {
     const given = {};
     for (const row of document.querySelectorAll('.quiz-match')) {
       const value = row.querySelector('select').value;
-      if (value === '') return null;
-      given[row.dataset.row] = q.options[Number(value)];
+      if (value !== '') given[row.dataset.row] = q.options[Number(value)];
     }
     return given;
   }
   const chosen = [...document.querySelectorAll('input[name=quiz-choice]:checked')].map(input => q.options[Number(input.value)]);
-  if (!chosen.length) return null;
-  return q.format === 'multi' ? chosen : chosen[0];
+  return q.format === 'multi' ? chosen : (chosen[0] ?? null);
 }
 
-function markQuizAnswer(given) {
+// With nothing entered, this just shows the right answers.
+function markQuizAnswer(given, revealed = false) {
   const q = quiz.question;
   document.querySelectorAll('#quiz-options input, #quiz-options select').forEach(el => { el.disabled = true; });
   if (q.format === 'match') {
     for (const row of document.querySelectorAll('.quiz-match')) {
-      const right = given[row.dataset.row] === q.answer[row.dataset.row];
-      row.classList.add(right ? 'right' : 'wrong');
-      row.insertAdjacentHTML('beforeend', `<span class="quiz-fix">${right ? '✓ Correct' : `✗ Answer: ${q.answer[row.dataset.row]}`}</span>`);
+      const answer = q.answer[row.dataset.row], right = given[row.dataset.row] === answer;
+      row.classList.add(right || revealed ? 'right' : 'wrong');
+      const note = revealed ? `✓ Answer: ${answer}` : right ? '✓ Correct' : `✗ Answer: ${answer}`;
+      row.insertAdjacentHTML('beforeend', `<span class="quiz-fix">${note}</span>`);
     }
     return;
   }
   const correct = q.format === 'multi' ? q.answer : [q.answer];
-  const picked = q.format === 'multi' ? given : [given];
+  const picked = [].concat(given ?? []);
   for (const option of document.querySelectorAll('.quiz-option')) {
     const text = option.dataset.text, isCorrect = correct.includes(text), isPicked = picked.includes(text);
     if (!isCorrect && !isPicked) continue;
@@ -1599,30 +1610,42 @@ function renderQuizScore() {
     : '';
 }
 
+// Shows the outcome and moves on to the Next button, whether graded or only revealed.
+function finishQuizQuestion(boxClass, message) {
+  quiz.answered = true;
+  $('quiz-message').textContent = '';
+  const box = $('quiz-feedback');
+  box.className = boxClass;
+  box.textContent = `${message} ${quiz.question.explanation}`;
+  box.hidden = false;
+  $('quiz-check').hidden = true;
+  $('quiz-next').hidden = false;
+  showQuizPlot();
+  $('quiz-next').focus();
+}
+
 function checkQuizAnswer() {
-  const given = readQuizAnswer();
-  if (given === null) {
-    $('quiz-message').textContent = quiz.question.format === 'match' ? 'Choose an answer for every curve.' : 'Choose an answer first.';
+  const q = quiz.question, given = readQuizAnswer();
+  const status = quizAnswerStatus(q, given);
+  if (status === 'partial') {
+    $('quiz-message').textContent = 'Choose an answer for every curve.';
     return;
   }
-  const q = quiz.question, right = gradeQuizAnswer(q, given);
-  quiz.answered = true;
+  // Nothing entered: show the answer, with no change to the score
+  if (status === 'blank') {
+    markQuizAnswer(given, true);
+    finishQuizQuestion('revealed', 'Answer revealed.');
+    return;
+  }
+  const right = gradeQuizAnswer(q, given);
   quiz.total++;
   if (right) quiz.correct++;
   const topic = (quiz.topics[q.topic] ||= { correct: 0, total: 0 });
   topic.total++;
   if (right) topic.correct++;
   markQuizAnswer(given);
-  $('quiz-message').textContent = '';
-  const box = $('quiz-feedback');
-  box.className = right ? 'right' : 'wrong';
-  box.textContent = `${right ? '✓ Correct.' : '✗ Not quite.'} ${q.explanation}`;
-  box.hidden = false;
-  $('quiz-check').hidden = true;
-  $('quiz-next').hidden = false;
   renderQuizScore();
-  showQuizPlot();
-  $('quiz-next').focus();
+  finishQuizQuestion(right ? 'right' : 'wrong', right ? '✓ Correct.' : '✗ Not quite.');
 }
 
 function nextQuizQuestion() {

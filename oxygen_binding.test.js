@@ -599,22 +599,48 @@ test('fetal questions point at the left-shifted curve', () => {
 
 test('match questions never pair two causes in the same direction', () => {
   const rightLabels = new Set(Object.keys(EXPECTED_SHIFT).filter(k => EXPECTED_SHIFT[k] === 'right').map(k => CHANGES[k].label));
-  let two = 0, three = 0;
   for (const q of manyOf('match')) {
-    const causes = [...q.options].filter(o => o !== 'No change');
+    const causes = [...q.options];
     assert.equal(causes.length, 2, q.prompt);
     assert.equal(causes.filter(c => rightLabels.has(c)).length, 1, causes.join());
     for (const row of q.rows) {
-      const letter = row.slice(-1), curve = q.curves.find(c => c.letter === letter);
-      const shift = shiftFrom(curve.curve.p50);
-      const label = q.answer[row];
-      if (label === 'No change') assert.equal(shift, 'none');
-      else assert.equal(shift, rightLabels.has(label) ? 'right' : 'left', `${row} ${label}`);
+      const curve = q.curves.find(c => c.letter === row.slice(-1));
+      assert.equal(shiftFrom(curve.curve.p50), rightLabels.has(q.answer[row]) ? 'right' : 'left', `${row} ${q.answer[row]}`);
     }
-    if (q.rows.length === 3) { three++; assert.ok([...q.options].includes('No change')); assert.ok(!q.curves.some(c => c.reference)); }
-    else { two++; assert.ok(q.curves.some(c => c.reference), 'Normal Hb shows for comparison'); }
   }
-  assert.ok(two && three, 'both sizes appear');
+});
+
+test('any plot with more than two curves names one as Normal Hb, before answering', () => {
+  let checked = 0;
+  for (const topic of TOPICS) {
+    for (const q of manyOf(topic, 200)) {
+      const shown = [...quizCurveEntries(q, false)];
+      if (shown.length <= 2) continue;
+      checked++;
+      const references = shown.filter(c => c.name === 'Normal Hb');
+      assert.equal(references.length, 1, `${topic}: ${q.prompt}`);
+      assert.equal(references[0].letter, undefined, 'named, not lettered');
+      near(references[0].curve.p50, normalHbCurve().p50);
+    }
+  }
+  assert.ok(checked > 100, `${checked} plots checked`);
+});
+
+test('every lettered curve in a match or checkbox question is compared with a named Normal Hb', () => {
+  for (const topic of ['match', 'causes']) {
+    for (const q of manyOf(topic, 100)) {
+      assert.ok([...quizCurveEntries(q, false)].some(c => c.name === 'Normal Hb'), topic);
+      assert.match(q.prompt, /Normal Hb/, 'the question refers to it by name');
+      assert.doesNotMatch(q.prompt, /dotted|gray/, 'and not by how it looks');
+    }
+  }
+  assert.doesNotMatch(HTML, /No change|normal conditions, and the other/);
+});
+
+test('Normal Hb is named on the plot itself', () => {
+  const fn = HTML.slice(HTML.indexOf('function drawCurveLetters'), HTML.indexOf('function drawCurves'));
+  assert.ok(fn.includes("labelWithHalo(ctx, 'Normal Hb',"));
+  assert.ok(fn.includes("key === 'normal'"));
 });
 
 test('checkbox questions: every option in the curve\'s direction is correct, and only those', () => {
@@ -767,4 +793,32 @@ test('the sequential model spreads O₂ across the molecules', () => {
       assert.equal([...molecule].filter(s => s.bound).length, each, `${bound} bound`);
     }
   }
+});
+
+// ── Check Answer with nothing entered ──────────────────────────
+test('the answer status tells blank, partial and complete apart', () => {
+  const status = page.quizAnswerStatus;
+  const single = { format: 'single' }, multi = { format: 'multi' }, match = { format: 'match', rows: ['Curve A', 'Curve B'] };
+  assert.equal(status(single, null), 'blank');
+  assert.equal(status(single, 'To the left'), 'complete');
+  assert.equal(status(multi, []), 'blank');
+  assert.equal(status(multi, ['a']), 'complete');
+  assert.equal(status(match, {}), 'blank');
+  assert.equal(status(match, { 'Curve A': 'x' }), 'partial');
+  assert.equal(status(match, { 'Curve A': 'x', 'Curve B': 'y' }), 'complete');
+});
+
+test('a blank Check Answer reveals the answer and leaves the score alone', () => {
+  const fn = HTML.slice(HTML.indexOf('function checkQuizAnswer'), HTML.indexOf('function nextQuizQuestion'));
+  const blank = fn.slice(fn.indexOf("status === 'blank'"), fn.indexOf('const right = gradeQuizAnswer'));
+  assert.ok(blank.includes("finishQuizQuestion('revealed', 'Answer revealed.');"));
+  assert.ok(blank.includes('return;'));
+  assert.doesNotMatch(blank, /quiz\.total|quiz\.correct|topic/, 'nothing is counted');
+  assert.ok(fn.indexOf("status === 'blank'") < fn.indexOf('quiz.total++'), 'decided before counting');
+  assert.doesNotMatch(fn, /Choose an answer first/);
+  assert.ok(fn.includes("'Choose an answer for every curve.'"), 'a half-finished match still asks for the rest');
+});
+
+test('a revealed answer has its own neutral style, not right or wrong', () => {
+  assert.match(HTML, /#quiz-feedback\.revealed \{ background: #FFFFFF;/);
 });
