@@ -94,7 +94,7 @@ For the quiz, `QUIZ_BUILDERS` and `createQuizDeck()` in section 2 produce plain-
 
 Section 1 of the script touches no DOM, and the test file runs it in a vm. `render()` is the hub: `buildModel(state)` works out every number once, then `syncControls()`, `renderNotes()` and `drawAll()` read from it, so a later quiz mode has one place to hide or test values. The Quiz Mode button is disabled and has no code yet. `DEFAULTS` holds the optimal settings: weak binding and strong transition-state stabilization. Reset returns to them, and "Show ground-state trap" applies `SETTINGS_TRAP`. ΔH of unfolding is the fixed `DH_UNFOLD`.
 
-Energies are kept in kJ/mol, with S and E + S at zero, and only the number boxes and labels convert to kcal/mol. `catalyzedPath()` holds each transition state at least `MIN_TS_GAP` above its neighbors and reports each limit in `clamps`, which becomes the page's note. `barriersOf()` measures each barrier from the lowest state before it, and the largest is rate-limiting. The diagram's bracket is `tsGap`, transition state to transition state, which is not the same as the difference between the barriers.
+Energies are kept in kJ/mol, with S and E + S at zero, and only the number boxes and labels convert to kcal/mol. `catalyzedPath()` holds each transition state at least `MIN_TS_GAP` above its neighbors and reports each limit in `clamps`, which becomes the page's note. `barriersOf()` measures each barrier from the lowest state before it, and the largest is rate-limiting. The Uncatalyzed and Catalyzed buttons switch `showUncat` and `showCat` separately, and both may be off. The temperature and pH plots draw whole curves and mark only the optimum, so no temperature or pH setting exists on the page.
 
 ## Git Workflow
 

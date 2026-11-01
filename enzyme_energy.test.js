@@ -33,7 +33,7 @@ const randomSettings = rand => {
   const between = (a, b) => a + (b - a) * rand();
   return {
     dGu: between(40, 160), dG: between(-40, 20), binding: between(-40, 0), tsStab: between(0, 110),
-    epG: between(-60, 10), ts2Height: between(5, 80), tempC: between(0, 80),
+    epG: between(-60, 10), ts2Height: between(5, 80),
   };
 };
 
@@ -45,7 +45,6 @@ test('hand calculation: the default path and its barriers', () => {
   assert.equal(m.barriers[0].barrier, 20);      // TS1 from ES: 10 − (−10)
   assert.equal(m.barriers[1].barrier, 35);      // TS2 from EP: 5 − (−30)
   assert.equal(m.limiting.ts.id, 'TS2');
-  assert.equal(m.tsGap, 85);                    // 90 − 5
 });
 
 test('the defaults are the optimal settings, with no trap and no clamp', () => {
@@ -203,24 +202,53 @@ const columnOf = key => HTML.match(new RegExp(`key: '${key}',[^\\n]*box: '([\\w-
 
 test('the sliders have the requested ranges and defaults', () => {
   const rows = [['dGu', 40, 160, 90], ['dG', -40, 20, -20], ['binding', -40, 0, -10], ['tsStab', 0, 110, 80],
-    ['tempC', 0, 80, 37], ['pH', 4, 10, 7], ['epG', -60, 10, -30], ['ts2Height', 5, 80, 35], ['Tm', 35, 90, 55]];
+    ['epG', -60, 10, -30], ['ts2Height', 5, 80, 35], ['Tm', 35, 90, 55]];
   for (const [key, min, max, value] of rows) {
     assert.ok(new RegExp(`key: '${key}',[^\\n]*min: ${min},\\s*max: ${max},`).test(HTML), key);
     assert.equal(DEFAULTS[key], value, key);
   }
 });
 
-test('the sliders are stacked in columns, with temperature and pH on the far right', () => {
+test('the sliders are stacked in three columns', () => {
   assert.equal(columnOf('dGu'), 'column-overall');
   assert.equal(columnOf('dG'), 'column-overall');
   assert.equal(columnOf('binding'), 'column-enzyme');
   assert.equal(columnOf('tsStab'), 'column-enzyme');
   assert.equal(columnOf('epG'), 'column-intermediate');
   assert.equal(columnOf('ts2Height'), 'column-intermediate');
-  assert.equal(columnOf('tempC'), 'column-conditions');
-  assert.equal(columnOf('pH'), 'column-conditions');
-  const order = ['column-overall', 'column-enzyme', 'column-intermediate', 'column-conditions'].map(id => MARKUP.indexOf(`id="${id}"`));
+  const order = ['column-overall', 'column-enzyme', 'column-intermediate'].map(id => MARKUP.indexOf(`id="${id}"`));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
+  assert.match(HTML, /#slider-grid \{ display: grid; grid-template-columns: repeat\(3,/);
+});
+
+test('each field has its text box beside the term and its slider below', () => {
+  const build = HTML.slice(HTML.indexOf('function buildControls'), HTML.indexOf('function setValue'));
+  const head = build.slice(build.indexOf('field-head'), build.indexOf('type="range"'));
+  assert.ok(head.indexOf('<label') < head.indexOf('type="number"'), 'the box follows the term');
+  assert.match(HTML, /\.field-head \{ display: flex;/);
+  assert.match(build, /<\/div>\s*<input type="range"/, 'the slider comes after the head row');
+  assert.ok(!HTML.includes('field-range'), 'no text showing the range');
+});
+
+test('the controls sit above the diagram in the left column, so the plots start at the top', () => {
+  const left = MARKUP.slice(MARKUP.indexOf('id="left-column"'), MARKUP.indexOf('id="plot-column"'));
+  assert.ok(left.indexOf('id="controls"') >= 0 && left.indexOf('id="controls"') < left.indexOf('id="diagram"'));
+  assert.ok(MARKUP.indexOf('id="main-row"') < MARKUP.indexOf('id="controls"'));
+});
+
+test('the view is two buttons that switch separately, both on at the start', () => {
+  assert.ok(MARKUP.includes('<button type="button" data-path="showUncat">Uncatalyzed</button>'));
+  assert.ok(MARKUP.includes('<button type="button" data-path="showCat">Catalyzed</button>'));
+  assert.match(HTML, /state\[b\.dataset\.path\] = !state\[b\.dataset\.path\]/);
+  assert.equal(DEFAULTS.showUncat, true);
+  assert.equal(DEFAULTS.showCat, true);
+});
+
+test('the trap button is below the plot, in the diagram box, and hides once the trap is on', () => {
+  const section = MARKUP.slice(MARKUP.indexOf('id="diagram-head"'), MARKUP.indexOf('id="plot-column"'));
+  assert.ok(section.indexOf('id="diagram"') < section.indexOf('id="preset-trap"'));
+  assert.ok(section.indexOf('id="preset-trap"') < section.indexOf('id="trap-callout"'));
+  assert.ok(HTML.includes("$('preset-trap').hidden = !state.showCat || m.trap;"));
 });
 
 test('the check marks sit in the diagram box, at the top right', () => {
@@ -244,7 +272,8 @@ test('the diagram is 30% shorter, and the plots keep their height, temperature a
 test('removed options are gone from the page', () => {
   for (const gone of ['analog', 'Analog', 'E·TS', 'ENZYME_PRESETS', 'Enzyme</label>', 'include-ep', 'Include EP',
     'id="results"', 'Rate enhancement', 'id="play"', 'id="progress"', 'id="schematic"', 'preset-optimal', 'Optimal catalysis',
-    'dHunf: 400', "key: 'dHunf'", 'general base)', 'general acid)']) {
+    'dHunf: 400', "key: 'dHunf'", 'general base)', 'general acid)',
+    'drawSpecies', 'drawEnzyme', 'kind:', 'same for both', 'ΔΔG', 'tsGap', "key: 'tempC'", "key: 'pH'", 'tempC', 'Current ', 'data-view', 'state.view']) {
     assert.ok(!HTML.includes(gone), gone);
   }
   assert.ok(!MARKUP.includes('type="range"'), 'sliders come only from CONTROLS');

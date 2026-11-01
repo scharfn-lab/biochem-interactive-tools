@@ -68,7 +68,6 @@
     #quiz-mode { pointer-events: none; }
 
     /* ── Controls ── */
-    #controls { margin-bottom: 14px; }
     #top-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 12px; }
     .top-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
     .group-label { font-size: 0.82em; font-weight: 600; }
@@ -77,16 +76,16 @@
     .segmented button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
     .segmented button:last-child { border-radius: 0 6px 6px 0; }
 
-    #slider-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 20px; }
+    #slider-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 18px; }
     .slider-column { display: flex; flex-direction: column; gap: 10px; }
-    .field label { display: block; font-size: 0.82em; font-weight: 600; margin-bottom: 3px; }
-    .field-range { color: var(--ut-taupe); font-weight: 400; }
-    .field-row { display: flex; align-items: center; gap: 6px; }
-    .field input[type=range] { flex: 1; min-width: 0; accent-color: var(--ut-crimson); cursor: pointer; }
+    .field-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 3px; min-height: 36px; }
+    .field label { font-size: 0.82em; font-weight: 600; line-height: 1.2; }
+    .field-entry { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .field input[type=range] { display: block; width: 100%; accent-color: var(--ut-crimson); cursor: pointer; }
     .field input[type=range]:disabled { accent-color: #828282; background: none; }
     .field input[type=number] {
-      width: 62px;
-      padding: 4px 6px;
+      width: 54px;
+      padding: 3px 4px;
       border: 1px solid var(--ut-taupe);
       border-radius: 6px;
       font: inherit;
@@ -95,15 +94,16 @@
     }
     .field input[type=number]:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; }
     .field.off label { color: #404040; }
-    .field-unit { font-size: 0.78em; color: var(--ut-taupe); min-width: 18px; }
-    .field.off .field-unit, .field.off .field-range { color: #404040; }
+    .field-unit { font-size: 0.74em; color: var(--ut-taupe); }
+    .field.off .field-unit { color: #404040; }
 
     .check { display: inline-flex; align-items: center; gap: 5px; font-size: 0.86em; cursor: pointer; }
     .check input { accent-color: var(--ut-crimson); width: 16px; height: 16px; }
     #clamp-note { font-size: 0.82em; margin-top: 8px; border-left: 3px solid var(--ut-crimson); padding-left: 8px; }
 
-    /* ── Diagram, with the activity plots to its right ── */
+    /* ── Controls above the diagram, with the activity plots to their right ── */
     #main-row { display: grid; grid-template-columns: minmax(0, 617fr) minmax(0, 489fr); gap: 14px; align-items: start; }
+    #left-column { display: flex; flex-direction: column; gap: 14px; }
     #diagram-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 4px 14px; margin-bottom: 6px; }
     #diagram-head .panel-section-title { margin-bottom: 0; }
     #annotations { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; }
@@ -113,6 +113,7 @@
     .swatch.cat { border-top: 3px solid var(--ut-crimson); }
     canvas { display: block; width: 100%; border-radius: 8px; background: #FFFFFF; }
     #diagram { height: 336px; touch-action: pan-y; }
+    #preset-trap { margin-top: 10px; }
     .callout { margin-top: 10px; padding: 8px 10px; background: var(--ut-lavender); border: 1px solid var(--lavender-edge); border-radius: 8px; font-size: 0.88em; }
 
     #plot-column { display: flex; flex-direction: column; gap: 14px; }
@@ -120,7 +121,6 @@
     .small-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 16px; margin-top: 10px; }
 
     @media (max-width: 1000px) {
-      #slider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       #main-row { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 720px) {
@@ -145,54 +145,52 @@
     <span id="quiz-wrap" title="Coming soon"><button type="button" id="quiz-mode" disabled>Quiz Mode</button></span>
   </header>
 
-  <section class="panel" id="controls" aria-labelledby="controls-title">
-    <h2 class="panel-section-title" id="controls-title">Controls</h2>
-    <div id="top-row">
-      <div class="top-group">
-        <span class="group-label" id="view-label">View</span>
-        <div class="segmented" role="group" aria-labelledby="view-label">
-          <button type="button" data-view="uncat">Uncatalyzed only</button>
-          <button type="button" data-view="cat">Catalyzed only</button>
-          <button type="button" data-view="both">Both</button>
-        </div>
-      </div>
-      <div class="top-group">
-        <span class="group-label" id="units-label">Units</span>
-        <div class="segmented" role="group" aria-labelledby="units-label">
-          <button type="button" data-unit="kJ">kJ/mol</button>
-          <button type="button" data-unit="kcal">kcal/mol</button>
-        </div>
-      </div>
-      <button type="button" id="reset">Reset to defaults</button>
-      <button type="button" id="preset-trap">Show ground-state trap</button>
-    </div>
-
-    <div id="slider-grid">
-      <div class="slider-column" id="column-overall"></div>
-      <div class="slider-column" id="column-enzyme"></div>
-      <div class="slider-column" id="column-intermediate"></div>
-      <div class="slider-column" id="column-conditions"></div>
-    </div>
-
-    <p id="clamp-note" role="status" hidden></p>
-  </section>
-
   <div id="main-row">
-    <section class="panel" aria-labelledby="diagram-title">
-      <div id="diagram-head">
-        <h2 class="panel-section-title" id="diagram-title">Reaction coordinate diagram</h2>
-        <div id="annotations">
-          <label class="check"><input type="checkbox" id="show-barriers"> ΔG‡ arrows</label>
-          <label class="check"><input type="checkbox" id="show-dg"> ΔG arrow</label>
+    <div id="left-column">
+      <section class="panel" id="controls" aria-labelledby="controls-title">
+        <h2 class="panel-section-title" id="controls-title">Controls</h2>
+        <div id="top-row">
+          <div class="top-group" role="group" aria-labelledby="view-label">
+            <span class="group-label" id="view-label">View</span>
+            <button type="button" data-path="showUncat">Uncatalyzed</button>
+            <button type="button" data-path="showCat">Catalyzed</button>
+          </div>
+          <div class="top-group">
+            <span class="group-label" id="units-label">Units</span>
+            <div class="segmented" role="group" aria-labelledby="units-label">
+              <button type="button" data-unit="kJ">kJ/mol</button>
+              <button type="button" data-unit="kcal">kcal/mol</button>
+            </div>
+          </div>
+          <button type="button" id="reset">Reset to defaults</button>
         </div>
-      </div>
-      <div id="legend">
-        <span id="legend-uncat"><span class="swatch uncat"></span>Uncatalyzed</span>
-        <span id="legend-cat"><span class="swatch cat"></span>Catalyzed</span>
-      </div>
-      <canvas id="diagram" role="img"></canvas>
-      <p class="callout" id="trap-callout" hidden></p>
-    </section>
+
+        <div id="slider-grid">
+          <div class="slider-column" id="column-overall"></div>
+          <div class="slider-column" id="column-enzyme"></div>
+          <div class="slider-column" id="column-intermediate"></div>
+        </div>
+
+        <p id="clamp-note" role="status" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="diagram-title">
+        <div id="diagram-head">
+          <h2 class="panel-section-title" id="diagram-title">Reaction coordinate diagram</h2>
+          <div id="annotations">
+            <label class="check"><input type="checkbox" id="show-barriers"> ΔG‡ arrows</label>
+            <label class="check"><input type="checkbox" id="show-dg"> ΔG arrow</label>
+          </div>
+        </div>
+        <div id="legend">
+          <span id="legend-uncat"><span class="swatch uncat"></span>Uncatalyzed</span>
+          <span id="legend-cat"><span class="swatch cat"></span>Catalyzed</span>
+        </div>
+        <canvas id="diagram" role="img"></canvas>
+        <button type="button" id="preset-trap">Show ground-state trap</button>
+        <p class="callout" id="trap-callout" tabindex="-1" hidden></p>
+      </section>
+    </div>
 
     <div id="plot-column">
       <section class="panel" aria-labelledby="temp-title">
@@ -222,15 +220,14 @@ const DH_UNFOLD = 400;                // kJ/mol: the enthalpy of unfolding, fixe
 
 // The defaults show optimal catalysis: weak substrate binding and strong transition-state stabilization.
 const DEFAULTS = Object.freeze({
-  view: 'both', unit: 'kJ',
+  showUncat: true, showCat: true, unit: 'kJ',
   dGu: 90, dG: -20, binding: -10, tsStab: 80,
   epG: -30, ts2Height: 35,
-  tempC: 37, pH: 7,
   showBarriers: true, showDG: true,
   Tm: 55, pKa1: 6, pKa2: 8.5,
 });
 
-const SETTINGS_TRAP = { dGu: 90, dG: -20, binding: -40, tsStab: 50, view: 'both' };
+const SETTINGS_TRAP = { dGu: 90, dG: -20, binding: -40, tsStab: 50 };
 
 const toKelvin = c => c + 273.15;
 const toDisplayEnergy = (kJ, unit) => (unit === 'kcal' ? kJ / KJ_PER_KCAL : kJ);
@@ -255,9 +252,9 @@ function phActivity(pH, pKa1, pKa2) {
 // The uncatalyzed path. S and P set the zero and the end that the catalyzed path shares.
 function uncatalyzedStates(s) {
   return [
-    { id: 'S',  name: 'S',  kind: 'S',   role: 'min', u: 0,   g: 0 },
-    { id: 'S‡', name: 'S‡', kind: 'S‡',  role: 'ts',  u: 0.5, g: s.dGu },
-    { id: 'P',  name: 'P',  kind: 'P',   role: 'min', u: 1,   g: s.dG },
+    { id: 'S',  name: 'S',  role: 'min', u: 0,   g: 0 },
+    { id: 'S‡', name: 'S‡', role: 'ts',  u: 0.5, g: s.dGu },
+    { id: 'P',  name: 'P',  role: 'min', u: 1,   g: s.dG },
   ];
 }
 
@@ -271,12 +268,12 @@ function catalyzedPath(s) {
     clamps.push({ ts: name, below: neighbors.reduce((a, b) => (b.g > a.g ? b : a)).name, gap: MIN_TS_GAP });
     return floor;
   };
-  const start = { id: 'E+S', name: 'E + S', kind: 'E+S', role: 'min', u: 0, g: 0 };
-  const ES = { id: 'ES', name: 'ES', kind: 'ES', role: 'min', u: 0.15, g: s.binding };
-  const EP = { id: 'EP', name: 'EP', kind: 'EP', role: 'min', u: 0.56, g: s.epG };
-  const end = { id: 'E+P', name: 'E + P', kind: 'E+P', role: 'min', u: 1, g: s.dG };
-  const ts1 = { id: 'TS1', name: 'TS1', kind: 'ES‡', role: 'ts', u: 0.34, g: above(s.dGu - s.tsStab, 'TS1', [ES, EP]) };
-  const ts2 = { id: 'TS2', name: 'TS2', kind: 'TS2', role: 'ts', u: 0.77, g: above(s.epG + s.ts2Height, 'TS2', [EP, end]) };
+  const start = { id: 'E+S', name: 'E + S', role: 'min', u: 0, g: 0 };
+  const ES = { id: 'ES', name: 'ES', role: 'min', u: 0.15, g: s.binding };
+  const EP = { id: 'EP', name: 'EP', role: 'min', u: 0.56, g: s.epG };
+  const end = { id: 'E+P', name: 'E + P', role: 'min', u: 1, g: s.dG };
+  const ts1 = { id: 'TS1', name: 'TS1', role: 'ts', u: 0.34, g: above(s.dGu - s.tsStab, 'TS1', [ES, EP]) };
+  const ts2 = { id: 'TS2', name: 'TS2', role: 'ts', u: 0.77, g: above(s.epG + s.ts2Height, 'TS2', [EP, end]) };
   return { states: [start, ES, ts1, EP, ts2, end], clamps };
 }
 
@@ -343,7 +340,6 @@ function buildModel(s) {
   const ts1 = cat.find(st => st.id === 'TS1');
   return {
     uncat, cat, clamps, barriers, limiting, ts1,
-    tsGap: s.dGu - limiting.ts.g,                     // transition state to transition state
     dG: s.dG,
     trap: isGroundStateTrap(ts1.g, s.binding),
     temp: temperatureCurve(limiting.barrier, s.Tm),
@@ -369,7 +365,7 @@ let state = { ...DEFAULTS };
 let hover = null;
 let currentModel = null;
 
-const CRIMSON = '#C8102E', TAUPE = '#685C53', LAVENDER = '#FFCDFF', LAVENDER_EDGE = '#7A3E7A', FONT = "'Segoe UI', Arial, sans-serif";
+const CRIMSON = '#C8102E', TAUPE = '#685C53', FONT = "'Segoe UI', Arial, sans-serif";
 
 // Every slider and its paired box. energy: true converts the box to the chosen unit.
 const CONTROLS = [
@@ -379,8 +375,6 @@ const CONTROLS = [
   { key: 'tsStab',    label: 'TS stabilization',     min: 0,   max: 110, step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
   { key: 'epG',       label: 'EP energy (relative to S)', min: -60, max: 10, step: 1, energy: true, enzyme: true, box: 'column-intermediate' },
   { key: 'ts2Height', label: 'TS2 height above EP',  min: 5,   max: 80,  step: 1,   energy: true, enzyme: true, box: 'column-intermediate' },
-  { key: 'tempC',     label: 'Temperature',          min: 0,   max: 80,  step: 1,   unit: '°C', box: 'column-conditions' },
-  { key: 'pH',        label: 'pH',                   min: 4,   max: 10,  step: 0.1, unit: '', enzyme: true, box: 'column-conditions' },
   { key: 'Tm',        label: 'T<sub>m</sub>',        min: 35,  max: 90,  step: 1,   unit: '°C', enzyme: true, box: 'temp-fields' },
   { key: 'pKa1',      label: 'pK<sub>a1</sub>',      min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
   { key: 'pKa2',      label: 'pK<sub>a2</sub>',      min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
@@ -392,12 +386,11 @@ function buildControls() {
     const field = document.createElement('div');
     field.className = 'field';
     field.id = `field-${c.key}`;
-    field.innerHTML = `<label for="box-${c.key}">${c.label} <span class="field-range"></span></label>
-      <div class="field-row">
-        <input type="range" id="slider-${c.key}" min="${c.min}" max="${c.max}" step="${c.step}" aria-label="${c.label.replace(/<[^>]+>/g, '')} slider">
-        <input type="number" id="box-${c.key}">
-        <span class="field-unit"></span>
-      </div>`;
+    field.innerHTML = `<div class="field-head">
+        <label for="box-${c.key}">${c.label}</label>
+        <span class="field-entry"><input type="number" id="box-${c.key}"><span class="field-unit"></span></span>
+      </div>
+      <input type="range" id="slider-${c.key}" min="${c.min}" max="${c.max}" step="${c.step}" aria-label="${c.label.replace(/<[^>]+>/g, '')} slider">`;
     $(c.box).appendChild(field);
     $(`slider-${c.key}`).addEventListener('input', e => setValue(c, Number(e.target.value)));
     $(`box-${c.key}`).addEventListener('change', e => {
@@ -417,10 +410,11 @@ function setValue(control, value) {
 }
 
 function wireControls() {
-  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { state.view = b.dataset.view; render(); }));
+  document.querySelectorAll('[data-path]').forEach(b => b.addEventListener('click', () => { state[b.dataset.path] = !state[b.dataset.path]; render(); }));
   document.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => { state.unit = b.dataset.unit; render(); }));
   $('reset').addEventListener('click', () => { state = { ...DEFAULTS }; render(); });
-  $('preset-trap').addEventListener('click', () => { state = { ...state, ...SETTINGS_TRAP }; render(); });
+  // The button hides once the trap is on, so keyboard focus moves to the explanation that replaces it.
+  $('preset-trap').addEventListener('click', () => { state = { ...state, ...SETTINGS_TRAP }; render(); $('trap-callout').focus(); });
   $('show-barriers').addEventListener('change', e => { state.showBarriers = e.target.checked; render(); });
   $('show-dg').addEventListener('change', e => { state.showDG = e.target.checked; render(); });
 
@@ -437,11 +431,10 @@ function wireControls() {
 }
 
 function syncControls() {
-  const uncatOnly = state.view === 'uncat';
   const unit = state.unit;
   CONTROLS.forEach(c => {
     const field = $(`field-${c.key}`);
-    const off = uncatOnly && !!c.enzyme;
+    const off = !state.showCat && !!c.enzyme;
     field.classList.toggle('off', off);
     const slider = $(`slider-${c.key}`), box = $(`box-${c.key}`);
     slider.disabled = off;
@@ -459,14 +452,10 @@ function syncControls() {
       box.value = state[c.key];
     }
     field.querySelector('.field-unit').textContent = c.energy ? unitLabel(unit) : (c.unit || '');
-    const low = c.energy ? toDisplayEnergy(c.min, unit) : c.min;
-    const high = c.energy ? toDisplayEnergy(c.max, unit) : c.max;
-    const round = c.energy && unit === 'kcal' ? 1 : 0;
-    field.querySelector('.field-range').textContent = `(${withMinus(low.toFixed(round))} to ${withMinus(high.toFixed(round))})`;
   });
 
-  document.querySelectorAll('[data-view]').forEach(b => {
-    const on = b.dataset.view === state.view;
+  document.querySelectorAll('[data-path]').forEach(b => {
+    const on = state[b.dataset.path];
     b.classList.toggle('active', on);
     b.setAttribute('aria-pressed', on);
   });
@@ -476,23 +465,22 @@ function syncControls() {
     b.setAttribute('aria-pressed', on);
   });
 
-  $('preset-trap').disabled = uncatOnly;
   $('show-barriers').checked = state.showBarriers;
   $('show-dg').checked = state.showDG;
-  $('legend-uncat').hidden = state.view === 'cat';
-  $('legend-cat').hidden = uncatOnly;
+  $('legend-uncat').hidden = !state.showUncat;
+  $('legend-cat').hidden = !state.showCat;
 }
 
 // The notes that go with the diagram
 function renderNotes(m) {
-  const uncatOnly = state.view === 'uncat';
   const u = state.unit;
-  const trap = !uncatOnly && m.trap;
+  const trap = state.showCat && m.trap;
+  $('preset-trap').hidden = !state.showCat || m.trap;
   $('trap-callout').hidden = !trap;
   if (trap) {
     $('trap-callout').textContent = `Ground-state trap: ES is so stable that it sits in a deep well. The barrier from ES is ${fmtEnergy(m.ts1.g - state.binding, u)}, higher than the ${fmtEnergy(m.ts1.g - DEFAULTS.binding, u)} it would be with default binding. Binding the substrate too tightly slows the enzyme.`;
   }
-  const note = uncatOnly ? '' : m.clamps
+  const note = !state.showCat ? '' : m.clamps
     .map(c => `${c.ts} is held ${fmtEnergy(c.gap, u)} above ${c.below}, because the sliders would put it below.`)
     .join(' ');
   $('clamp-note').hidden = !note;
@@ -560,93 +548,31 @@ function guideLine(ctx, x1, y, x2) {
   ctx.setLineDash([]);
 }
 
-// ── Schematics: an enzyme with a notch, and a substrate of two joined shapes ──
-function drawEnzyme(ctx, x, y, r) {
-  // A disc whose active-site notch opens to the right
-  const notch = 0.62;
-  ctx.beginPath();
-  ctx.arc(x, y, r, notch, Math.PI * 2 - notch);
-  ctx.lineTo(x + r * 0.28, y);
-  ctx.closePath();
-  ctx.fillStyle = LAVENDER;
-  ctx.strokeStyle = LAVENDER_EDGE;
-  ctx.lineWidth = 1.5;
-  ctx.fill();
-  ctx.stroke();
-}
-
-// form: 'S' is two circles, 'S‡' is the same pair stretched with a broken bond, 'P' has one end changed to a square
-function drawLigand(ctx, x, y, r, form) {
-  const gap = form === 'S‡' ? r * 1.9 : r * 1.25;
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash(form === 'S‡' ? [2, 2] : []);
-  ctx.beginPath();
-  ctx.moveTo(x - gap / 2, y);
-  ctx.lineTo(x + gap / 2, y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = CRIMSON;
-  ctx.beginPath();
-  ctx.arc(x - gap / 2, y, r * 0.55, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  if (form === 'P') {
-    ctx.fillStyle = TAUPE;
-    ctx.fillRect(x + gap / 2 - r * 0.5, y - r * 0.5, r, r);
-    ctx.strokeRect(x + gap / 2 - r * 0.5, y - r * 0.5, r, r);
-  } else {
-    ctx.fillStyle = form === 'S‡' ? '#FFFFFF' : CRIMSON;
-    ctx.beginPath();
-    ctx.arc(x + gap / 2, y, r * 0.55, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-}
-
-function drawSpecies(ctx, kind, x, y, s) {
-  const eR = s, lR = s * 0.42, eX = x - s * 0.55;
-  const inNotch = eX + eR * 0.82;
-  const free = x + s * 1.15;
-  switch (kind) {
-    case 'S':   drawLigand(ctx, x, y, lR * 1.2, 'S'); break;
-    case 'S‡':  drawLigand(ctx, x, y, lR * 1.2, 'S‡'); break;
-    case 'P':   drawLigand(ctx, x, y, lR * 1.2, 'P'); break;
-    case 'E+S': drawEnzyme(ctx, eX, y, eR); drawLigand(ctx, free + s * 0.3, y, lR, 'S'); break;
-    case 'ES':  drawEnzyme(ctx, eX, y, eR); drawLigand(ctx, inNotch, y, lR, 'S'); break;
-    case 'ES‡': drawEnzyme(ctx, eX, y, eR); drawLigand(ctx, inNotch, y, lR, 'S‡'); break;
-    case 'EP':  drawEnzyme(ctx, eX, y, eR); drawLigand(ctx, inNotch, y, lR, 'P'); break;
-    case 'TS2': drawEnzyme(ctx, eX, y, eR); drawLigand(ctx, inNotch + s * 0.4, y, lR, 'P'); break;
-    case 'E+P': drawEnzyme(ctx, eX, y, eR); drawLigand(ctx, free + s * 0.3, y, lR, 'P'); break;
-    default: break;
-  }
-}
-
 // ── The diagram ──
 function shownStates(m) {
-  const view = state.view;
-  if (view === 'uncat') return m.uncat.map(s => ({ ...s, path: 'uncat' }));
+  const uncat = state.showUncat ? m.uncat.map(s => ({ ...s, path: 'uncat' })) : [];
+  if (!state.showCat) return uncat;
   const cat = m.cat.map(s => ({ ...s, path: 'cat' }));
-  if (view === 'cat') return cat;
-  // In Both, S and E + S are one point, as are P and E + P.
+  if (!state.showUncat) return cat;
+  // With both shown, S and E + S are one point, as are P and E + P.
   const joined = cat.map(s => {
     if (s.id === 'E+S') return { ...s, name: 'S or E + S' };
     if (s.id === 'E+P') return { ...s, name: 'P or E + P' };
     return s;
   });
-  return [...joined, { ...m.uncat[1], path: 'uncat' }];
+  return [...joined, uncat[1]];
 }
 
 function diagramScale(m, W, H) {
   const narrow = W < 480;
   const levels = [0, m.dG];
-  if (state.view !== 'cat') levels.push(state.dGu);
-  if (state.view !== 'uncat') m.cat.forEach(s => levels.push(s.g));
+  if (state.showUncat) levels.push(state.dGu);
+  if (state.showCat) m.cat.forEach(s => levels.push(s.g));
   // The scale moves in steps, so small slider moves show on the curve and not as a rescale.
   const lo = Math.floor(Math.min(...levels) / 20) * 20;
   const hi = Math.max(lo + 40, Math.ceil(Math.max(...levels) / 20) * 20);
   const left = narrow ? 46 : 56, right = W - (narrow ? 44 : 88), top = 8, bottom = H - 26;
-  const padTop = 32, padBottom = 42;
+  const padTop = 24, padBottom = 24;
   const inner = 10;
   return {
     narrow, lo, hi, left, right, top, bottom,
@@ -711,23 +637,20 @@ function drawPath(ctx, g, states, color, width, dash) {
 
 function drawBarrierArrows(ctx, g, m) {
   const unit = state.unit;
-  const view = state.view;
-  const uncatTS = m.uncat[1];
-  const peakX = g.x(uncatTS.u);
   const small = `600 11px ${FONT}`;
-  if (view !== 'cat') {
-    const x = peakX - (g.narrow ? 16 : 24);
+  if (state.showUncat) {
+    const x = g.x(m.uncat[1].u) - (g.narrow ? 16 : 24);
     guideLine(ctx, g.x(0), g.y(0), x);
     verticalArrow(ctx, x, g.y(0), g.y(state.dGu), TAUPE);
     // TS1 sits to the left of this arrow, so with both paths shown the label goes on the right and higher up.
-    const rightSide = view === 'both';
+    const rightSide = state.showCat;
     const align = rightSide ? 'left' : 'right';
     const tx = x + (rightSide ? 5 : -5);
     const ty = rightSide ? g.y(state.dGu) + 16 : (g.y(0) + g.y(state.dGu)) / 2;
     textBox(ctx, 'ΔG‡', tx, ty - 7, { align, font: small });
     textBox(ctx, fmtEnergy(state.dGu, unit), tx, ty + 7, { align, font: `10px ${FONT}` });
   }
-  if (view === 'uncat') return;
+  if (!state.showCat) return;
 
   m.barriers.forEach((b, i) => {
     const limiting = b === m.limiting;
@@ -745,28 +668,6 @@ function drawBarrierArrows(ctx, g, m) {
     textBox(ctx, fmtEnergy(b.barrier, unit), tx, ty + 7, { align, font: `10px ${FONT}`, color });
     if (limiting) textBox(ctx, 'Rate-limiting', tx, ty + 20, { align, font: `600 10px ${FONT}`, color: CRIMSON });
   });
-
-  if (view === 'both' && m.tsGap !== 0) {
-    // The bracket between the transition states, off to the side of the catalyzed arrow
-    const ts = m.limiting.ts;
-    const x = Math.max(peakX, g.x(ts.u)) + (g.narrow ? 40 : 66);
-    const yTop = g.y(state.dGu), yLow = g.y(ts.g);
-    guideLine(ctx, peakX, yTop, x);
-    guideLine(ctx, g.x(ts.u), yLow, x);
-    ctx.strokeStyle = TAUPE;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x - 4, yTop);
-    ctx.lineTo(x + 4, yTop);
-    ctx.moveTo(x, yTop);
-    ctx.lineTo(x, yLow);
-    ctx.moveTo(x - 4, yLow);
-    ctx.lineTo(x + 4, yLow);
-    ctx.stroke();
-    const yMid = (yTop + yLow) / 2;
-    textBox(ctx, 'ΔΔG‡ TS to TS', x + 6, yMid - 7, { align: 'left', font: small });
-    textBox(ctx, fmtEnergy(m.tsGap, unit), x + 6, yMid + 7, { align: 'left', font: `10px ${FONT}` });
-  }
 }
 
 function drawOverallArrow(ctx, g, m) {
@@ -774,20 +675,16 @@ function drawOverallArrow(ctx, g, m) {
   const x = g.x(1) + 14;
   guideLine(ctx, g.x(0), g.y(0), x + 4);
   guideLine(ctx, g.x(1), g.y(m.dG), x + 4);
-  const same = state.view !== 'uncat';
   const yMid = (g.y(0) + g.y(m.dG)) / 2;
   if (Math.abs(m.dG) > 0.01) verticalArrow(ctx, x, g.y(0), g.y(m.dG), '#000000');
   const align = g.narrow ? 'right' : 'left';
   const tx = g.narrow ? x - 5 : x + 6;
   const lines = [['ΔG', `600 11px ${FONT}`], [fmtEnergy(m.dG, unit), `10px ${FONT}`]];
-  if (same) lines.push(['same for both', `10px ${FONT}`], ['pathways', `10px ${FONT}`]);
   lines.forEach(([text, font], i) => textBox(ctx, text, tx, yMid + (i - (lines.length - 1) / 2) * 13, { align, font }));
 }
 
-// Each state's name and schematic sit side by side, above a peak and below a valley. The start goes
-// above its point, clear of ES just below it, and the end stacks its two so they stay narrow.
+// Each state's name sits above a peak and below a valley. The start goes above its point, clear of ES.
 function drawStateLabels(ctx, g, states) {
-  const r = 9;
   const font = `600 ${g.narrow ? 11 : 12}px ${FONT}`;
   states.forEach(s => {
     const x = g.x(s.u), y = g.y(s.g);
@@ -795,20 +692,10 @@ function drawStateLabels(ctx, g, states) {
     ctx.beginPath();
     ctx.arc(x, y, 3.5, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.font = font;
-    const textW = ctx.measureText(s.name).width;
-    const half = ['S', 'S‡', 'P'].includes(s.kind) ? r * 0.9 : r * 2.1;
-    if (s.u === 1) {
-      textBox(ctx, s.name, x + 2, y + 13, { align: 'right', font });
-      drawSpecies(ctx, s.kind, x + 2 - half, y + 21 + r, r);
-      return;
-    }
-    const rowW = textW + 4 + half * 2;
-    const rowLeft = s.u === 0 ? x - 2 : x - rowW / 2;
-    const rowY = s.role === 'ts' || s.u === 0 ? y - 8 - r : y + 8 + r;
-    textBox(ctx, s.name, rowLeft, rowY, { align: 'left', font });
-    drawSpecies(ctx, s.kind, rowLeft + textW + 4 + half, rowY, r);
+    const above = s.role === 'ts' || s.u === 0;
+    const align = s.u === 0 ? 'left' : s.u === 1 ? 'right' : 'center';
+    const tx = s.u === 0 ? x - 2 : s.u === 1 ? x + 2 : x;
+    textBox(ctx, s.name, tx, above ? y - 13 : y + 13, { align, font });
   });
 }
 
@@ -843,26 +730,26 @@ function drawDiagram(m) {
   const { ctx, W, H } = fitCanvas(canvas);
   const g = diagramScale(m, W, H);
   const states = shownStates(m);
-  const view = state.view;
 
   drawAxes(ctx, g, H);
-  if (view !== 'cat') drawPath(ctx, g, m.uncat, TAUPE, 2.5, [8, 5]);
-  if (view !== 'uncat') drawPath(ctx, g, m.cat, CRIMSON, 3, []);
-  if (state.showDG) drawOverallArrow(ctx, g, m);
+  if (state.showUncat) drawPath(ctx, g, m.uncat, TAUPE, 2.5, [8, 5]);
+  if (state.showCat) drawPath(ctx, g, m.cat, CRIMSON, 3, []);
+  if (state.showDG && states.length) drawOverallArrow(ctx, g, m);
   if (state.showBarriers) drawBarrierArrows(ctx, g, m);
   drawStateLabels(ctx, g, states);
   drawHover(ctx, g, states, W);
 
   const u = state.unit;
   const parts = [];
-  if (view !== 'cat') parts.push(`Uncatalyzed barrier ${fmtEnergy(state.dGu, u)}.`);
-  if (view !== 'uncat') parts.push(`Catalyzed path through ${m.cat.map(s => `${s.name} at ${fmtEnergy(s.g, u)}`).join(', ')}. Rate-limiting barrier ${fmtEnergy(m.limiting.barrier, u)} at ${m.limiting.ts.name}.`);
-  parts.push(`Overall ΔG ${fmtEnergy(m.dG, u)}.`);
+  if (state.showUncat) parts.push(`Uncatalyzed barrier ${fmtEnergy(state.dGu, u)}.`);
+  if (state.showCat) parts.push(`Catalyzed path through ${m.cat.map(s => `${s.name} at ${fmtEnergy(s.g, u)}`).join(', ')}. Rate-limiting barrier ${fmtEnergy(m.limiting.barrier, u)} at ${m.limiting.ts.name}.`);
+  if (states.length) parts.push(`Overall ΔG ${fmtEnergy(m.dG, u)}.`);
+  else parts.push('No pathway is selected.');
   canvas.setAttribute('aria-label', `Free energy diagram. ${parts.join(' ')}`);
 }
 
 // ── Activity plots ──
-function drawActivityPlot(canvas, curve, xMin, xMax, xTicks, xName, current, currentText, optimumText, extra) {
+function drawActivityPlot(canvas, curve, xMin, xMax, xTicks, xName, optimumText, extra) {
   const { ctx, W, H } = fitCanvas(canvas);
   const left = 44, right = W - 12, top = 26, bottom = H - 38;
   const sx = v => left + (v - xMin) / (xMax - xMin) * (right - left);
@@ -914,8 +801,7 @@ function drawActivityPlot(canvas, curve, xMin, xMax, xTicks, xName, current, cur
   ctx.stroke();
 
   const yAt = x => curve.pts.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a)).y;
-  const close = Math.abs(sx(curve.optimum) - sx(current)) < 90;
-  // The optimum: a hollow diamond. The current value: a filled circle.
+  // The optimum, marked with a hollow diamond
   const ox = sx(curve.optimum), oy = sy(yAt(curve.optimum));
   ctx.fillStyle = '#FFFFFF';
   ctx.strokeStyle = '#000000';
@@ -930,16 +816,6 @@ function drawActivityPlot(canvas, curve, xMin, xMax, xTicks, xName, current, cur
   ctx.stroke();
   const edgeAlign = x => (x < left + 50 ? 'left' : x > right - 50 ? 'right' : 'center');
   textBox(ctx, optimumText, ox, Math.max(8, oy - 15), { align: edgeAlign(ox), font: `600 11px ${FONT}` });
-
-  const cx = sx(current), cy = sy(yAt(current));
-  ctx.beginPath();
-  ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
-  ctx.fillStyle = CRIMSON;
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.fill();
-  ctx.stroke();
-  const below = close || cy < top + 18;
-  textBox(ctx, currentText, cx, cy + (below ? 17 : -15), { align: edgeAlign(cx), font: `600 11px ${FONT}`, color: CRIMSON });
 }
 
 function drawTemperaturePlot(m) {
@@ -964,16 +840,16 @@ function drawTemperaturePlot(m) {
     ctx.font = `600 9px ${FONT}`;
     ctx.fillText('m', x + 3 + w, bottom - 11);
   };
-  drawActivityPlot(canvas, m.temp, TEMP_MIN, TEMP_MAX, [0, 20, 40, 60, 80], 'Temperature (°C)', state.tempC,
-    `Current ${state.tempC.toFixed(0)} °C`, `Optimum ${m.temp.optimum.toFixed(0)} °C`, marker);
-  canvas.setAttribute('aria-label', `Relative activity against temperature, with an optimum near ${m.temp.optimum.toFixed(0)} °C. The current temperature is ${state.tempC.toFixed(0)} °C.`);
+  drawActivityPlot(canvas, m.temp, TEMP_MIN, TEMP_MAX, [0, 20, 40, 60, 80], 'Temperature (°C)',
+    `Optimum ${m.temp.optimum.toFixed(0)} °C`, marker);
+  canvas.setAttribute('aria-label', `Relative activity against temperature, with an optimum near ${m.temp.optimum.toFixed(0)} °C.`);
 }
 
 function drawPHPlot(m) {
   const canvas = $('ph-plot');
-  drawActivityPlot(canvas, m.ph, PH_MIN, PH_MAX, [4, 5, 6, 7, 8, 9, 10], 'pH', state.pH,
-    `Current pH ${state.pH.toFixed(1)}`, `Optimum pH ${m.ph.optimum.toFixed(2)}`);
-  canvas.setAttribute('aria-label', `Relative activity against pH, with an optimum at pH ${m.ph.optimum.toFixed(2)}. The current pH is ${state.pH.toFixed(1)}.`);
+  drawActivityPlot(canvas, m.ph, PH_MIN, PH_MAX, [4, 5, 6, 7, 8, 9, 10], 'pH',
+    `Optimum pH ${m.ph.optimum.toFixed(2)}`);
+  canvas.setAttribute('aria-label', `Relative activity against pH, with an optimum at pH ${m.ph.optimum.toFixed(2)}.`);
 }
 
 function drawAll(m) {
