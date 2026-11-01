@@ -91,7 +91,7 @@ After completing any meaningful unit of work — a feature, bug fix, or refactor
 
 ### University of Tampa Brand Colors
 
-All new pages and UI updates must use the official UT palette. Source: [UT Color Contrast Grid](https://www.ut.edu/about-utampa/university-services/office-of-marketing-and-communications/color-contrast-grid) and the [2024 Brand Guidelines](https://www.ut.edu/content/dam/ut/uploadedFiles/University_Services/Public_Information/UTBrandGuidelines2024UpdateV2.pdf).
+Use the UT palette as the starting point for new pages and UI updates, and add or adjust colors where a page needs them to tell things apart, such as curves, ligands or answer states. Every choice must still meet WCAG 2.1 AA (below), and a page's stated colors take priority. Source: [UT Color Contrast Grid](https://www.ut.edu/about-utampa/university-services/office-of-marketing-and-communications/color-contrast-grid) and the [2024 Brand Guidelines](https://www.ut.edu/content/dam/ut/uploadedFiles/University_Services/Public_Information/UTBrandGuidelines2024UpdateV2.pdf).
 
 **Primary:**
 | Name | Hex |
