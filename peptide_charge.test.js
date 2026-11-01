@@ -434,28 +434,62 @@ test('pH presets set the slider, and moving the slider deselects them', () => {
 // ── Determining pI ─────────────────────────────────────────────
 const pkaTable = page => [...page.el('pka-rows').innerHTML.matchAll(/<tr><td>([^<]+)<\/td><td class="num">([^<]+)<\/td><\/tr>/g)].map(m => [m[1], m[2]]);
 
-test('the box lists every ionizable group by short name with its pKa', () => {
+const FULL_PKA_TABLE = [
+  ['N-term', '8.0'], ['C-term', '3.1'], ['Arg R group', '12.5'], ['Asp R group', '4.1'], ['Cys R group', '8.3'],
+  ['Glu R group', '4.1'], ['His R group', '6.0'], ['Lys R group', '10.8'], ['Tyr R group', '10.9'],
+];
+
+test('the box lists the termini and every ionizable side chain alphabetically', () => {
   const page = loadPage();
   enterSeq(page, 'ADEHKR');
-  assert.deepEqual(pkaTable(page), [
-    ['N-term', '8.0'], ['C-term', '3.1'], ['Arg R group', '12.5'], ['Asp R group', '4.1'],
-    ['Glu R group', '4.1'], ['His R group', '6.0'], ['Lys R group', '10.8'],
-  ]);
-  enterSeq(page, 'CY');
-  assert.deepEqual(pkaTable(page), [['N-term', '8.0'], ['C-term', '3.1'], ['Cys R group', '8.3'], ['Tyr R group', '10.9']]);
-  enterSeq(page, 'GAG');
-  assert.deepEqual(pkaTable(page), [['N-term', '8.0'], ['C-term', '3.1']]);
-  enterSeq(page, 'KK');
-  assert.deepEqual(pkaTable(page).map(r => r[0]), ['N-term', 'C-term', 'Lys R group', 'Lys R group'], 'each group gets a row');
+  assert.deepEqual(pkaTable(page), FULL_PKA_TABLE);
   assert.match(MARKUP, /<th scope="col">Ionizable group<\/th><th scope="col" class="num">pKa<\/th>/);
+  const sideChains = pkaTable(page).slice(2).map(r => r[0]);
+  assert.deepEqual(sideChains, [...sideChains].sort(), 'alphabetical');
 });
 
-test('the list order does not depend on the residue order', () => {
+test('the table does not change with the peptide, so it cannot give away the residues', () => {
   const page = loadPage();
-  enterSeq(page, 'KD');
-  const first = pkaTable(page);
-  enterSeq(page, 'DK');
-  assert.deepEqual(pkaTable(page), first);
+  for (const seq of ['GAG', 'KK', 'CY', 'KD', 'DK', 'R']) {
+    enterSeq(page, seq);
+    assert.deepEqual(pkaTable(page), FULL_PKA_TABLE, seq);
+  }
+});
+
+test('the pKa values always show, in Quiz Mode and after Reveal too', () => {
+  const page = loadPage();
+  enterSeq(page, 'GA');
+  page.el('quiz-toggle').fire('click');
+  assert.deepEqual(pkaTable(page), FULL_PKA_TABLE, 'in the quiz');
+  page.el('quiz-reveal').fire('click');
+  assert.deepEqual(pkaTable(page), FULL_PKA_TABLE, 'after Reveal');
+  assert.doesNotMatch(MARKUP, /pka-table-wrap"[^>]*hidden/);
+  assert.doesNotMatch(SCRIPT, /pka-table-wrap/);
+  assert.doesNotMatch(MARKUP, /pKa values are hidden/);
+});
+
+test('the pI entry sits above the ionizable groups', () => {
+  const box = MARKUP.match(/id="pi-title"[\s\S]*?<\/section>/)[0];
+  const at = marker => box.indexOf(marker);
+  assert.ok(at('id="pi-input"') >= 0 && at('id="pi-input"') < at('id="pi-check"'));
+  assert.ok(at('id="pi-check"') < at('id="pi-result"') && at('id="pi-result"') < at('id="pka-rows"'));
+});
+
+test('right and wrong answers use the shared colors from CLAUDE.md', () => {
+  assert.match(CSS, /\.quiz-result\.right \{ background: #DBEAFE; border-color: #1565C0; \}/);
+  assert.match(CSS, /\.quiz-result\.wrong \{ background: #FFEBEE; border-color: #C8102E; \}/);
+  const guide = fs.readFileSync(path.join(__dirname, 'CLAUDE.md'), 'utf8');
+  assert.match(guide, /Correct \| `#DBEAFE` \| `#1565C0`/);
+  assert.match(guide, /Incorrect \| `#FFEBEE` \| `#C8102E`/);
+});
+
+test('the pH slider is the width of the entry box and directly below it', () => {
+  const entry = MARKUP.match(/<div id="ph-entry">([\s\S]*?)<\/div>/)[1];
+  assert.ok(entry.indexOf('id="ph-input"') >= 0 && entry.indexOf('id="ph-input"') < entry.indexOf('id="ph-slider"'));
+  assert.equal([...entry.matchAll(/<input/g)].length, 2, 'nothing else between them');
+  assert.match(CSS, /#ph-entry \{[^}]*flex-direction: column;[^}]*width: 84px;/);
+  assert.match(CSS, /#ph-input \{ width: 100%; \}/);
+  assert.match(CSS, /input\[type=range\] \{\s*width: 100%;/);
 });
 
 test('the pI is never shown, and Check pI sits beside a blank box', () => {
@@ -533,23 +567,20 @@ const answerQuiz = (page, charge, pi) => {
   page.el('pi-check').fire('click');
 };
 
-test('Quiz Mode hides the pKa values and draws the structure uncharged', () => {
+test('Quiz Mode draws the structure uncharged', () => {
   const page = loadPage();
   enterSeq(page, 'GA');
   assert.equal(page.el('quiz-toggle').textContent, 'Quiz Mode: Off');
   assert.equal(page.el('quiz-panel').hidden, true);
-  assert.equal(page.el('pka-table-wrap').hidden, false);
   page.el('quiz-toggle').fire('click');
   assert.equal(page.el('quiz-toggle').textContent, 'Quiz Mode: On');
   assert.equal(page.el('quiz-toggle').getAttribute('aria-pressed'), 'true');
   assert.equal(page.el('quiz-panel').hidden, false);
-  assert.equal(page.el('pka-table-wrap').hidden, true);
   assert.equal(page.el('structure-legend').style.display, 'none');
   assert.match(page.structure.getAttribute('aria-label'), /drawn uncharged/);
   assert.ok(page.structure.classList.contains('neutral-view'));
   page.el('quiz-toggle').fire('click');
   assert.equal(page.el('quiz-panel').hidden, true);
-  assert.equal(page.el('pka-table-wrap').hidden, false);
   assert.equal(page.structure.classList.contains('neutral-view'), false);
 });
 
@@ -588,7 +619,6 @@ test('Reveal restores the structure and pKa values, and gives the answers', () =
   page.run('setPH(7, 7)');
   assert.equal(page.el('quiz-answers').textContent, '');
   page.el('quiz-reveal').fire('click');
-  assert.equal(page.el('pka-table-wrap').hidden, false);
   assert.equal(page.el('structure-legend').style.display, '');
   assert.equal(page.structure.classList.contains('neutral-view'), false);
   assert.equal(page.el('quiz-answers').textContent, 'Net charge at pH 7: +0.91. pI: 9.40.');
@@ -604,8 +634,7 @@ test('in the quiz, changing the sequence or pH clears answers and hides a reveal
     assert.equal(page.el('pi-input').value, '');
     assert.equal(page.el('quiz-charge-result').textContent, '');
     assert.equal(page.el('pi-result').textContent, '');
-    assert.equal(page.el('pka-table-wrap').hidden, true);
-    assert.equal(page.el('quiz-answers').textContent, '');
+      assert.equal(page.el('quiz-answers').textContent, '');
   }
 });
 
@@ -625,8 +654,6 @@ test('pH and pI keep their capitalization on screen', () => {
   assert.ok(CSS.indexOf('.panel-section-title') < CSS.indexOf('.keep-case'), 'keep-case wins the cascade');
 });
 
-test('feedback keeps readable text on lavender', () => {
-  assert.match(CSS, /\.quiz-result\.right \{ background: var\(--ut-lavender\)/);
-  assert.match(CSS, /\.quiz-result\.wrong \{[^}]*border-color: var\(--ut-crimson\)/);
+test('feedback keeps black text on its colored background', () => {
   assert.match(CSS, /\.quiz-result \{[^}]*color: #000000/);
 });

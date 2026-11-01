@@ -117,9 +117,10 @@
     #seq-message.error { color: var(--ut-crimson); font-weight: 600; }
     #seq-message.note { color: var(--ut-taupe); }
 
-    #ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
-    #ph-slider-wrap { flex: 1 1 100%; min-width: 160px; }
-    #ph-input { width: 84px; }
+    #ph-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; }
+    #ph-row label { padding-top: 7px; }
+    #ph-entry { display: flex; flex-direction: column; gap: 10px; width: 84px; }
+    #ph-input { width: 100%; }
 
     /* Structure */
     #structure-box { display: flex; justify-content: center; overflow: hidden; }
@@ -146,8 +147,7 @@
     th, td { padding: 5px 8px; border-bottom: 1px solid #BFBFBF; text-align: left; }
     th { color: var(--ut-taupe); font-weight: 600; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    #pka-table-wrap { margin-bottom: 14px; }
-    #pka-table-wrap[hidden] { display: none; }
+    #pka-table-wrap { margin-top: 14px; }
     #pi-field-label { display: block; margin-bottom: 6px; }
     #pi-input { flex: 1 1 70px; width: 70px; min-width: 0; }
 
@@ -167,8 +167,8 @@
       border: 2px solid transparent;
     }
     .quiz-result:empty { display: none; }
-    .quiz-result.right { background: var(--ut-lavender); border-color: var(--ut-taupe); }
-    .quiz-result.wrong { background: #FFFFFF; border-color: var(--ut-crimson); }
+    .quiz-result.right { background: #DBEAFE; border-color: #1565C0; }
+    .quiz-result.wrong { background: #FFEBEE; border-color: #C8102E; }
 
     @media (max-width: 860px) {
       .half-row, .structure-row { grid-template-columns: minmax(0, 1fr); }
@@ -206,8 +206,8 @@
             <button type="button" class="ph-preset" data-ph="13" aria-pressed="false">pH 13</button>
           </div>
           <label for="ph-input">pH</label>
-          <input type="number" id="ph-input" min="0" max="14" step="0.1" value="7">
-          <div id="ph-slider-wrap">
+          <div id="ph-entry">
+            <input type="number" id="ph-input" min="0" max="14" step="0.1" value="7">
             <input type="range" id="ph-slider" min="0" max="14" step="0.1" value="7" aria-label="pH slider">
           </div>
         </div>
@@ -227,6 +227,12 @@
 
       <section class="panel" aria-labelledby="pi-title">
         <h2 class="panel-section-title keep-case" id="pi-title">Determining pI</h2>
+        <label for="pi-input" id="pi-field-label">pI</label>
+        <div class="controls-row">
+          <input type="text" id="pi-input" inputmode="decimal" autocomplete="off">
+          <button type="button" id="pi-check">Check pI</button>
+        </div>
+        <p class="quiz-result" id="pi-result" aria-live="polite"></p>
         <div id="pka-table-wrap">
           <table>
             <thead>
@@ -235,18 +241,12 @@
             <tbody id="pka-rows"></tbody>
           </table>
         </div>
-        <label for="pi-input" id="pi-field-label">pI</label>
-        <div class="controls-row">
-          <input type="text" id="pi-input" inputmode="decimal" autocomplete="off">
-          <button type="button" id="pi-check">Check pI</button>
-        </div>
-        <p class="quiz-result" id="pi-result" aria-live="polite"></p>
       </section>
     </div>
 
     <section class="panel" id="quiz-panel" aria-labelledby="quiz-title" hidden>
       <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
-      <p id="quiz-intro">The structure is drawn uncharged and the pKa values are hidden. Predict the charges at the selected pH, then enter the net charge here and the pI above.</p>
+      <p id="quiz-intro">The structure is drawn uncharged. Predict the charges at the selected pH, then enter the net charge here and the pI above.</p>
       <label for="quiz-charge" id="quiz-charge-label">Net charge at <span id="quiz-ph"></span></label>
       <div class="controls-row">
         <input type="text" id="quiz-charge" inputmode="decimal" autocomplete="off">
@@ -608,7 +608,18 @@ const $ = id => document.getElementById(id);
 const answersHidden = () => quizOn && !quizRevealed;
 const currentGroups = () => ionizableGroups(sequence);
 
-// The termini first, then R groups by name, so the list doesn't give away the residue order
+// The termini, then every ionizable side chain in alphabetical order. The table never changes,
+// so it doesn't give away which residues are in the peptide.
+function pKaTableRows() {
+  const sideChains = Object.keys(PKA).filter(name => !name.startsWith('alpha')).sort();
+  return [
+    { short: 'N-term', pKa: PKA.alphaNH3 },
+    { short: 'C-term', pKa: PKA.alphaCOOH },
+    ...sideChains.map(name => ({ short: `${name} R group`, pKa: PKA[name] })),
+  ];
+}
+
+// The groups in this peptide: termini first, then R groups by name, so the order stays hidden
 function pKaRows(groups) {
   const termini = groups.filter(g => g.id === 'nterm' || g.id === 'cterm')
     .sort((a, b) => (a.id === 'nterm' ? -1 : 1));
@@ -686,8 +697,7 @@ function refresh() {
   $('quiz-ph').textContent = `pH ${pH}`;
   $('structure-legend').style.display = neutral ? 'none' : '';
 
-  $('pka-table-wrap').hidden = neutral;
-  $('pka-rows').innerHTML = pKaRows(groups).map(g =>
+  $('pka-rows').innerHTML = pKaTableRows().map(g =>
     `<tr><td>${g.short}</td><td class="num">${g.pKa.toFixed(1)}</td></tr>`
   ).join('');
 

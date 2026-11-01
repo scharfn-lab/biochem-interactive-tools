@@ -13,10 +13,10 @@ A collection of standalone, single-file interactive educational web tools for ch
 - **cell_membrane.html** — Cell membrane ion transport / electrochemical gradient visualizer
 - **chemistry_quiz.html** — Stoichiometry practice quiz (loads RDKit.js from CDN for molecular structures)
 - **amino_acids.html** — Amino acid identification practice: names, side-chain types and pH forms (loads a pinned RDKit.js from CDN)
-- **peptide_charge.html** — Peptide (1–6 residues) skeletal structure, net charge vs pH and pI, with a quiz mode (offline, no libraries)
+- **peptide_charge.html** — Peptide (1–6 residues) skeletal structure at any pH, with pKa values and pI practice, and a quiz mode (offline, no libraries)
 - **enzyme_kinetics.html** — Measuring Rates, Kinetics and Inhibition tabs: product vs. time, Michaelis–Menten and Lineweaver–Burk plots, with a quiz mode (offline, no libraries)
 - **oxygen_binding.html** — Hemoglobin and myoglobin O₂ saturation curves with pH, 2,3-BPG, CO₂, fetal Hb and carbon monoxide (offline, no libraries)
-- **buffers.html** — Buffer visualizer: set the pH, add strong acid or base, and dilute to see how a buffer responds (offline, no libraries)
+- **buffers.html** — Buffer visualizer: set the pH and temperature and add strong acid or base to see how a buffer responds (offline, no libraries)
 
 Tests live beside the pages as `*.test.js` and run with `node --test` (no dependencies).
 
@@ -67,7 +67,7 @@ Central `state` object holds all ion concentrations, membrane potential (Vm), an
 
 ## Architecture: peptide_charge.html
 
-All pKa values live in the `PKA` table at the top of the script (Berg, Tymoczko & Stryer). `ionizableGroups(seq)` lists the free termini and side chains; `netCharge()` and `findPI()` (bisection) work from that list. `buildStructure(seq)` returns the SVG, drawing each residue from `SIDE_TEMPLATES` in local coordinates (x along the chain, u away from the backbone). Each ionizable group holds both its forms as `.ion-state` groups, and `updateStructureStates()` crossfades between them, so a pH change never rebuilds the drawing. `answersHidden()` is true in Quiz Mode until Reveal. A lone three-letter code in the input is read as one residue, so `chooseSequence()` writes a sequence like LYS as `L-Y-S`.
+All pKa values live in the `PKA` table at the top of the script (Berg, Tymoczko & Stryer). `ionizableGroups(seq)` lists the free termini and side chains; `netCharge()` and `findPI()` (bisection) work from that list. `buildStructure(seq)` returns the SVG, drawing each residue from `SIDE_TEMPLATES` in local coordinates (x along the chain, u away from the backbone). Each ionizable group holds both its forms as `.ion-state` groups, and `updateStructureStates()` crossfades between them, so a pH change never rebuilds the drawing. Students identify the residues themselves, so nothing may mark residue boundaries or name the sequence: no bands, residue labels or peptide bond marks in the drawing, no sequence in its `aria-label`, `generateRandomPeptide()` leaves the entry box empty, and `pKaRows()` lists R groups by name rather than position. `pKaTableRows()` fills the Determining pI table with the termini and all seven ionizable side chains in alphabetical order, whatever the peptide, and it always shows, so it can't reveal the residues. `answersHidden()` is true in Quiz Mode until Reveal, and draws the structure uncharged. A lone three-letter code in the input is read as one residue.
 
 ## Architecture: enzyme_kinetics.html
 
@@ -131,9 +131,25 @@ Key rules:
 - `#000000` on `#E6E0CC` — AAA ✓
 - Avoid `#828282` or `#BFBFBF` as text on light backgrounds — contrast too low for body text
 
+### Answer and Grayed-Out Colors
+
+Every page uses these same colors, so a student sees the same signal on every tool. Correct answers are always this blue, taken from `amino_acids.html`, and never green or lavender. Keep black text on these backgrounds, and pair the color with a ✓ or ✗ or with words, since color alone isn't enough.
+
+| State | Background | Border | Text |
+|---|---|---|---|
+| Correct | `#DBEAFE` | `#1565C0` | `#000000` |
+| Incorrect | `#FFEBEE` | `#C8102E` | `#000000` |
+| Grayed out (disabled box) | `#E4E4E4` | `#BFBFBF` | `#404040` |
+
+These pages don't match yet, and should be brought in line when they're next changed:
+- **enzyme_kinetics.html:** correct answers use lavender, wrong answers have a crimson outline with no pink background, and disabled boxes use `#F0F0F0` with `#5F5F5F` text
+- **chemistry_quiz.html:** its dark theme uses green and red for answers
+- **amino_acids.html:** the correct background is right, but correct entry boxes have a crimson border and the all-correct message has a taupe border
+- **cell_membrane.html:** its disabled button uses `#A0A0A0`
+
 ## Conventions
 
 - **No framework, no bundler.** Pure vanilla JS + Canvas 2D API. All math (vectors, matrices, NeRF) is implemented inline.
 - **Greek letters** use Unicode directly in source (e.g., `ϕ` U+03D5, `ψ` U+03C8) — not HTML entities — in JS strings and canvas `fillText` calls.
 - **Depth-based alpha** throughout the 3D viewer: `alpha = 0.5 + 0.5 * Math.tanh(depth * 0.3 + 0.5)`. Atoms use a slightly different curve (`0.55 + 0.45 * ...`).
-- **Color theme:** ramachandran.html uses a UT-inspired palette (crimson, taupe, lavender); cell_membrane.html uses light blue (outside) / light pink (inside); chemistry_quiz.html is a dark glass-morphism theme; amino_acids.html uses crimson and taupe with blue for correct answers and pink for incorrect ones; enzyme_kinetics.html and oxygen_binding.html use crimson, taupe and lavender.
+- **Color theme:** ramachandran.html uses a UT-inspired palette (crimson, taupe, lavender); cell_membrane.html uses light blue (outside) / light pink (inside); chemistry_quiz.html is a dark glass-morphism theme; amino_acids.html uses crimson and taupe; enzyme_kinetics.html and oxygen_binding.html use crimson, taupe and lavender.
