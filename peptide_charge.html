@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peptide Charge and pI</title>
+  <style>
+    :root {
+      --ut-crimson:  #C8102E;
+      --ut-taupe:    #685C53;
+      --ut-lavender: #FFCDFF;
+      --bg-panel:    #FFF8FF;
+      --positive:    #1565C0;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #FFFFFF;
+      color: #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      color: var(--ut-crimson);
+      font-size: 1.7em;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--ut-taupe);
+      font-size: 0.85em;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    #main-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+      width: 100%;
+      max-width: 1080px;
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      padding: 16px 22px;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+      min-width: 0;
+    }
+    .wide { grid-column: 1 / -1; }
+
+    .panel-section-title {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ut-crimson);
+      margin-bottom: 10px;
+    }
+
+    /* Uppercase would turn pH into PH and pI into PI */
+    .keep-case { text-transform: none; font-size: 0.8em; letter-spacing: 0.5px; }
+
+    :focus-visible { outline: 3px solid var(--ut-crimson); outline-offset: 2px; }
+
+    label { font-size: 0.88em; font-weight: 600; }
+
+    input[type=text], input[type=number] {
+      padding: 7px 10px;
+      background: #FFFFFF;
+      border: 1px solid var(--ut-taupe);
+      border-radius: 6px;
+      color: #000000;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    input[type=text]:focus, input[type=number]:focus { border-color: var(--ut-crimson); }
+    input[aria-invalid="true"] { border: 2px solid var(--ut-crimson); }
+
+    input[type=range] {
+      width: 100%;
+      height: 4px;
+      accent-color: var(--ut-crimson);
+      cursor: pointer;
+    }
+
+    button {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font-size: 0.85em;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    button:hover { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    button.active { background: #FFCDD2; border-color: var(--ut-crimson); color: #000000; font-weight: 600; }
+
+    .controls-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    #seq-input { flex: 1 1 240px; min-width: 0; }
+    #presets { margin-top: 10px; }
+    #seq-message { font-size: 0.85em; min-height: 1.3em; margin-top: 8px; }
+    #seq-message.error { color: var(--ut-crimson); font-weight: 600; }
+    #seq-message.note { color: var(--ut-taupe); }
+
+    .notation { font-size: 0.95em; margin-top: 6px; line-height: 1.5; overflow-wrap: anywhere; }
+    .notation .terminus {
+      font-size: 0.72em;
+      color: var(--ut-taupe);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0 4px;
+    }
+
+    #ph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+    #ph-slider-wrap { flex: 1 1 220px; min-width: 160px; }
+    #ph-input { width: 84px; }
+
+    /* Structure */
+    #structure-box { display: flex; justify-content: center; overflow: hidden; }
+    #structure-box svg { display: block; max-width: 100%; height: auto; }
+    .bond { stroke: #000000; stroke-width: 1.6; stroke-linecap: round; fill: none; }
+    .peptide-glow { stroke: var(--ut-lavender); stroke-width: 8; stroke-linecap: round; }
+    .leader { stroke: var(--ut-taupe); stroke-width: 0.8; stroke-dasharray: 2 3; }
+    .atom { font-size: 13px; font-weight: 600; fill: #000000; dominant-baseline: central; }
+    .res-name { font-size: 13px; font-weight: 700; fill: #000000; text-anchor: middle; }
+    .bond-name { font-size: 9.5px; fill: var(--ut-taupe); text-anchor: middle; }
+    .ion-state { opacity: 0; transition: opacity 0.25s; }
+    .ion-state.on { opacity: 1; }
+    .ion-box { stroke-width: 1.5; }
+    .charge-pos .ion-box { stroke: var(--positive); fill: rgba(21,101,192,0.12); }
+    .charge-neg .ion-box { stroke: var(--ut-crimson); fill: rgba(200,16,46,0.10); }
+    .charge-neu .ion-box { stroke: var(--ut-taupe); fill: none; }
+    .charge-pos .atom { fill: var(--positive); }
+    .charge-neg .atom { fill: var(--ut-crimson); }
+    .half-label { display: none; font-size: 10px; font-weight: 700; fill: #000000; text-anchor: middle; }
+    .ion-group.half .half-label { display: inline; }
+    .ion-group.half .ion-box { stroke-dasharray: 4 3; stroke-width: 2.2; }
+    /* The quiz shows every group uncharged and doesn't point out which ones ionize */
+    .neutral-view .ion-box { display: none; }
+    .neutral-view .atom { fill: #000000; }
+    .neutral-view .half-label { display: none !important; }
+
+    #structure-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; font-size: 0.8em; color: var(--ut-taupe); margin-top: 8px; }
+    .swatch { display: inline-block; width: 14px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1.5px solid; }
+    .swatch.pos { border-color: var(--positive); background: rgba(21,101,192,0.12); }
+    .swatch.neg { border-color: var(--ut-crimson); background: rgba(200,16,46,0.10); }
+    .swatch.neu { border-color: var(--ut-taupe); }
+    .swatch.half { border-color: #000000; border-style: dashed; }
+
+    /* Plot */
+    #plot-wrap { width: 100%; }
+    canvas { display: block; width: 100%; height: 300px; cursor: crosshair; }
+    #plot-readout { font-size: 0.85em; color: var(--ut-taupe); margin-top: 6px; min-height: 1.3em; }
+
+    /* Results */
+    #stats { display: flex; gap: 12px; margin-bottom: 12px; }
+    .stat { flex: 1; background: #FFFFFF; border: 1px solid var(--ut-taupe); border-radius: 8px; padding: 8px 12px; }
+    .stat-label { font-size: 0.78em; color: var(--ut-taupe); letter-spacing: 0.3px; }
+    .stat-value { font-size: 1.5em; font-weight: 700; color: var(--ut-crimson); }
+    #group-table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    th, td { padding: 5px 8px; border-bottom: 1px solid #BFBFBF; text-align: left; }
+    th { color: var(--ut-taupe); font-weight: 600; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Quiz */
+    #quiz-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    #quiz-head .panel-section-title { margin-bottom: 0; }
+    #quiz-body { margin-top: 12px; }
+    #quiz-body[hidden] { display: none; }
+    #quiz-intro { font-size: 0.88em; color: var(--ut-taupe); margin-bottom: 10px; }
+    .quiz-fields { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; }
+    .quiz-field { display: flex; flex-direction: column; gap: 4px; }
+    .quiz-field input { width: 150px; }
+    .quiz-result {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.92em;
+      color: #000000;
+      border: 2px solid transparent;
+    }
+    .quiz-result:empty { display: none; }
+    .quiz-result.right { background: var(--ut-lavender); border-color: var(--ut-taupe); }
+    .quiz-result.wrong { background: #FFFFFF; border-color: var(--ut-crimson); }
+
+    @media (max-width: 860px) {
+      #main-layout { grid-template-columns: minmax(0, 1fr); }
+      .panel { padding: 14px 14px; }
+      #stats { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Peptide Charge and pI</h1>
+  <p class="subtitle">Enter a short peptide to see its most prevalent form at any pH, its net charge, and its pI</p>
+
+  <div id="main-layout">
+    <section class="panel wide" aria-labelledby="seq-title">
+      <h2 class="panel-section-title" id="seq-title">Peptide</h2>
+      <div class="controls-row">
+        <label for="seq-input">Sequence (1–6 residues)</label>
+        <input type="text" id="seq-input" autocomplete="off" spellcheck="false"
+               placeholder="AKDH or Ala-Lys-Asp-His" aria-describedby="seq-message">
+      </div>
+      <div class="controls-row" id="presets" role="group" aria-label="Example peptides">
+        <button type="button" class="seq-preset" data-seq="GAG" aria-pressed="false">GAG</button>
+        <button type="button" class="seq-preset" data-seq="DEK" aria-pressed="false">DEK</button>
+        <button type="button" class="seq-preset" data-seq="HHH" aria-pressed="false">HHH</button>
+        <button type="button" class="seq-preset" data-seq="CYKR" aria-pressed="false">CYKR</button>
+        <button type="button" class="seq-preset" data-seq="ADEHKR" aria-pressed="false">ADEHKR</button>
+        <button type="button" id="random-btn">Random</button>
+      </div>
+      <p id="seq-message" role="status" aria-live="polite"></p>
+      <p class="notation" id="notation-three"></p>
+      <p class="notation" id="notation-one"></p>
+    </section>
+
+    <section class="panel wide" aria-labelledby="ph-title">
+      <h2 class="panel-section-title keep-case" id="ph-title">pH</h2>
+      <div id="ph-row">
+        <div class="controls-row" role="group" aria-label="pH presets">
+          <button type="button" class="ph-preset" data-ph="2" aria-pressed="false">pH 2</button>
+          <button type="button" class="ph-preset" data-ph="7" aria-pressed="false">pH 7</button>
+          <button type="button" class="ph-preset" data-ph="13" aria-pressed="false">pH 13</button>
+        </div>
+        <div id="ph-slider-wrap">
+          <input type="range" id="ph-slider" min="0" max="14" step="0.1" value="7" aria-label="pH slider">
+        </div>
+        <label for="ph-input">pH</label>
+        <input type="number" id="ph-input" min="0" max="14" step="0.1" value="7">
+      </div>
+    </section>
+
+    <section class="panel wide" aria-labelledby="structure-title">
+      <h2 class="panel-section-title" id="structure-title">Most prevalent structure</h2>
+      <div id="structure-box"></div>
+      <div id="structure-legend">
+        <span><span class="swatch pos"></span>Positive group</span>
+        <span><span class="swatch neg"></span>Negative group</span>
+        <span><span class="swatch neu"></span>Neutral ionizable group</span>
+        <span><span class="swatch half"></span>≈50/50 (pH within 0.05 of the pKa)</span>
+      </div>
+    </section>
+
+    <section class="panel" id="plot-panel" aria-labelledby="plot-title">
+      <h2 class="panel-section-title keep-case" id="plot-title">Net charge vs pH</h2>
+      <div id="plot-wrap"><canvas id="plot" role="img" aria-label="Plot of net charge against pH"></canvas></div>
+      <p id="plot-readout">Hover over the plot to read pH and net charge.</p>
+    </section>
+
+    <section class="panel" id="results-panel" aria-labelledby="results-title">
+      <h2 class="panel-section-title" id="results-title">Results</h2>
+      <div id="stats">
+        <div class="stat"><div class="stat-label">Net charge at <span id="stat-ph"></span></div><div class="stat-value" id="net-charge"></div></div>
+        <div class="stat"><div class="stat-label">pI</div><div class="stat-value" id="pi-value"></div></div>
+      </div>
+      <div id="group-table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Ionizable group</th><th scope="col" class="num">pKa</th><th scope="col" class="num">Fractional charge</th><th scope="col">Dominant form</th></tr>
+          </thead>
+          <tbody id="group-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel wide" aria-labelledby="quiz-title">
+      <div id="quiz-head">
+        <h2 class="panel-section-title" id="quiz-title">Practice</h2>
+        <button type="button" id="quiz-toggle" aria-pressed="false">Quiz Mode: Off</button>
+      </div>
+      <div id="quiz-body" hidden>
+        <p id="quiz-intro">The structure is drawn uncharged. Predict the charges at the selected pH, then enter your answers.</p>
+        <div class="quiz-fields">
+          <div class="quiz-field">
+            <label for="quiz-charge">Net charge at <span id="quiz-ph"></span></label>
+            <input type="text" id="quiz-charge" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="quiz-field">
+            <label for="quiz-pi">pI</label>
+            <input type="text" id="quiz-pi" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="controls-row">
+            <button type="button" id="quiz-check">Check</button>
+            <button type="button" id="quiz-reveal">Reveal</button>
+          </div>
+        </div>
+        <div aria-live="polite">
+          <p class="quiz-result" id="quiz-charge-result"></p>
+          <p class="quiz-result" id="quiz-pi-result"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+// ─── pKa values ───────────────────────────────────────────────────────────────
+// Source: Berg, Tymoczko & Stryer, Biochemistry. Check these against your edition.
+const PKA = {
+  alphaCOOH: 3.1,   // C-terminal α-carboxyl
+  alphaNH3:  8.0,   // N-terminal α-amino
+  Asp: 4.1,
+  Glu: 4.1,
+  His: 6.0,
+  Cys: 8.3,
+  Tyr: 10.9,
+  Lys: 10.8,
+  Arg: 12.5
+};
+
+// ─── Residues ─────────────────────────────────────────────────────────────────
+const RESIDUES = {
+  G: 'Gly', A: 'Ala', V: 'Val', L: 'Leu', I: 'Ile', P: 'Pro', F: 'Phe', W: 'Trp', M: 'Met', S: 'Ser',
+  T: 'Thr', C: 'Cys', Y: 'Tyr', N: 'Asn', Q: 'Gln', D: 'Asp', E: 'Glu', K: 'Lys', R: 'Arg', H: 'His'
+};
+const THREE_TO_ONE = Object.fromEntries(Object.entries(RESIDUES).map(([one, three]) => [three.toLowerCase(), one]));
+const MAX_RESIDUES = 6;
+
+// Returns { seq } with one-letter codes, or { error }. A lone three-letter code wins over reading
+// it as one-letter codes, and { note } says so, since ALA could also mean Ala-Leu-Ala.
+function parsePeptide(text) {
+  const tokens = text.trim().split(/[\s,\-–—]+/).filter(Boolean);
+  if (tokens.length === 0) return { error: `Enter 1 to ${MAX_RESIDUES} residues.` };
+  let note = '';
+  let codes;
+  if (tokens.length === 1) {
+    const only = tokens[0];
+    const three = THREE_TO_ONE[only.toLowerCase()];
+    if (three) {
+      codes = [three];
+      const letters = only.toUpperCase().split('');
+      if (letters.every(c => RESIDUES[c])) {
+        note = `Read "${only}" as the single residue ${RESIDUES[three]}. For three residues, enter ${letters.join('-')}.`;
+      }
+    } else {
+      codes = only.split('').map(c => (RESIDUES[c.toUpperCase()] ? c.toUpperCase() : { bad: c }));
+    }
+  } else {
+    codes = tokens.map(t => {
+      if (t.length === 1 && RESIDUES[t.toUpperCase()]) return t.toUpperCase();
+      return THREE_TO_ONE[t.toLowerCase()] || { bad: t };
+    });
+  }
+  const bad = codes.filter(c => typeof c !== 'string').map(c => c.bad);
+  if (bad.length) {
+    const list = [...new Set(bad)].map(b => `"${b}"`).join(', ');
+    return { error: `Unknown residue${bad.length > 1 ? 's' : ''}: ${list}. Use the 20 standard amino acids.` };
+  }
+  if (codes.length > MAX_RESIDUES) {
+    return { error: `That is ${codes.length} residues. Enter at most ${MAX_RESIDUES}.` };
+  }
+  return { seq: codes.join(''), note };
+}
+
+// ─── Charge calculations ──────────────────────────────────────────────────────
+// Side-chain forms for each ionizable residue. kind 'base' is charged when protonated; 'acid' when not.
+const SIDE_IONIZABLE = {
+  D: { pKa: PKA.Asp, kind: 'acid', group: 'β-carboxyl', prot: 'COOH', deprot: 'COO⁻' },
+  E: { pKa: PKA.Glu, kind: 'acid', group: 'γ-carboxyl', prot: 'COOH', deprot: 'COO⁻' },
+  H: { pKa: PKA.His, kind: 'base', group: 'imidazole', prot: 'imidazolium⁺', deprot: 'imidazole' },
+  C: { pKa: PKA.Cys, kind: 'acid', group: 'thiol', prot: 'SH', deprot: 'S⁻' },
+  Y: { pKa: PKA.Tyr, kind: 'acid', group: 'phenol', prot: 'phenol OH', deprot: 'phenolate O⁻' },
+  K: { pKa: PKA.Lys, kind: 'base', group: 'ε-amino', prot: 'NH₃⁺', deprot: 'NH₂' },
+  R: { pKa: PKA.Arg, kind: 'base', group: 'guanidino', prot: 'guanidinium⁺', deprot: 'guanidine' }
+};
+
+// Only the free termini and the side chains ionize; internal backbone groups are amides.
+function ionizableGroups(seq) {
+  const residues = seq.split('');
+  const label = i => `${RESIDUES[residues[i]]}${i + 1}`;
+  const nProline = residues[0] === 'P';
+  const groups = [{
+    id: 'nterm', residue: 0, name: `N-terminal α-amino (${label(0)})`, pKa: PKA.alphaNH3, kind: 'base',
+    prot: nProline ? 'NH₂⁺' : 'NH₃⁺', deprot: nProline ? 'NH' : 'NH₂'
+  }];
+  residues.forEach((code, i) => {
+    const side = SIDE_IONIZABLE[code];
+    if (side) groups.push({ id: 'side' + i, residue: i, name: `${label(i)} ${side.group}`, pKa: side.pKa, kind: side.kind, prot: side.prot, deprot: side.deprot });
+  });
+  groups.push({
+    id: 'cterm', residue: residues.length - 1, name: `C-terminal α-carboxyl (${label(residues.length - 1)})`,
+    pKa: PKA.alphaCOOH, kind: 'acid', prot: 'COOH', deprot: 'COO⁻'
+  });
+  return groups;
+}
+
+function groupCharge(group, pH) {
+  return group.kind === 'base'
+    ? 1 / (1 + Math.pow(10, pH - group.pKa))
+    : -1 / (1 + Math.pow(10, group.pKa - pH));
+}
+
+function netCharge(groups, pH) {
+  return groups.reduce((sum, g) => sum + groupCharge(g, pH), 0);
+}
+
+// Net charge only falls as pH rises, and it is positive at pH 0 and negative at pH 14
+function findPI(groups) {
+  let low = 0, high = 14;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    if (netCharge(groups, mid) > 0) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+
+// Which form to draw: protonated below the pKa, deprotonated above, flagged within ±0.05
+const HALF_WINDOW = 0.05;
+function drawnForm(group, pH) {
+  return {
+    form: pH <= group.pKa ? 'prot' : 'deprot',
+    half: Math.abs(pH - group.pKa) <= HALF_WINDOW + 1e-9
+  };
+}
+
+// The uncharged form used by the quiz
+function neutralForm(group) {
+  return group.kind === 'base' ? 'deprot' : 'prot';
+}
+
+function formatSigned(value, digits = 2) {
+  const text = Math.abs(value).toFixed(digits);
+  if (Number(text) === 0) return text;
+  return (value > 0 ? '+' : '−') + text;
+}
+
+// ─── Skeletal structure ───────────────────────────────────────────────────────
+// Each template is in local coordinates: x runs along the chain and u points away from the backbone,
+// from the α-carbon at (0, 0). Atoms are [x, u, label, anchor]; the label '~' marks an atom whose text
+// comes from its ionization state, so bonds still stop short of it.
+const RING6 = { C1: [0, 60], C2: [26, 75], C3: [26, 105], C4: [0, 120], C5: [-26, 105], C6: [-26, 75] };
+const RING6_CENTER = [0, 90];
+const RING6_BONDS = [
+  ['C1', 'C2', 2, RING6_CENTER], ['C2', 'C3'], ['C3', 'C4', 2, RING6_CENTER],
+  ['C4', 'C5'], ['C5', 'C6', 2, RING6_CENTER], ['C6', 'C1']
+];
+const IMIDAZOLE_CENTER = [0, 86];
+const INDOLE_BENZENE_CENTER = [45.1, 100.7];
+
+const SIDE_TEMPLATES = {
+  G: { atoms: {}, bonds: [] },
+  A: { atoms: { CB: [14, 30] }, bonds: [['CA', 'CB']] },
+  V: { atoms: { CB: [0, 34], G1: [-27, 50], G2: [27, 50] }, bonds: [['CA', 'CB'], ['CB', 'G1'], ['CB', 'G2']] },
+  L: { atoms: { CB: [14, 30], CG: [0, 60], D1: [-27, 76], D2: [27, 76] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'D1'], ['CG', 'D2']] },
+  I: { atoms: { CB: [0, 34], G2: [-27, 50], G1: [27, 50], D1: [27, 84] },
+       bonds: [['CA', 'CB'], ['CB', 'G2'], ['CB', 'G1'], ['G1', 'D1']] },
+  M: { atoms: { CB: [14, 30], CG: [0, 60], SD: [14, 90, 'S'], CE: [0, 120] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'SD'], ['SD', 'CE']] },
+  // The ring closes back onto the backbone N, kept narrow to clear the previous carbonyl
+  P: { atoms: { N: [-29.4, -17, '~'], CB: [4.6, 33], CG: [-21.4, 45], CD: [-37.4, 17] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'CD'], ['CD', 'N']] },
+  S: { atoms: { CB: [14, 30], OG: [0, 60, 'OH'] }, bonds: [['CA', 'CB'], ['CB', 'OG']] },
+  T: { atoms: { CB: [0, 34], OG: [-27, 50, 'OH'], G2: [27, 50] }, bonds: [['CA', 'CB'], ['CB', 'OG'], ['CB', 'G2']] },
+  N: { atoms: { CB: [14, 30], CG: [0, 60], OD: [-27, 76, 'O'], ND: [27, 76, 'NH₂'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'OD', 2], ['CG', 'ND']] },
+  Q: { atoms: { CB: [14, 30], CG: [0, 60], CD: [14, 90], OE: [-13, 106, 'O'], NE: [41, 106, 'NH₂'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'CD'], ['CD', 'OE', 2], ['CD', 'NE']] },
+  F: { atoms: { CB: [14, 30], ...RING6 }, bonds: [['CA', 'CB'], ['CB', 'C1'], ...RING6_BONDS] },
+  W: { atoms: { CB: [14, 30], C3: [0, 60], C2: [-24.7, 78], N1: [-15.3, 107, 'NH', 'end', 7],
+                C7A: [15.3, 107], C3A: [24.7, 78], C4: [54.6, 71.7], C5: [74.9, 94.4], C6: [65.5, 123.4], C7: [35.6, 129.7] },
+       bonds: [['CA', 'CB'], ['CB', 'C3'], ['C3', 'C2', 2, IMIDAZOLE_CENTER], ['C2', 'N1'], ['N1', 'C7A'], ['C7A', 'C3A', 2, INDOLE_BENZENE_CENTER],
+               ['C3A', 'C3'], ['C3A', 'C4'], ['C4', 'C5', 2, INDOLE_BENZENE_CENTER], ['C5', 'C6'], ['C6', 'C7', 2, INDOLE_BENZENE_CENTER], ['C7', 'C7A']] },
+  C: { atoms: { CB: [14, 30], SG: [0, 60, '~'] }, bonds: [['CA', 'CB'], ['CB', 'SG']],
+       ion: { box: [0, 60, 36, 22], prot: { labels: { SG: ['SH'] } }, deprot: { labels: { SG: ['S⁻'] } } } },
+  Y: { atoms: { CB: [14, 30], ...RING6, OH: [0, 150, '~'] }, bonds: [['CA', 'CB'], ['CB', 'C1'], ...RING6_BONDS, ['C4', 'OH']],
+       ion: { box: [0, 150, 36, 22], prot: { labels: { OH: ['OH'] } }, deprot: { labels: { OH: ['O⁻'] } } } },
+  D: { atoms: { CB: [14, 30], CG: [0, 60], O1: [-27, 76, 'O'], O2: [27, 76, '~'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'O1', 2], ['CG', 'O2']],
+       ion: { box: [0, 70, 90, 42], prot: { labels: { O2: ['OH'] } }, deprot: { labels: { O2: ['O⁻'] } } } },
+  E: { atoms: { CB: [14, 30], CG: [0, 60], CD: [14, 90], O1: [-13, 106, 'O'], O2: [41, 106, '~'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'CD'], ['CD', 'O1', 2], ['CD', 'O2']],
+       ion: { box: [14, 100, 90, 42], prot: { labels: { O2: ['OH'] } }, deprot: { labels: { O2: ['O⁻'] } } } },
+  K: { atoms: { CB: [14, 30], CG: [0, 60], CD: [14, 90], CE: [0, 120], NZ: [14, 150, '~'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'CD'], ['CD', 'CE'], ['CE', 'NZ']],
+       ion: { box: [14, 150, 44, 22], prot: { labels: { NZ: ['NH₃⁺'] } }, deprot: { labels: { NZ: ['NH₂'] } } } },
+  R: { atoms: { CB: [14, 30], CG: [0, 60], CD: [14, 90], NE: [0, 120, 'NH'], CZ: [14, 150], N1: [42, 167, '~'], N2: [-14, 167, 'NH₂'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'CD'], ['CD', 'NE'], ['NE', 'CZ'], ['CZ', 'N2']],
+       ion: { box: [16, 158, 116, 50],
+              prot: { labels: { N1: ['NH₂⁺', 'start', -6] }, bonds: [['CZ', 'N1', 2]] },
+              deprot: { labels: { N1: ['NH', 'start', -6] }, bonds: [['CZ', 'N1', 2]] } } },
+  H: { atoms: { CB: [14, 30], CG: [0, 60], CD2: [24.7, 78], NE2: [15.3, 107, '~'], CE1: [-15.3, 107], ND1: [-24.7, 78, '~'] },
+       bonds: [['CA', 'CB'], ['CB', 'CG'], ['CG', 'CD2', 2, IMIDAZOLE_CENTER], ['CD2', 'NE2'], ['CG', 'ND1']],
+       ion: { box: [0, 87, 112, 60],
+              prot: { labels: { ND1: ['HN', 'end', 7], NE2: ['NH⁺', 'start', -6] },
+                      bonds: [['CE1', 'ND1'], ['CE1', 'NE2', 2, IMIDAZOLE_CENTER]] },
+              deprot: { labels: { ND1: ['N'], NE2: ['NH', 'start', -6] },
+                        bonds: [['CE1', 'ND1', 2, IMIDAZOLE_CENTER], ['CE1', 'NE2']] } } }
+};
+
+const STEP_X = 29.4, STEP_Y = 17, CO_LENGTH = 30, NH_LENGTH = 28, LABEL_TRIM = 10, N_TERMINUS_TRIM = 18;
+
+function lineSVG(a, b, trimA, trimB, order, toward) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  const p = [a[0] + ux * trimA, a[1] + uy * trimA];
+  const q = [b[0] - ux * trimB, b[1] - uy * trimB];
+  const seg = (s, t) => `<line class="bond" x1="${s[0].toFixed(1)}" y1="${s[1].toFixed(1)}" x2="${t[0].toFixed(1)}" y2="${t[1].toFixed(1)}"/>`;
+  if (order !== 2) return seg(p, q);
+  let nx = -uy, ny = ux;
+  if (!toward) {
+    const off = 2.2;
+    return seg([p[0] + nx * off, p[1] + ny * off], [q[0] + nx * off, q[1] + ny * off]) +
+           seg([p[0] - nx * off, p[1] - ny * off], [q[0] - nx * off, q[1] - ny * off]);
+  }
+  // A ring double bond: the second line sits inside the ring and is a little shorter
+  if ((toward[0] - a[0]) * nx + (toward[1] - a[1]) * ny < 0) { nx = -nx; ny = -ny; }
+  const off = 4, inset = 4;
+  return seg(p, q) + seg(
+    [p[0] + nx * off + ux * inset, p[1] + ny * off + uy * inset],
+    [q[0] + nx * off - ux * inset, q[1] + ny * off - uy * inset]
+  );
+}
+
+function labelSVG(point, text, anchor = 'middle', shift = 0) {
+  return `<text class="atom" text-anchor="${anchor}" x="${(point[0] + shift).toFixed(1)}" y="${point[1].toFixed(1)}">${text}</text>`;
+}
+
+// Draws one peptide. Returns { svg, width, height } for buildStructure's caller.
+function buildStructure(seq) {
+  const residues = seq.split('');
+  const groups = ionizableGroups(seq);
+  const statics = [];   // bonds and labels that never change
+  const ions = [];      // one <g> per ionizable group
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const track = (x, y, pad = 0) => {
+    minX = Math.min(minX, x - pad); maxX = Math.max(maxX, x + pad);
+    minY = Math.min(minY, y - pad); maxY = Math.max(maxY, y + pad);
+  };
+  const backbone = k => [k * STEP_X, k % 2 ? -STEP_Y : 0];
+  const has = label => Boolean(label);
+
+  const ionGroupSVG = (group, box, drawState) => {
+    const stateSVG = form => {
+      const charged = (group.kind === 'base') === (form === 'prot');
+      const cls = charged ? (group.kind === 'base' ? 'charge-pos' : 'charge-neg') : 'charge-neu';
+      return `<g class="ion-state ${form} ${cls}">` +
+        `<rect class="ion-box" x="${(box.x - box.w / 2).toFixed(1)}" y="${(box.y - box.h / 2).toFixed(1)}" width="${box.w}" height="${box.h}" rx="7"/>` +
+        drawState(form) + '</g>';
+    };
+    track(box.x - box.w / 2, box.y - box.h / 2 - 12);
+    track(box.x + box.w / 2, box.y + box.h / 2 + 12);
+    // The ≈50/50 label goes on the side of the box facing away from the backbone
+    const labelY = box.y < 0 ? box.y - box.h / 2 - 5 : box.y + box.h / 2 + 11;
+    ions.push(`<g class="ion-group" data-group="${group.id}">${stateSVG('prot')}${stateSVG('deprot')}` +
+      `<text class="half-label" x="${box.x.toFixed(1)}" y="${labelY.toFixed(1)}">≈50/50</text></g>`);
+  };
+
+  residues.forEach((code, i) => {
+    const N = backbone(3 * i), CA = backbone(3 * i + 1), C = backbone(3 * i + 2);
+    const dir = (3 * i + 1) % 2 ? -1 : 1;          // the side chain points away from the backbone
+    const carbonylDir = C[1] === 0 ? 1 : -1;
+    const toWorld = ([x, u]) => [CA[0] + x, CA[1] + dir * u];
+    const last = i === residues.length - 1;
+    const isPro = code === 'P';
+
+    // Backbone
+    statics.push(lineSVG(N, CA, i === 0 ? N_TERMINUS_TRIM : LABEL_TRIM, 0));
+    statics.push(lineSVG(CA, C, 0, 0));
+    track(N[0], N[1], 16); track(CA[0], CA[1], 16); track(C[0], C[1], 16);
+
+    if (i > 0) {
+      if (isPro) statics.push(labelSVG(N, 'N'));
+      else {
+        const hDir = N[1] === 0 ? 1 : -1;
+        const H = [N[0], N[1] + hDir * NH_LENGTH];
+        statics.push(lineSVG(N, H, LABEL_TRIM, 7));
+        statics.push(labelSVG(N, 'N'));
+        statics.push(labelSVG(H, 'H'));
+        track(H[0], H[1], 12);
+      }
+    } else {
+      const g = groups.find(x => x.id === 'nterm');
+      const box = { x: N[0] - 11, y: N[1], w: 60, h: 24 };
+      const text = form => (isPro ? (form === 'prot' ? 'H₂N⁺' : 'HN') : (form === 'prot' ? 'H₃N⁺' : 'H₂N'));
+      ionGroupSVG(g, box, form => labelSVG(N, text(form), 'end', form === 'prot' ? 13 : 6));
+    }
+
+    // Carbonyl, or the C-terminal carboxyl
+    const O = [C[0], C[1] + carbonylDir * CO_LENGTH];
+    track(O[0], O[1], 12);
+    if (!last) {
+      statics.push(lineSVG(C, O, 0, 8, 2));
+      statics.push(labelSVG(O, 'O'));
+      const nextN = backbone(3 * (i + 1));
+      statics.unshift(`<line class="peptide-glow" x1="${C[0]}" y1="${C[1]}" x2="${nextN[0]}" y2="${nextN[1]}"/>`);
+      statics.push(lineSVG(C, nextN, 0, LABEL_TRIM));
+    } else {
+      const OT = [C[0] + STEP_X, C[1] - carbonylDir * STEP_Y];
+      track(OT[0], OT[1], 16);
+      statics.push(lineSVG(C, O, 0, 8, 2));
+      statics.push(labelSVG(O, 'O'));
+      statics.push(lineSVG(C, OT, 0, LABEL_TRIM));
+      const g = groups.find(x => x.id === 'cterm');
+      // Encloses the carboxyl carbon and its oxygens, stopping short of the α-carbon
+      const box = { x: C[0] + 15, y: C[1] + carbonylDir * 8, w: 64, h: 68 };
+      ionGroupSVG(g, box, form => labelSVG(OT, form === 'prot' ? 'OH' : 'O⁻'));
+    }
+
+    // Side chain
+    const template = SIDE_TEMPLATES[code];
+    const world = { CA };
+    Object.entries(template.atoms).forEach(([name, atom]) => { world[name] = toWorld(atom); track(world[name][0], world[name][1], 12); });
+    const atomLabel = name => (template.atoms[name] ? template.atoms[name][2] : undefined);
+    const bondSVG = ([a, b, order, toward]) => lineSVG(
+      world[a], world[b],
+      has(atomLabel(a)) ? LABEL_TRIM : 0,
+      has(atomLabel(b)) ? LABEL_TRIM : 0,
+      order, toward ? toWorld(toward) : null
+    );
+    template.bonds.forEach(bond => statics.push(bondSVG(bond)));
+    Object.entries(template.atoms).forEach(([name, atom]) => {
+      if (atom[2] && atom[2] !== '~') statics.push(labelSVG(world[name], atom[2], atom[3], atom[4] || 0));
+    });
+    if (template.ion) {
+      const g = groups.find(x => x.id === 'side' + i);
+      const center = toWorld(template.ion.box);
+      const box = { x: center[0], y: center[1], w: template.ion.box[2], h: template.ion.box[3] };
+      ionGroupSVG(g, box, form => {
+        const state = template.ion[form];
+        const bonds = (state.bonds || []).map(bondSVG).join('');
+        const labels = Object.entries(state.labels).map(([name, [text, anchor, shift]]) =>
+          labelSVG(world[name], text, anchor, shift || 0)).join('');
+        return bonds + labels;
+      });
+    }
+  });
+
+  // Shaded residue bands, with names and peptide bond labels beneath
+  const padX = 22;
+  const left = minX - padX, right = maxX + padX;
+  const top = minY - 10, labelRow = maxY + 20, nameRow = labelRow + 18, bottom = nameRow + 10;
+  const boundary = i => backbone(3 * i)[0] - STEP_X / 2;
+  const bands = residues.map((code, i) => {
+    const x1 = i === 0 ? left : boundary(i);
+    const x2 = i === residues.length - 1 ? right : boundary(i + 1);
+    const fill = i % 2 === 0 ? 'rgba(104,92,83,0.09)' : 'rgba(255,205,255,0.28)';
+    const middle = backbone(3 * i + 1)[0];
+    return `<rect x="${x1.toFixed(1)}" y="${top.toFixed(1)}" width="${(x2 - x1).toFixed(1)}" height="${(bottom - top).toFixed(1)}" fill="${fill}"/>` +
+      `<text class="res-name" x="${middle.toFixed(1)}" y="${nameRow.toFixed(1)}">${RESIDUES[code]}${residues.length > 1 ? ' ' + (i + 1) : ''}</text>`;
+  }).join('');
+  const peptideLabels = residues.slice(1).map((_, k) => {
+    const x = boundary(k + 1);
+    const y = -STEP_Y / 2;
+    return `<line class="leader" x1="${x.toFixed(1)}" y1="${(y + 4).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(labelRow - 10).toFixed(1)}"/>` +
+      `<text class="bond-name" x="${x.toFixed(1)}" y="${labelRow.toFixed(1)}">peptide bond</text>`;
+  }).join('');
+
+  const width = right - left, height = bottom - top;
+  const svg = `<svg id="structure" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="${left.toFixed(1)} ${top.toFixed(1)} ${width.toFixed(1)} ${height.toFixed(1)}" ` +
+    `style="width:${Math.round(width * 1.3)}px">${bands}${peptideLabels}${statics.join('')}${ions.join('')}</svg>`;
+  return { svg, width, height };
+}
+
+// ─── Notation ─────────────────────────────────────────────────────────────────
+function terminusText(group, neutral, pH) {
+  const form = neutral ? neutralForm(group) : drawnForm(group, pH).form;
+  if (group.id === 'cterm') return form === 'prot' ? 'COOH' : 'COO⁻';
+  const proline = group.prot === 'NH₂⁺';
+  if (form === 'prot') return proline ? 'H₂N⁺' : 'H₃N⁺';
+  return proline ? 'HN' : 'H₂N';
+}
+
+function notationHTML(names, groups, neutral, pH) {
+  const n = terminusText(groups[0], neutral, pH);
+  const c = terminusText(groups[groups.length - 1], neutral, pH);
+  return `<span class="terminus">N-terminus</span>${n}–${names.join('–')}–${c}<span class="terminus">C-terminus</span>`;
+}
+
+// ─── Page state ───────────────────────────────────────────────────────────────
+let sequence = 'ADEHKR';
+let pH = 7;
+let activePHPreset = 7;
+let quizOn = false;
+let quizRevealed = false;
+let hoverPH = null;
+
+const $ = id => document.getElementById(id);
+const answersHidden = () => quizOn && !quizRevealed;
+const currentGroups = () => ionizableGroups(sequence);
+
+function clearQuizAnswers() {
+  $('quiz-charge').value = '';
+  $('quiz-pi').value = '';
+  ['quiz-charge-result', 'quiz-pi-result'].forEach(id => {
+    $(id).textContent = '';
+    $(id).className = 'quiz-result';
+  });
+  quizRevealed = false;
+}
+
+function setSequence(seq) {
+  if (seq !== sequence) clearQuizAnswers();
+  sequence = seq;
+  $('structure-box').innerHTML = buildStructure(sequence).svg;
+  document.querySelectorAll('.seq-preset').forEach(b => {
+    const on = b.dataset.seq === sequence;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on);
+  });
+  refresh();
+}
+
+function setPH(value, preset = null) {
+  const next = Math.min(14, Math.max(0, Math.round(value * 100) / 100));
+  if (next !== pH) clearQuizAnswers();
+  pH = next;
+  activePHPreset = preset;
+  refresh();
+}
+
+function updateStructureStates(groups) {
+  const svg = $('structure');
+  if (!svg) return;
+  const neutral = answersHidden();
+  svg.classList.toggle('neutral-view', neutral);
+  svg.querySelectorAll('.ion-group').forEach(el => {
+    const group = groups.find(g => g.id === el.dataset.group);
+    const { form, half } = drawnForm(group, pH);
+    const shown = neutral ? neutralForm(group) : form;
+    el.classList.toggle('half', half && !neutral);
+    el.querySelector('.prot').classList.toggle('on', shown === 'prot');
+    el.querySelector('.deprot').classList.toggle('on', shown === 'deprot');
+  });
+  const names = sequence.split('').map(c => RESIDUES[c]).join('-');
+  const description = neutral
+    ? `Skeletal structure of ${names}, drawn uncharged for the quiz.`
+    : `Skeletal structure of ${names} at pH ${pH}. ` + groups.map(g => {
+        const { form, half } = drawnForm(g, pH);
+        return `${g.name}: ${half ? 'about 50/50' : g[form]}`;
+      }).join('; ') + '.';
+  svg.setAttribute('aria-label', description);
+}
+
+function refresh() {
+  const groups = currentGroups();
+  const neutral = answersHidden();
+  const codes = sequence.split('');
+
+  $('notation-three').innerHTML = notationHTML(codes.map(c => RESIDUES[c]), groups, neutral, pH);
+  $('notation-one').innerHTML = notationHTML(codes, groups, neutral, pH);
+
+  $('ph-slider').value = pH;
+  if (document.activeElement !== $('ph-input')) $('ph-input').value = pH;
+  document.querySelectorAll('.ph-preset').forEach(b => {
+    const on = Number(b.dataset.ph) === activePHPreset;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on);
+  });
+
+  updateStructureStates(groups);
+
+  $('quiz-toggle').textContent = `Quiz Mode: ${quizOn ? 'On' : 'Off'}`;
+  $('quiz-toggle').classList.toggle('active', quizOn);
+  $('quiz-toggle').setAttribute('aria-pressed', quizOn);
+  $('quiz-body').hidden = !quizOn;
+  $('quiz-ph').textContent = `pH ${pH}`;
+  $('plot-panel').style.display = neutral ? 'none' : '';
+  $('results-panel').style.display = neutral ? 'none' : '';
+  $('structure-legend').style.display = neutral ? 'none' : '';
+  if (neutral) return;
+
+  const charge = netCharge(groups, pH);
+  const pI = findPI(groups);
+  $('stat-ph').textContent = `pH ${pH}`;
+  $('net-charge').textContent = formatSigned(charge);
+  $('pi-value').textContent = pI.toFixed(2);
+  $('group-rows').innerHTML = groups.map(g => {
+    const { form, half } = drawnForm(g, pH);
+    return `<tr><td>${g.name}</td><td class="num">${g.pKa.toFixed(1)}</td>` +
+      `<td class="num">${formatSigned(groupCharge(g, pH))}</td><td>${half ? `≈50/50 ${g.prot} / ${g.deprot}` : g[form]}</td></tr>`;
+  }).join('');
+  drawPlot(groups, pI);
+}
+
+// ─── Net charge plot ──────────────────────────────────────────────────────────
+function drawPlot(groups, pI) {
+  const canvas = $('plot');
+  const ctx = canvas.getContext('2d');
+  const scale = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 480, H = canvas.clientHeight || 300;
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const margin = { left: 44, right: 14, top: 14, bottom: 38 };
+  const yMax = Math.max(1, Math.ceil(netCharge(groups, 0)));
+  const yMin = Math.min(-1, Math.floor(netCharge(groups, 14)));
+  const X = p => margin.left + (p / 14) * (W - margin.left - margin.right);
+  const Y = q => margin.top + ((yMax - q) / (yMax - yMin)) * (H - margin.top - margin.bottom);
+
+  ctx.font = '12px "Segoe UI", Arial, sans-serif';
+  ctx.lineWidth = 1;
+
+  // Grid and axis numbers
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  for (let q = yMin; q <= yMax; q++) {
+    ctx.strokeStyle = q === 0 ? '#000000' : '#E4DFE4';
+    ctx.lineWidth = q === 0 ? 1.5 : 1;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(q)); ctx.lineTo(X(14), Y(q)); ctx.stroke();
+    ctx.fillStyle = '#685C53';
+    ctx.fillText(q > 0 ? `+${q}` : q < 0 ? `−${-q}` : '0', X(0) - 6, Y(q));
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.lineWidth = 1;
+  for (let p = 0; p <= 14; p += 2) {
+    ctx.strokeStyle = '#E4DFE4';
+    ctx.beginPath(); ctx.moveTo(X(p), Y(yMax)); ctx.lineTo(X(p), Y(yMin)); ctx.stroke();
+    ctx.fillStyle = '#685C53';
+    ctx.fillText(String(p), X(p), Y(yMin) + 5);
+  }
+  ctx.fillText('pH', (X(0) + X(14)) / 2, Y(yMin) + 20);
+  ctx.save();
+  ctx.translate(12, (Y(yMax) + Y(yMin)) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Net charge', 0, 0);
+  ctx.restore();
+
+  // Curve
+  ctx.strokeStyle = '#685C53';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let p = 0; p <= 14.0001; p += 0.05) {
+    const x = X(p), y = Y(netCharge(groups, p));
+    if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Current pH
+  ctx.strokeStyle = '#C8102E';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(X(pH), Y(yMax)); ctx.lineTo(X(pH), Y(yMin)); ctx.stroke();
+  ctx.fillStyle = '#C8102E';
+  ctx.beginPath(); ctx.arc(X(pH), Y(netCharge(groups, pH)), 5, 0, Math.PI * 2); ctx.fill();
+
+  // pI
+  ctx.fillStyle = '#FFCDFF';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(X(pI), Y(0), 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = pI > 11 ? 'right' : 'left';
+  ctx.font = '600 12px "Segoe UI", Arial, sans-serif';
+  ctx.fillText(`pI ${pI.toFixed(2)}`, X(pI) + (pI > 11 ? -8 : 8), Y(0) - 5);
+
+  // Hover marker
+  if (hoverPH !== null) {
+    ctx.fillStyle = '#000000';
+    ctx.beginPath(); ctx.arc(X(hoverPH), Y(netCharge(groups, hoverPH)), 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  canvas.plotArea = { left: margin.left, right: W - margin.right };
+  canvas.setAttribute('aria-label',
+    `Net charge against pH from 0 to 14. Net charge is ${formatSigned(netCharge(groups, pH))} at pH ${pH}. The pI is ${pI.toFixed(2)}.`);
+}
+
+function updateHover(clientX) {
+  const canvas = $('plot');
+  const area = canvas.plotArea;
+  if (!area) return;
+  const x = clientX - canvas.getBoundingClientRect().left;
+  const p = ((x - area.left) / (area.right - area.left)) * 14;
+  hoverPH = Math.min(14, Math.max(0, p));
+  $('plot-readout').textContent = `pH ${hoverPH.toFixed(1)}: net charge ${formatSigned(netCharge(currentGroups(), hoverPH))}`;
+  refresh();
+}
+
+// ─── Quiz ─────────────────────────────────────────────────────────────────────
+const CHARGE_TOLERANCE = 0.2, PI_TOLERANCE = 0.1;
+
+// Accepts a typed minus sign as well as a hyphen
+function parseAnswer(text) {
+  const cleaned = text.trim().replace(/[−–]/g, '-').replace(/^\+/, '');
+  if (cleaned === '' || Number.isNaN(Number(cleaned))) return null;
+  return Number(cleaned);
+}
+
+function withinTolerance(answer, truth, tolerance) {
+  return Math.abs(answer - truth) <= tolerance + 1e-9;
+}
+
+function showQuizResult(id, label, inputId, truth, tolerance) {
+  const answer = parseAnswer($(inputId).value);
+  const el = $(id);
+  if (answer === null) {
+    el.textContent = `✗ ${label}: enter a number.`;
+    el.className = 'quiz-result wrong';
+  } else if (withinTolerance(answer, truth, tolerance)) {
+    el.textContent = `✓ ${label}: correct.`;
+    el.className = 'quiz-result right';
+  } else {
+    el.textContent = `✗ ${label}: not within ±${tolerance}. Try again or click Reveal.`;
+    el.className = 'quiz-result wrong';
+  }
+}
+
+function checkQuiz() {
+  const groups = currentGroups();
+  showQuizResult('quiz-charge-result', 'Net charge', 'quiz-charge', netCharge(groups, pH), CHARGE_TOLERANCE);
+  showQuizResult('quiz-pi-result', 'pI', 'quiz-pi', findPI(groups), PI_TOLERANCE);
+}
+
+function toggleQuiz() {
+  quizOn = !quizOn;
+  clearQuizAnswers();
+  refresh();
+}
+
+function revealQuiz() {
+  quizRevealed = true;
+  refresh();
+}
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+function handleSequenceInput() {
+  const input = $('seq-input');
+  const message = $('seq-message');
+  const parsed = parsePeptide(input.value);
+  if (parsed.error) {
+    message.textContent = parsed.error;
+    message.className = 'error';
+    input.setAttribute('aria-invalid', 'true');
+    return;
+  }
+  message.textContent = parsed.note;
+  message.className = 'note';
+  input.removeAttribute('aria-invalid');
+  setSequence(parsed.seq);
+}
+
+// Sequences like LYS are written L-Y-S, since the box reads a lone LYS as the residue Lys
+function chooseSequence(seq) {
+  $('seq-input').value = THREE_TO_ONE[seq.toLowerCase()] ? seq.split('').join('-') : seq;
+  handleSequenceInput();
+}
+
+function randomSequence() {
+  const codes = Object.keys(RESIDUES);
+  const length = 2 + Math.floor(Math.random() * (MAX_RESIDUES - 1));
+  let seq = '';
+  for (let i = 0; i < length; i++) seq += codes[Math.floor(Math.random() * codes.length)];
+  return seq;
+}
+
+$('seq-input').addEventListener('input', handleSequenceInput);
+document.querySelectorAll('.seq-preset').forEach(b => b.addEventListener('click', () => chooseSequence(b.dataset.seq)));
+$('random-btn').addEventListener('click', () => {
+  let seq = randomSequence();
+  while (seq === sequence) seq = randomSequence();
+  chooseSequence(seq);
+});
+
+document.querySelectorAll('.ph-preset').forEach(b => b.addEventListener('click', () => setPH(Number(b.dataset.ph), Number(b.dataset.ph))));
+$('ph-slider').addEventListener('input', e => setPH(Number(e.target.value)));
+$('ph-input').addEventListener('input', e => {
+  if (e.target.value !== '' && !Number.isNaN(Number(e.target.value))) setPH(Number(e.target.value));
+});
+$('ph-input').addEventListener('change', e => { e.target.value = pH; });
+
+$('quiz-toggle').addEventListener('click', toggleQuiz);
+$('quiz-check').addEventListener('click', checkQuiz);
+$('quiz-reveal').addEventListener('click', revealQuiz);
+
+$('plot').addEventListener('mousemove', e => updateHover(e.clientX));
+$('plot').addEventListener('mouseleave', () => {
+  hoverPH = null;
+  $('plot-readout').textContent = 'Hover over the plot to read pH and net charge.';
+  refresh();
+});
+window.addEventListener('resize', refresh);
+
+chooseSequence(sequence);
+</script>
+</body>
+</html>
