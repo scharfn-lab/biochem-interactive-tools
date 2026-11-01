@@ -994,24 +994,32 @@ test('a structure question hides the names everywhere until a choice is entered'
   assert.equal(page.el('pair-struct-b').getAttribute('aria-label'), 'Structure of the second amino acid at pH 7');
 });
 
-test('a wrong first answer on a structure question adds the names above the structures', () => {
+test('a wrong first answer on a structure question adds the full names above the structures', () => {
   const page = loadPage();
   page.run('toggleScoreBreakdown()');
-  for (const [type, a, b] of [['c1', 'D', 'K'], ['c3', 'Asp', 'Lys'], ['name', 'Aspartate', 'Lysine']]) {
+  for (const type of ['c1', 'c3', 'name']) {
     askStructurePair(page, 'D', 'K', type);
     enter(page, 'Hydrophobic');
-    assert.equal(page.el('pair-name-a').textContent, a);
-    assert.equal(page.el('pair-name-b').textContent, b);
-    assert.equal(page.el('pair-struct-a').getAttribute('aria-label'), `Structure of ${a} at pH 7`);
+    assert.equal(page.el('pair-name-a').textContent, 'Aspartate', type);
+    assert.equal(page.el('pair-name-b').textContent, 'Lysine', type);
+    assert.equal(page.el('pair-struct-a').getAttribute('aria-label'), 'Structure of Aspartate at pH 7');
     assert.equal(page.el('pair-note-a').textContent, '', 'descriptions would give the answer away');
     assert.match(page.el('feedback').innerHTML, /Use the names above the structures to choose again/);
-    assert.doesNotMatch(page.el('interact-prompt').innerHTML, new RegExp(a), 'the prompt stays as asked');
+    assert.doesNotMatch(page.el('interact-prompt').innerHTML, /Aspartate/, 'the prompt stays as asked');
   }
   assert.deepEqual(counts(page, 'Interactions'), [0, 0], 'a second chance has not been used up');
   enter(page, 'Salt bridge');
   assert.deepEqual(counts(page, 'Interactions'), [1, 0]);
   assert.equal(page.el('pair-name-a').textContent, 'Aspartate (Asp)');
   assert.match(page.el('pair-note-a').textContent, /^Side chain:/);
+});
+
+test('a wrong first answer on a name question still labels structures the way it asked', () => {
+  const page = loadPage();
+  startInteract(page, 'D', 'K', 'c3');
+  enter(page, 'Hydrophobic');
+  assert.equal(page.el('pair-name-a').textContent, 'Asp');
+  assert.equal(page.el('pair-struct-a').getAttribute('aria-label'), 'Structure of Asp at pH 7');
 });
 
 test('a structure question answered right or shown still ends with the names and reasons', () => {

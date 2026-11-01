@@ -1917,14 +1917,16 @@ function drawCurrentPair() {
   [['a', pair.a], ['b', pair.b]].forEach(([side, code]) => {
     const aa = aaByCode(code);
     const box = document.getElementById('pair-struct-' + side);
-    const shownName = !showNames ? '' : showDetails ? `${aa.name} (${aa.code3})` : nameOfType(aa, pair.nameType);
+    // A structure question gives the full name as its help after a wrong choice
+    const hintName = nameOfType(aa, fromStructure ? 'name' : pair.nameType);
+    const shownName = !showNames ? '' : showDetails ? `${aa.name} (${aa.code3})` : hintName;
     document.getElementById('pair-name-' + side).textContent = shownName;
     document.getElementById('pair-note-' + side).textContent = showDetails ? describeSideChain(aa) : '';
     if (drawStructureInto(aa.smiles[INTERACT_PH], box, 300, 170)) {
       const position = side === 'a' ? 'first' : 'second';
       box.setAttribute('role', 'img');
       box.setAttribute('aria-label', showNames
-        ? `Structure of ${nameOfType(aa, showDetails ? 'name' : pair.nameType)} at pH ${INTERACT_PH}`
+        ? `Structure of ${showDetails ? aa.name : hintName} at pH ${INTERACT_PH}`
         : `Structure of the ${position} amino acid at pH ${INTERACT_PH}`);
     } else {
       box.removeAttribute('role');
