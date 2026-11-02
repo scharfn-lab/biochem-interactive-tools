@@ -479,9 +479,7 @@ function renderNotes(m) {
   const trap = state.showCat && m.trap;
   $('preset-trap').hidden = !state.showCat || m.trap;
   $('trap-callout').hidden = !trap;
-  if (trap) {
-    $('trap-callout').textContent = `Ground-state trap: ES is so stable that it sits in a deep well. The barrier from ES is ${fmtEnergy(m.ts1.g - state.esG, u)}, higher than the ${fmtEnergy(m.ts1.g - DEFAULTS.esG, u)} it would be with the default ES energy. Binding the substrate too tightly slows the enzyme.`;
-  }
+  $('trap-callout').textContent = 'Ground-state trap: ES is so stable that it sits in a deep well. Binding the substrate too tightly slows the enzyme.';
   const note = !state.showCat ? '' : m.clamps
     .map(c => `${c.ts} is held ${fmtEnergy(c.gap, u)} above ${c.below}, because the sliders would put it below.`)
     .join(' ');

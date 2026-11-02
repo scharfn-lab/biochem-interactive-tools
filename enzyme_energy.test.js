@@ -130,6 +130,10 @@ test('the curve passes through every state and never overshoots', () => {
 });
 
 // ── Ground-state trap ──────────────────────────────────────────
+test('the trap description has the requested wording', () => {
+  assert.ok(HTML.includes("'Ground-state trap: ES is so stable that it sits in a deep well. Binding the substrate too tightly slows the enzyme.'"));
+});
+
 test('the trap appears only when binding is tighter than the default', () => {
   assert.equal(buildModel({}).trap, false, 'default binding');
   assert.equal(buildModel({ esG: -5 }).trap, false);
