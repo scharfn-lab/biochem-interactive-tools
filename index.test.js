@@ -60,6 +60,7 @@ test('each tool has the requested description, one sentence or less', () => {
     'Peptide Properties': 'Evaluate pH, charge, and pI of peptide structures',
     'Peptide Folding': 'Adjust dihedral angles to visualize folding patterns',
     'Hemoglobin + Myoglobin': 'Evaluate effect of pH, CO₂, and 2,3-BPG on O₂ binding curves',
+    Enzymes: 'Evaluate effect of enzymes, temperature, and pH on reaction energy diagrams',
     'Enzyme Kinetics': 'Evaluate effect of K<sub>m</sub>, k<sub>cat</sub>, [E] and inhibitors on kinetics plots',
   };
   assert.equal(TOOLS.length, Object.keys(wanted).length);
@@ -104,4 +105,10 @@ test('the page loads nothing from elsewhere', () => {
 
 test('the footer date is a month and year', () => {
   assert.match(LAST_UPDATED, /^[A-Z][a-z]+ \d{4}$/);
+});
+
+test('the Enzymes topic links to the enzyme energy page', () => {
+  const tool = TOOLS.find(t => t.topic === 'Enzymes');
+  assert.equal(tool.file, 'enzyme_energy.html');
+  assert.ok(FILES.includes(tool.file));
 });
