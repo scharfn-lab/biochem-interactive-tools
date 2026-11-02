@@ -99,6 +99,7 @@
 
     .check { display: inline-flex; align-items: center; gap: 5px; font-size: 0.86em; cursor: pointer; }
     .check input { accent-color: var(--ut-crimson); width: 16px; height: 16px; }
+    #energy-note { font-size: 0.82em; margin-top: 10px; }
     #clamp-note { font-size: 0.82em; margin-top: 8px; border-left: 3px solid var(--ut-crimson); padding-left: 8px; }
 
     /* ── Controls above the diagram, with the activity plots to their right ── */
@@ -118,7 +119,10 @@
 
     #plot-column { display: flex; flex-direction: column; gap: 14px; }
     .plot-canvas { height: 240px; touch-action: pan-y; }
-    .small-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 16px; margin-top: 10px; }
+    .plot-footer { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; align-items: center; margin-top: 10px; }
+    .small-fields { display: flex; flex-direction: column; gap: 8px; }
+    .small-fields .field-head { justify-content: flex-start; min-height: 0; }
+    .plot-statement { font-size: 0.86em; }
 
     @media (max-width: 1000px) {
       #main-row { grid-template-columns: minmax(0, 1fr); }
@@ -150,11 +154,7 @@
       <section class="panel" id="controls" aria-labelledby="controls-title">
         <h2 class="panel-section-title" id="controls-title">Controls</h2>
         <div id="top-row">
-          <div class="top-group" role="group" aria-labelledby="view-label">
-            <span class="group-label" id="view-label">View</span>
-            <button type="button" data-path="showUncat">Uncatalyzed</button>
-            <button type="button" data-path="showCat">Catalyzed</button>
-          </div>
+          <button type="button" id="toggle-cat"></button>
           <div class="top-group">
             <span class="group-label" id="units-label">Units</span>
             <div class="segmented" role="group" aria-labelledby="units-label">
@@ -171,6 +171,7 @@
           <div class="slider-column" id="column-intermediate"></div>
         </div>
 
+        <p id="energy-note">Energies are relative to S</p>
         <p id="clamp-note" role="status" hidden></p>
       </section>
 
@@ -196,12 +197,18 @@
       <section class="panel" aria-labelledby="temp-title">
         <h2 class="panel-section-title" id="temp-title">Temperature</h2>
         <canvas class="plot-canvas" id="temp-plot" role="img"></canvas>
-        <div class="small-fields" id="temp-fields"></div>
+        <div class="plot-footer">
+          <div class="small-fields" id="temp-fields"></div>
+          <p class="plot-statement">Activity rises with temperature until the enzyme unfolds near T<sub>m</sub>.</p>
+        </div>
       </section>
       <section class="panel" aria-labelledby="ph-title">
         <h2 class="panel-section-title" id="ph-title">pH</h2>
         <canvas class="plot-canvas" id="ph-plot" role="img"></canvas>
-        <div class="small-fields" id="ph-fields"></div>
+        <div class="plot-footer">
+          <div class="small-fields" id="ph-fields"></div>
+          <p class="plot-statement">Activity peaks where the base is deprotonated and acid protonated.</p>
+        </div>
       </section>
     </div>
   </div>
@@ -218,16 +225,17 @@ const KJ_PER_KCAL = 4.184;
 const MIN_TS_GAP = 1;                 // kJ/mol: how far a transition state must stay above its neighbors
 const DH_UNFOLD = 400;                // kJ/mol: the enthalpy of unfolding, fixed
 
-// The defaults show optimal catalysis: weak substrate binding and strong transition-state stabilization.
+// Energies are relative to S. The defaults show optimal catalysis: ES is only slightly stabilized,
+// and TS1 is low.
 const DEFAULTS = Object.freeze({
-  showUncat: true, showCat: true, unit: 'kJ',
-  dGu: 90, dG: -20, binding: -10, tsStab: 80,
-  epG: -30, ts2Height: 35,
+  showCat: true, unit: 'kJ',
+  dGu: 90, dG: -20,
+  esG: -10, ts1G: 10, epG: -30, ts2G: 5,
   showBarriers: true, showDG: true,
   Tm: 55, pKa1: 6, pKa2: 8.5,
 });
 
-const SETTINGS_TRAP = { dGu: 90, dG: -20, binding: -40, tsStab: 50 };
+const SETTINGS_TRAP = { dGu: 90, dG: -20, esG: -40, ts1G: 40 };
 
 const toKelvin = c => c + 273.15;
 const toDisplayEnergy = (kJ, unit) => (unit === 'kcal' ? kJ / KJ_PER_KCAL : kJ);
@@ -269,11 +277,11 @@ function catalyzedPath(s) {
     return floor;
   };
   const start = { id: 'E+S', name: 'E + S', role: 'min', u: 0, g: 0 };
-  const ES = { id: 'ES', name: 'ES', role: 'min', u: 0.15, g: s.binding };
+  const ES = { id: 'ES', name: 'ES', role: 'min', u: 0.15, g: s.esG };
   const EP = { id: 'EP', name: 'EP', role: 'min', u: 0.56, g: s.epG };
   const end = { id: 'E+P', name: 'E + P', role: 'min', u: 1, g: s.dG };
-  const ts1 = { id: 'TS1', name: 'TS1', role: 'ts', u: 0.34, g: above(s.dGu - s.tsStab, 'TS1', [ES, EP]) };
-  const ts2 = { id: 'TS2', name: 'TS2', role: 'ts', u: 0.77, g: above(s.epG + s.ts2Height, 'TS2', [EP, end]) };
+  const ts1 = { id: 'TS1', name: 'TS1', role: 'ts', u: 0.34, g: above(s.ts1G, 'TS1', [ES, EP]) };
+  const ts2 = { id: 'TS2', name: 'TS2', role: 'ts', u: 0.77, g: above(s.ts2G, 'TS2', [EP, end]) };
   return { states: [start, ES, ts1, EP, ts2, end], clamps };
 }
 
@@ -304,12 +312,10 @@ function pathValue(states, u) {
   return states[states.length - 1].g;
 }
 
-// Tighter binding than the default raises the barrier measured from ES above the barrier that the
-// same transition state would have with default binding: the ground-state trap.
-function isGroundStateTrap(tsG, esG, defaultBinding = DEFAULTS.binding) {
-  const fromES = tsG - esG;
-  const fromDefault = tsG - Math.min(0, defaultBinding);
-  return fromES > fromDefault;
+// An ES more stable than the default raises the barrier measured from ES above the barrier that the
+// same transition state would have with the default ES: the ground-state trap.
+function isGroundStateTrap(tsG, esG, defaultES = DEFAULTS.esG) {
+  return tsG - esG > tsG - defaultES;
 }
 
 const TEMP_MIN = 0, TEMP_MAX = 80, PH_MIN = 4, PH_MAX = 10;
@@ -341,7 +347,7 @@ function buildModel(s) {
   return {
     uncat, cat, clamps, barriers, limiting, ts1,
     dG: s.dG,
-    trap: isGroundStateTrap(ts1.g, s.binding),
+    trap: isGroundStateTrap(ts1.g, s.esG),
     temp: temperatureCurve(limiting.barrier, s.Tm),
     ph: phCurve(s.pKa1, s.pKa2),
   };
@@ -367,14 +373,15 @@ let currentModel = null;
 
 const CRIMSON = '#C8102E', TAUPE = '#685C53', FONT = "'Segoe UI', Arial, sans-serif";
 
-// Every slider and its paired box. energy: true converts the box to the chosen unit.
+// Every slider and its paired box. energy: true converts the box to the chosen unit, which the Units
+// buttons and the diagram's axis name, so those boxes carry no unit of their own.
 const CONTROLS = [
   { key: 'dGu',       label: 'ΔG‡ (uncatalyzed)',    min: 40,  max: 160, step: 1,   energy: true, box: 'column-overall' },
-  { key: 'dG',        label: 'ΔG° (overall, S → P)', min: -40, max: 20,  step: 1,   energy: true, box: 'column-overall' },
-  { key: 'binding',   label: 'ES binding energy',    min: -40, max: 0,   step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
-  { key: 'tsStab',    label: 'TS stabilization',     min: 0,   max: 110, step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
-  { key: 'epG',       label: 'EP energy (relative to S)', min: -60, max: 10, step: 1, energy: true, enzyme: true, box: 'column-intermediate' },
-  { key: 'ts2Height', label: 'TS2 height above EP',  min: 5,   max: 80,  step: 1,   energy: true, enzyme: true, box: 'column-intermediate' },
+  { key: 'dG',        label: 'ΔG° (overall)', min: -40, max: 20,  step: 1,   energy: true, box: 'column-overall' },
+  { key: 'esG',       label: 'ES energy',            min: -40, max: 0,   step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
+  { key: 'ts1G',      label: 'TS1 energy',           min: -40, max: 160, step: 1,   energy: true, enzyme: true, box: 'column-enzyme' },
+  { key: 'epG',       label: 'EP energy',            min: -60, max: 10,  step: 1,   energy: true, enzyme: true, box: 'column-intermediate' },
+  { key: 'ts2G',      label: 'TS2 energy',           min: -40, max: 160, step: 1,   energy: true, enzyme: true, box: 'column-intermediate' },
   { key: 'Tm',        label: 'T<sub>m</sub>',        min: 35,  max: 90,  step: 1,   unit: '°C', enzyme: true, box: 'temp-fields' },
   { key: 'pKa1',      label: 'pK<sub>a1</sub>',      min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
   { key: 'pKa2',      label: 'pK<sub>a2</sub>',      min: PH_MIN, max: PH_MAX, step: 0.1, unit: '', enzyme: true, box: 'ph-fields' },
@@ -410,7 +417,7 @@ function setValue(control, value) {
 }
 
 function wireControls() {
-  document.querySelectorAll('[data-path]').forEach(b => b.addEventListener('click', () => { state[b.dataset.path] = !state[b.dataset.path]; render(); }));
+  $('toggle-cat').addEventListener('click', () => { state.showCat = !state.showCat; render(); });
   document.querySelectorAll('[data-unit]').forEach(b => b.addEventListener('click', () => { state.unit = b.dataset.unit; render(); }));
   $('reset').addEventListener('click', () => { state = { ...DEFAULTS }; render(); });
   // The button hides once the trap is on, so keyboard focus moves to the explanation that replaces it.
@@ -451,14 +458,10 @@ function syncControls() {
       box.step = c.step;
       box.value = state[c.key];
     }
-    field.querySelector('.field-unit').textContent = c.energy ? unitLabel(unit) : (c.unit || '');
+    field.querySelector('.field-unit').textContent = c.unit || '';
   });
 
-  document.querySelectorAll('[data-path]').forEach(b => {
-    const on = state[b.dataset.path];
-    b.classList.toggle('active', on);
-    b.setAttribute('aria-pressed', on);
-  });
+  $('toggle-cat').textContent = state.showCat ? 'Hide Catalyzed Plot' : 'Show Catalyzed Plot';
   document.querySelectorAll('[data-unit]').forEach(b => {
     const on = b.dataset.unit === unit;
     b.classList.toggle('active', on);
@@ -467,7 +470,6 @@ function syncControls() {
 
   $('show-barriers').checked = state.showBarriers;
   $('show-dg').checked = state.showDG;
-  $('legend-uncat').hidden = !state.showUncat;
   $('legend-cat').hidden = !state.showCat;
 }
 
@@ -478,7 +480,7 @@ function renderNotes(m) {
   $('preset-trap').hidden = !state.showCat || m.trap;
   $('trap-callout').hidden = !trap;
   if (trap) {
-    $('trap-callout').textContent = `Ground-state trap: ES is so stable that it sits in a deep well. The barrier from ES is ${fmtEnergy(m.ts1.g - state.binding, u)}, higher than the ${fmtEnergy(m.ts1.g - DEFAULTS.binding, u)} it would be with default binding. Binding the substrate too tightly slows the enzyme.`;
+    $('trap-callout').textContent = `Ground-state trap: ES is so stable that it sits in a deep well. The barrier from ES is ${fmtEnergy(m.ts1.g - state.esG, u)}, higher than the ${fmtEnergy(m.ts1.g - DEFAULTS.esG, u)} it would be with the default ES energy. Binding the substrate too tightly slows the enzyme.`;
   }
   const note = !state.showCat ? '' : m.clamps
     .map(c => `${c.ts} is held ${fmtEnergy(c.gap, u)} above ${c.below}, because the sliders would put it below.`)
@@ -550,10 +552,9 @@ function guideLine(ctx, x1, y, x2) {
 
 // ── The diagram ──
 function shownStates(m) {
-  const uncat = state.showUncat ? m.uncat.map(s => ({ ...s, path: 'uncat' })) : [];
+  const uncat = m.uncat.map(s => ({ ...s, path: 'uncat' }));
   if (!state.showCat) return uncat;
   const cat = m.cat.map(s => ({ ...s, path: 'cat' }));
-  if (!state.showUncat) return cat;
   // With both shown, S and E + S are one point, as are P and E + P.
   const joined = cat.map(s => {
     if (s.id === 'E+S') return { ...s, name: 'S or E + S' };
@@ -565,8 +566,7 @@ function shownStates(m) {
 
 function diagramScale(m, W, H) {
   const narrow = W < 480;
-  const levels = [0, m.dG];
-  if (state.showUncat) levels.push(state.dGu);
+  const levels = [0, m.dG, state.dGu];
   if (state.showCat) m.cat.forEach(s => levels.push(s.g));
   // The scale moves in steps, so small slider moves show on the curve and not as a rescale.
   const lo = Math.floor(Math.min(...levels) / 20) * 20;
@@ -638,18 +638,16 @@ function drawPath(ctx, g, states, color, width, dash) {
 function drawBarrierArrows(ctx, g, m) {
   const unit = state.unit;
   const small = `600 11px ${FONT}`;
-  if (state.showUncat) {
-    const x = g.x(m.uncat[1].u) - (g.narrow ? 16 : 24);
-    guideLine(ctx, g.x(0), g.y(0), x);
-    verticalArrow(ctx, x, g.y(0), g.y(state.dGu), TAUPE);
-    // TS1 sits to the left of this arrow, so with both paths shown the label goes on the right and higher up.
-    const rightSide = state.showCat;
-    const align = rightSide ? 'left' : 'right';
-    const tx = x + (rightSide ? 5 : -5);
-    const ty = rightSide ? g.y(state.dGu) + 16 : (g.y(0) + g.y(state.dGu)) / 2;
-    textBox(ctx, 'ΔG‡', tx, ty - 7, { align, font: small });
-    textBox(ctx, fmtEnergy(state.dGu, unit), tx, ty + 7, { align, font: `10px ${FONT}` });
-  }
+  const x0 = g.x(m.uncat[1].u) - (g.narrow ? 16 : 24);
+  guideLine(ctx, g.x(0), g.y(0), x0);
+  verticalArrow(ctx, x0, g.y(0), g.y(state.dGu), TAUPE);
+  // TS1 sits to the left of this arrow, so with both paths shown the label goes on the right and higher up.
+  const rightSide = state.showCat;
+  const labelAlign = rightSide ? 'left' : 'right';
+  const labelX = x0 + (rightSide ? 5 : -5);
+  const labelY = rightSide ? g.y(state.dGu) + 16 : (g.y(0) + g.y(state.dGu)) / 2;
+  textBox(ctx, 'ΔG‡', labelX, labelY - 7, { align: labelAlign, font: small });
+  textBox(ctx, fmtEnergy(state.dGu, unit), labelX, labelY + 7, { align: labelAlign, font: `10px ${FONT}` });
   if (!state.showCat) return;
 
   m.barriers.forEach((b, i) => {
@@ -732,19 +730,17 @@ function drawDiagram(m) {
   const states = shownStates(m);
 
   drawAxes(ctx, g, H);
-  if (state.showUncat) drawPath(ctx, g, m.uncat, TAUPE, 2.5, [8, 5]);
+  drawPath(ctx, g, m.uncat, TAUPE, 2.5, [8, 5]);
   if (state.showCat) drawPath(ctx, g, m.cat, CRIMSON, 3, []);
-  if (state.showDG && states.length) drawOverallArrow(ctx, g, m);
+  if (state.showDG) drawOverallArrow(ctx, g, m);
   if (state.showBarriers) drawBarrierArrows(ctx, g, m);
   drawStateLabels(ctx, g, states);
   drawHover(ctx, g, states, W);
 
   const u = state.unit;
-  const parts = [];
-  if (state.showUncat) parts.push(`Uncatalyzed barrier ${fmtEnergy(state.dGu, u)}.`);
+  const parts = [`Uncatalyzed barrier ${fmtEnergy(state.dGu, u)}.`];
   if (state.showCat) parts.push(`Catalyzed path through ${m.cat.map(s => `${s.name} at ${fmtEnergy(s.g, u)}`).join(', ')}. Rate-limiting barrier ${fmtEnergy(m.limiting.barrier, u)} at ${m.limiting.ts.name}.`);
-  if (states.length) parts.push(`Overall ΔG ${fmtEnergy(m.dG, u)}.`);
-  else parts.push('No pathway is selected.');
+  parts.push(`Overall ΔG ${fmtEnergy(m.dG, u)}.`);
   canvas.setAttribute('aria-label', `Free energy diagram. ${parts.join(' ')}`);
 }
 

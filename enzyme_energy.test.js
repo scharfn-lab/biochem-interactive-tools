@@ -32,8 +32,8 @@ function seededRandom(seed) {
 const randomSettings = rand => {
   const between = (a, b) => a + (b - a) * rand();
   return {
-    dGu: between(40, 160), dG: between(-40, 20), binding: between(-40, 0), tsStab: between(0, 110),
-    epG: between(-60, 10), ts2Height: between(5, 80),
+    dGu: between(40, 160), dG: between(-40, 20), esG: between(-40, 0), ts1G: between(-40, 160),
+    epG: between(-60, 10), ts2G: between(-40, 160),
   };
 };
 
@@ -48,8 +48,8 @@ test('hand calculation: the default path and its barriers', () => {
 });
 
 test('the defaults are the optimal settings, with no trap and no clamp', () => {
-  assert.equal(DEFAULTS.binding, -10);
-  assert.equal(DEFAULTS.tsStab, 80);
+  assert.equal(DEFAULTS.esG, -10);
+  assert.equal(DEFAULTS.ts1G, 10);
   const m = buildModel({});
   assert.equal(m.trap, false);
   assert.deepEqual([...m.clamps], []);
@@ -65,23 +65,23 @@ test('S and P match E + S and E + P, for any settings', () => {
 });
 
 test('raising TS2 makes product release rate-limiting, and lowering it hands the limit to TS1', () => {
-  const low = buildModel({ tsStab: 50, binding: -15, ts2Height: 35 });
+  const low = buildModel({ ts1G: 40, esG: -15, ts2G: 5 });
   assert.equal(low.limiting.ts.id, 'TS1');
   assert.equal(low.limiting.barrier, 55);
-  const high = buildModel({ tsStab: 50, binding: -15, ts2Height: 80 });
+  const high = buildModel({ ts1G: 40, esG: -15, ts2G: 50 });
   assert.equal(high.limiting.ts.id, 'TS2');
   assert.equal(high.limiting.from.id, 'EP');
   assert.equal(high.limiting.barrier, 80);
 });
 
-test('with no stabilization and no binding, TS1 has the uncatalyzed barrier', () => {
-  const m = buildModel({ tsStab: 0, binding: 0 });
+test('with TS1 at the uncatalyzed level and ES at zero, TS1 has the uncatalyzed barrier', () => {
+  const m = buildModel({ ts1G: DEFAULTS.dGu, esG: 0 });
   assert.equal(m.barriers[0].barrier, DEFAULTS.dGu);
   assert.equal(m.limiting.ts.id, 'TS1');
 });
 
 test('a barrier runs from the lowest state before it, whichever that is', () => {
-  const m = buildModel({ binding: -30, epG: -10, ts2Height: 60, tsStab: 50 });
+  const m = buildModel({ esG: -30, epG: -10, ts2G: 50, ts1G: 40 });
   const ts2 = m.barriers.find(b => b.ts.id === 'TS2');
   assert.equal(ts2.from.id, 'ES');
   assert.equal(ts2.barrier, 50 + 30);
@@ -97,7 +97,7 @@ test('barriersOf breaks a tie toward the earlier step', () => {
 });
 
 test('TS1 is clamped above ES and EP, with a note', () => {
-  const m = buildModel({ dGu: 40, tsStab: 110, binding: -10, epG: -30 });
+  const m = buildModel({ ts1G: -40, esG: -10, epG: -30 });
   const ts = m.cat.find(s => s.id === 'TS1');
   assert.equal(ts.g, -10 + run('MIN_TS_GAP'));
   assert.equal(m.clamps.length, 1);
@@ -132,9 +132,9 @@ test('the curve passes through every state and never overshoots', () => {
 // ── Ground-state trap ──────────────────────────────────────────
 test('the trap appears only when binding is tighter than the default', () => {
   assert.equal(buildModel({}).trap, false, 'default binding');
-  assert.equal(buildModel({ binding: -5 }).trap, false);
-  assert.equal(buildModel({ binding: -11 }).trap, true);
-  assert.equal(buildModel({ binding: -40 }).trap, true);
+  assert.equal(buildModel({ esG: -5 }).trap, false);
+  assert.equal(buildModel({ esG: -11 }).trap, true);
+  assert.equal(buildModel({ esG: -40 }).trap, true);
 });
 
 test('the trap button raises the barrier from ES', () => {
@@ -172,7 +172,7 @@ test('the temperature plot peaks below Tm, topping out at 1', () => {
 });
 
 test('with ΔH fixed, the temperature optimum stays below Tm up to a 160 kJ/mol barrier', () => {
-  const m = buildModel({ dGu: 160, tsStab: 0, binding: 0, Tm: 55 });
+  const m = buildModel({ ts1G: 160, esG: 0, Tm: 55 });
   assert.equal(m.limiting.barrier, 160);
   assert.ok(m.temp.optimum < 55, `${m.temp.optimum}`);
 });
@@ -201,8 +201,8 @@ test('unit conversions are correct and round-trip', () => {
 const columnOf = key => HTML.match(new RegExp(`key: '${key}',[^\\n]*box: '([\\w-]+)'`))[1];
 
 test('the sliders have the requested ranges and defaults', () => {
-  const rows = [['dGu', 40, 160, 90], ['dG', -40, 20, -20], ['binding', -40, 0, -10], ['tsStab', 0, 110, 80],
-    ['epG', -60, 10, -30], ['ts2Height', 5, 80, 35], ['Tm', 35, 90, 55]];
+  const rows = [['dGu', 40, 160, 90], ['dG', -40, 20, -20], ['esG', -40, 0, -10], ['ts1G', -40, 160, 10],
+    ['epG', -60, 10, -30], ['ts2G', -40, 160, 5], ['Tm', 35, 90, 55]];
   for (const [key, min, max, value] of rows) {
     assert.ok(new RegExp(`key: '${key}',[^\\n]*min: ${min},\\s*max: ${max},`).test(HTML), key);
     assert.equal(DEFAULTS[key], value, key);
@@ -212,10 +212,10 @@ test('the sliders have the requested ranges and defaults', () => {
 test('the sliders are stacked in three columns', () => {
   assert.equal(columnOf('dGu'), 'column-overall');
   assert.equal(columnOf('dG'), 'column-overall');
-  assert.equal(columnOf('binding'), 'column-enzyme');
-  assert.equal(columnOf('tsStab'), 'column-enzyme');
+  assert.equal(columnOf('esG'), 'column-enzyme');
+  assert.equal(columnOf('ts1G'), 'column-enzyme');
   assert.equal(columnOf('epG'), 'column-intermediate');
-  assert.equal(columnOf('ts2Height'), 'column-intermediate');
+  assert.equal(columnOf('ts2G'), 'column-intermediate');
   const order = ['column-overall', 'column-enzyme', 'column-intermediate'].map(id => MARKUP.indexOf(`id="${id}"`));
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   assert.match(HTML, /#slider-grid \{ display: grid; grid-template-columns: repeat\(3,/);
@@ -236,12 +236,33 @@ test('the controls sit above the diagram in the left column, so the plots start 
   assert.ok(MARKUP.indexOf('id="main-row"') < MARKUP.indexOf('id="controls"'));
 });
 
-test('the view is two buttons that switch separately, both on at the start', () => {
-  assert.ok(MARKUP.includes('<button type="button" data-path="showUncat">Uncatalyzed</button>'));
-  assert.ok(MARKUP.includes('<button type="button" data-path="showCat">Catalyzed</button>'));
-  assert.match(HTML, /state\[b\.dataset\.path\] = !state\[b\.dataset\.path\]/);
-  assert.equal(DEFAULTS.showUncat, true);
+test('one button hides or shows the catalyzed plot, and it starts shown', () => {
+  assert.ok(MARKUP.includes('<button type="button" id="toggle-cat"></button>'));
+  assert.ok(HTML.includes("state.showCat ? 'Hide Catalyzed Plot' : 'Show Catalyzed Plot'"));
   assert.equal(DEFAULTS.showCat, true);
+});
+
+test('the energies are named as energies, with one note below them and no unit beside them', () => {
+  for (const label of ['ES energy', 'EP energy', 'TS1 energy', 'TS2 energy']) assert.ok(HTML.includes(`label: '${label}'`), label);
+  assert.ok(HTML.includes("label: 'ΔG° (overall)'"));
+  const grid = MARKUP.indexOf('id="slider-grid"');
+  const note = MARKUP.indexOf('<p id="energy-note">Energies are relative to S</p>');
+  assert.ok(grid >= 0 && note > grid);
+  assert.ok(note < MARKUP.indexOf('id="left-column"') + MARKUP.slice(MARKUP.indexOf('id="left-column"')).indexOf('id="diagram-head"'));
+  assert.ok(HTML.includes("field.querySelector('.field-unit').textContent = c.unit || '';"), 'only non-energy fields have a unit');
+  for (const line of HTML.match(/\{ key: '(?:dGu|dG|esG|ts1G|epG|ts2G)'[^\n]*/g)) assert.doesNotMatch(line, /unit:/);
+});
+
+test('the plot boxes have their text boxes beside their terms, with a short statement to the right', () => {
+  assert.match(HTML, /\.small-fields \.field-head \{ justify-content: flex-start;/);
+  const footers = [...MARKUP.matchAll(/class="plot-footer">\s*<div class="small-fields" id="(\w+)-fields"><\/div>\s*<p class="plot-statement">([^\n]+)<\/p>/g)];
+  assert.deepEqual(footers.map(f => f[1]), ['temp', 'ph']);
+  assert.ok(MARKUP.indexOf('id="temp-plot"') < MARKUP.indexOf('id="temp-fields"'));
+  assert.ok(MARKUP.indexOf('id="ph-plot"') < MARKUP.indexOf('id="ph-fields"'));
+  for (const f of footers) {
+    const words = f[2].replace(/<[^>]+>/g, '').trim().split(/\s+/).length;
+    assert.ok(words >= 5 && words <= 10, f[2]);
+  }
 });
 
 test('the trap button is below the plot, in the diagram box, and hides once the trap is on', () => {
@@ -273,7 +294,8 @@ test('removed options are gone from the page', () => {
   for (const gone of ['analog', 'Analog', 'E·TS', 'ENZYME_PRESETS', 'Enzyme</label>', 'include-ep', 'Include EP',
     'id="results"', 'Rate enhancement', 'id="play"', 'id="progress"', 'id="schematic"', 'preset-optimal', 'Optimal catalysis',
     'dHunf: 400', "key: 'dHunf'", 'general base)', 'general acid)',
-    'drawSpecies', 'drawEnzyme', 'kind:', 'same for both', 'ΔΔG', 'tsGap', "key: 'tempC'", "key: 'pH'", 'tempC', 'Current ', 'data-view', 'state.view']) {
+    'drawSpecies', 'drawEnzyme', 'kind:', 'same for both', 'ΔΔG', 'tsGap', "key: 'tempC'", "key: 'pH'", 'tempC', 'Current ', 'data-view', 'state.view',
+    'tsStab', 'ts2Height', 'binding', 'showUncat', 'data-path', 'S → P', 'relative to S)', 'stabilization']) {
     assert.ok(!HTML.includes(gone), gone);
   }
   assert.ok(!MARKUP.includes('type="range"'), 'sliders come only from CONTROLS');
