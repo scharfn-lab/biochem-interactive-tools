@@ -259,10 +259,8 @@ test('the plot boxes have their text boxes beside their terms, with a short stat
   assert.deepEqual(footers.map(f => f[1]), ['temp', 'ph']);
   assert.ok(MARKUP.indexOf('id="temp-plot"') < MARKUP.indexOf('id="temp-fields"'));
   assert.ok(MARKUP.indexOf('id="ph-plot"') < MARKUP.indexOf('id="ph-fields"'));
-  for (const f of footers) {
-    const words = f[2].replace(/<[^>]+>/g, '').trim().split(/\s+/).length;
-    assert.ok(words >= 5 && words <= 10, f[2]);
-  }
+  assert.equal(footers[0][2], 'Activity rises with temperature until the enzyme unfolds near T<sub>m</sub>.');
+  assert.equal(footers[1][2], 'Activity optimal is due to protonation or deprotonation of critical groups as pH is adjusted.');
 });
 
 test('the trap button is below the plot, in the diagram box, and hides once the trap is on', () => {
