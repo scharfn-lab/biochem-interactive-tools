@@ -19,6 +19,8 @@ A collection of standalone, single-file interactive educational web tools for ch
 - **buffers.html** — Buffer visualizer: set the pH and temperature and add strong acid or base to see how a buffer responds, with a quiz mode (offline, no libraries)
 - **enzyme_energy.html** — Reaction coordinate diagram comparing uncatalyzed and enzyme-catalyzed paths through an EP intermediate, with temperature and pH activity plots (offline, no libraries; not yet linked from index.html)
 
+- **protein_purification.html** — Purification simulator: chain ion exchange, size exclusion and affinity steps on a random lysate, pool fractions, and read an SDS-PAGE gel (offline, no libraries; no scoring)
+
 Tests live beside the pages as `*.test.js` and run with `node --test` (no dependencies).
 
 ## Architecture: ramachandran.html
@@ -95,6 +97,10 @@ For the quiz, `QUIZ_BUILDERS` and `createQuizDeck()` in section 2 produce plain-
 Section 1 of the script touches no DOM, and the test file runs it in a vm. `render()` is the hub: `buildModel(state)` works out every number once, then `syncControls()`, `renderNotes()` and `drawAll()` read from it, so a later quiz mode has one place to hide or test values. The Quiz Mode button is disabled and has no code yet. `DEFAULTS` holds the optimal settings: a slightly stabilized ES and a low TS1. Reset returns to them, and "Show ground-state trap" applies `SETTINGS_TRAP`. ΔH of unfolding is the fixed `DH_UNFOLD`.
 
 Energies are kept in kJ/mol, with S and E + S at zero, and only the number boxes and labels convert to kcal/mol. ES, TS1, EP and TS2 are each set directly as an energy relative to S (`esG`, `ts1G`, `epG`, `ts2G`). `catalyzedPath()` holds each transition state at least `MIN_TS_GAP` above its neighbors and reports each limit in `clamps`, which becomes the page's note. `barriersOf()` measures each barrier from the lowest state before it, and the largest is rate-limiting. The uncatalyzed path always shows, and one button hides or shows the catalyzed path (`showCat`). The temperature and pH plots draw whole curves and mark only the optimum, so no temperature or pH setting exists on the page.
+
+## Architecture: protein_purification.html
+
+Section 1 of the script touches no DOM, and the test file runs it in a vm. Students never see protein numbers, only blobs, peaks and bands, so no MW, pI or amount may reach the page. `generateLysate()` builds two contaminants sharing the target's pI and two sharing its native size, which is why no single non-affinity step can purify it, and retries until `isPurifiable()` holds. A run is a list of Gaussian `peaks`; the A280 curve and the `fractions` both come from those, so they can't disagree. Runs return plain data, and `runColumn()` keeps the latest in `state.pending` until `carryForward()` makes the pool the new sample. Each step stores the state from `before` it, and `undoLastStep()` restores that and removes the step's lanes by `stepId`. Lanes store amounts per protein, and `laneBands()` works out bands when drawn, so choosing a tag moves the target's band in existing lanes too, since the protein always carried it. The tag locks once a column has run with it.
 
 ## Git Workflow
 

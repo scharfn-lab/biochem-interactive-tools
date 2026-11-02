@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protein Purification</title>
+  <style>
+    :root {
+      --ut-crimson:  #C8102E;
+      --ut-taupe:    #685C53;
+      --ut-lavender: #FFCDFF;
+      --bg-panel:    #FFF8FF;
+      --bg-active:   #FFCDD2;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #FFFFFF;
+      color: #000000;
+      padding: 24px 16px 40px;
+    }
+
+    h1 { color: var(--ut-crimson); font-size: 1.7em; font-weight: 600; text-align: center; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .subtitle { color: var(--ut-taupe); font-size: 0.85em; text-align: center; margin-bottom: 18px; }
+
+    #main-layout { display: flex; flex-direction: column; gap: 16px; max-width: 1320px; margin: 0 auto; }
+    #columns {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr) minmax(0, 420px);
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 1180px) {
+      #columns { grid-template-columns: 250px minmax(0, 1fr); }
+      #gel-panel { grid-column: 1 / -1; }
+    }
+    @media (max-width: 760px) {
+      #columns { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      padding: 14px 16px;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+      min-width: 0;
+    }
+    .panel-title {
+      font-size: 0.75em;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ut-crimson);
+      margin-bottom: 10px;
+    }
+
+    :focus-visible { outline: 3px solid var(--ut-crimson); outline-offset: 2px; }
+
+    button {
+      padding: 7px 12px;
+      min-height: 34px;
+      border-radius: 6px;
+      border: 1px solid var(--ut-taupe);
+      background: #FFFFFF;
+      color: var(--ut-taupe);
+      font: inherit;
+      font-size: 0.85em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    button:hover:not(:disabled) { background: var(--ut-lavender); border-color: var(--ut-crimson); color: #000000; }
+    button.active { background: var(--bg-active); border-color: var(--ut-crimson); color: #000000; font-weight: 600; }
+    button:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; cursor: not-allowed; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    input[type=number], select {
+      padding: 6px 8px;
+      min-height: 34px;
+      background: #FFFFFF;
+      border: 1px solid var(--ut-taupe);
+      border-radius: 6px;
+      color: #000000;
+      font: inherit;
+      font-size: 14px;
+    }
+    input[type=number] { width: 70px; }
+    input[type=range] { flex: 1; min-width: 0; height: 24px; accent-color: var(--ut-crimson); cursor: pointer; }
+
+    .field-label { display: block; font-size: 0.85em; font-weight: 600; margin-bottom: 4px; }
+    .field { margin-bottom: 10px; }
+    .note { font-size: 0.82em; color: var(--ut-taupe); line-height: 1.45; }
+    .error { font-size: 0.82em; color: var(--ut-crimson); font-weight: 600; margin-top: 4px; }
+    .error:empty { display: none; }
+
+    /* ── History ── */
+    #history-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    #breadcrumbs { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.92em; }
+    #breadcrumbs li + li::before { content: '→'; color: var(--ut-taupe); margin-right: 6px; }
+    #breadcrumbs .crumb { font-weight: 600; }
+    #breadcrumbs .pending { font-weight: 400; border-bottom: 2px dashed var(--ut-taupe); }
+
+    /* ── Sample tube ── */
+    #tube { display: block; width: 100%; max-width: 220px; height: auto; margin: 0 auto; }
+    .blob { cursor: help; }
+    #sample-key { font-size: 0.8em; margin-top: 8px; line-height: 1.5; }
+    #charge-scale { height: 10px; border: 1px solid var(--ut-taupe); border-radius: 3px; background: linear-gradient(to right, #1565C0, #E4E4E4, #C8102E); margin: 3px 0 1px; }
+    #charge-ends { display: flex; justify-content: space-between; }
+
+    /* ── Column and chromatogram ── */
+    #column-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 14px; align-items: start; }
+    #column-graphic { display: block; width: 96px; height: 210px; }
+    #column-stage { font-size: 0.78em; text-align: center; min-height: 1.3em; margin-top: 2px; }
+    #skip-animation { width: 100%; padding: 3px 4px; min-height: 26px; font-size: 0.75em; margin-top: 4px; }
+    #run-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+    #run-column { background: var(--ut-crimson); border-color: var(--ut-crimson); color: #FFFFFF; font-weight: 600; }
+    #run-column:hover:not(:disabled) { background: #A00D24; border-color: #A00D24; color: #FFFFFF; }
+    #run-column:disabled { background: #E4E4E4; border-color: #BFBFBF; color: #404040; }
+    #outcome-note { margin-top: 10px; padding: 8px 10px; background: #FFFFFF; border: 2px solid var(--ut-crimson); border-radius: 8px; font-size: 0.85em; line-height: 1.4; }
+    #chromatogram-area { margin-top: 12px; }
+    #chromatogram { display: block; width: 100%; height: 230px; background: #FFFFFF; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.18); touch-action: pan-y; cursor: crosshair; }
+    #pool-readout { font-size: 0.85em; font-weight: 600; margin: 8px 0 6px; min-height: 1.3em; }
+    #pool-range { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.85em; margin-bottom: 8px; }
+    #pool-range input { width: 60px; }
+
+    /* ── Gel ── */
+    #gel-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    #gel-tabs button { padding: 3px 10px; min-height: 28px; font-size: 0.8em; }
+    #gel-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.85em; }
+    #gel-wrap { overflow-x: auto; }
+    #gel { display: block; width: 100%; min-width: 300px; height: auto; touch-action: manipulation; }
+    #gel-message { min-height: 1.2em; margin-top: 6px; }
+
+    #tip {
+      position: fixed;
+      z-index: 10;
+      padding: 3px 8px;
+      background: #000000;
+      color: #FFFFFF;
+      border-radius: 4px;
+      font-size: 0.8em;
+      pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      button, input { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Protein Purification</h1>
+<p class="subtitle">Chain purification steps, pool the fractions you choose, and judge the result on an SDS-PAGE gel</p>
+
+<main id="main-layout">
+  <section class="panel" aria-label="Step history">
+    <div id="history-bar">
+      <ol id="breadcrumbs" aria-label="Steps so far"></ol>
+      <div class="button-row">
+        <button type="button" id="undo">Undo last step</button>
+        <button type="button" id="start-over">Start over</button>
+        <button type="button" id="new-lysate">New lysate</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="columns">
+    <section class="panel" id="sample-panel" aria-labelledby="sample-title">
+      <h2 class="panel-title" id="sample-title">Current Sample</h2>
+      <svg id="tube" viewBox="0 0 200 350" role="img"></svg>
+      <div id="sample-key">
+        <div>Blob color: net charge at <b>pH <span id="key-ph"></span></b></div>
+        <div id="charge-scale"></div>
+        <div id="charge-ends"><span>Positive</span><span>Neutral</span><span>Negative</span></div>
+        <div>Blob size: native size</div>
+        <div>★ Crimson outline: target protein</div>
+      </div>
+    </section>
+
+    <section class="panel" id="step-panel" aria-labelledby="step-title">
+      <h2 class="panel-title" id="step-title">Purification Step</h2>
+      <div id="column-row">
+        <div>
+          <div class="field">
+            <span class="field-label" id="method-label">Method</span>
+            <div class="button-row" role="group" aria-labelledby="method-label">
+              <button type="button" data-method="iex">Ion exchange</button>
+              <button type="button" data-method="sec">Size exclusion</button>
+              <button type="button" data-method="affinity">Affinity</button>
+            </div>
+          </div>
+
+          <div id="iex-settings">
+            <div class="field">
+              <span class="field-label" id="exchanger-label">Resin</span>
+              <div class="button-row" role="group" aria-labelledby="exchanger-label">
+                <button type="button" data-exchanger="anion">Anion exchanger (Q, DEAE)</button>
+                <button type="button" data-exchanger="cation">Cation exchanger (S, CM)</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="ph-number">Buffer pH</label>
+              <div class="button-row" style="align-items:center;">
+                <input type="range" id="ph-range" min="4" max="10" step="0.1" aria-label="Buffer pH slider">
+                <input type="number" id="ph-number" min="4" max="10" step="0.1">
+              </div>
+              <p class="error" id="ph-error" role="alert"></p>
+            </div>
+          </div>
+
+          <div id="sec-settings" hidden>
+            <div class="field">
+              <span class="field-label" id="range-label">Column fractionation range</span>
+              <div class="button-row" role="group" aria-labelledby="range-label">
+                <button type="button" data-range="small">Small range (3–70 kDa)</button>
+                <button type="button" data-range="large">Large range (10–600 kDa)</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="affinity-settings" hidden>
+            <div class="field">
+              <span class="field-label" id="tag-label">Target's tag</span>
+              <div class="button-row" role="group" aria-labelledby="tag-label">
+                <button type="button" data-tag="his">His₆</button>
+                <button type="button" data-tag="mbp">MBP</button>
+                <button type="button" data-tag="gst">GST</button>
+              </div>
+              <p class="note" id="tag-note"></p>
+            </div>
+            <div class="field">
+              <span class="field-label" id="resin-label">Resin</span>
+              <div class="button-row" role="group" aria-labelledby="resin-label">
+                <button type="button" data-resin="ni">Ni²⁺-NTA (IMAC)</button>
+                <button type="button" data-resin="amylose">Amylose</button>
+                <button type="button" data-resin="glutathione">Glutathione</button>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label" id="eluent-label">Elution agent</span>
+              <div class="button-row" role="group" aria-labelledby="eluent-label">
+                <button type="button" data-eluent="imidazole">Imidazole</button>
+                <button type="button" data-eluent="maltose">Maltose</button>
+                <button type="button" data-eluent="gsh">Reduced glutathione</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="run-row">
+            <button type="button" id="run-column">Run column</button>
+            <span class="note" id="run-note"></span>
+          </div>
+        </div>
+
+        <div>
+          <svg id="column-graphic" viewBox="0 0 96 210" role="img" aria-label="Chromatography column"></svg>
+          <div id="column-stage" aria-live="polite"></div>
+          <button type="button" id="skip-animation" hidden>Skip</button>
+        </div>
+      </div>
+
+      <p id="outcome-note" role="status" hidden></p>
+
+      <div id="chromatogram-area" hidden>
+        <canvas id="chromatogram" role="img"></canvas>
+        <p id="pool-readout" role="status"></p>
+        <div id="pool-range">
+          <label for="pool-from">Select fractions</label>
+          <input type="number" id="pool-from" min="1" max="30" step="1" aria-label="First fraction">
+          <span>to</span>
+          <input type="number" id="pool-to" min="1" max="30" step="1" aria-label="Last fraction">
+          <button type="button" id="pool-apply">Select</button>
+          <button type="button" id="pool-clear">Clear</button>
+        </div>
+        <div class="button-row">
+          <button type="button" id="carry-forward">Carry pooled fractions forward</button>
+          <button type="button" id="add-fractions">Add selected fractions to gel</button>
+        </div>
+      </div>
+      <p class="note" id="chromatogram-hint" style="margin-top:10px;">Run a column to see its chromatogram. Then click or drag across the fractions to choose a pool.</p>
+    </section>
+
+    <section class="panel" id="gel-panel" aria-labelledby="gel-title">
+      <h2 class="panel-title" id="gel-title">SDS-PAGE</h2>
+      <div id="gel-tabs" role="group" aria-label="Gels"></div>
+      <div id="gel-controls">
+        <label for="gel-percent">Gel %</label>
+        <select id="gel-percent">
+          <option value="8">8%</option>
+          <option value="10">10%</option>
+          <option value="12">12%</option>
+          <option value="15">15%</option>
+        </select>
+        <div class="button-row" role="group" aria-label="Sample buffer">
+          <button type="button" data-reducing="true">Reducing</button>
+          <button type="button" data-reducing="false">Non-reducing</button>
+        </div>
+        <button type="button" id="new-gel">New gel</button>
+      </div>
+      <div id="gel-wrap"><svg id="gel" role="img"></svg></div>
+      <p class="note" id="gel-message" role="status"></p>
+    </section>
+  </div>
+</main>
+
+<div id="tip" role="tooltip" hidden></div>
+
+<script>
+'use strict';
+
+// ═══ 1. MODEL (no DOM access) ═════════════════════════════════
+// Students never see these numbers: not MW, pI or amounts. Only the blobs, peaks and bands show them.
+
+const FRACTIONS = 30;           // 1 mL each, so fraction n covers volumes n−1 to n
+const SEC_RANGES = {
+  small: { min: 3, max: 70 },
+  large: { min: 10, max: 600 },
+};
+const SEC_VOID = 9, SEC_TOTAL = 25;   // void and total volumes, in mL
+const TAGS = {
+  his: { name: 'His₆', mass: 1 },
+  mbp: { name: 'MBP', mass: 42 },
+  gst: { name: 'GST', mass: 26 },      // and it makes the target a noncovalent dimer in native conditions
+};
+const RESIN_TAG = { ni: 'his', amylose: 'mbp', glutathione: 'gst' };
+const ELUENT_RESIN = { imidazole: 'ni', maltose: 'amylose', gsh: 'glutathione' };
+const RESIN_NAMES = { ni: 'Ni²⁺-NTA', amylose: 'Amylose', glutathione: 'Glutathione' };
+
+// Repeatable random numbers (mulberry32), so a lysate can be rebuilt from its seed.
+function createRng(seed) {
+  return () => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const between = (rand, lo, hi) => lo + rand() * (hi - lo);
+const logBetween = (rand, lo, hi) => Math.exp(between(rand, Math.log(lo), Math.log(hi)));
+function shuffled(list, rand) {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// ── Protein properties ──
+const subunitCount = (p, tag = null) => (p.oligomer === 'monomer' && !(p.isTarget && tag === 'gst') ? 1 : 2);
+const subunitMW = (p, tag = null) => p.mw + (p.isTarget && tag ? TAGS[tag].mass : 0);
+const nativeSize = (p, tag = null) => subunitMW(p, tag) * subunitCount(p, tag);
+
+// What runs on the gel: disulfide-linked dimers stay together only without reductant.
+const gelMW = (p, tag, reducing) => subunitMW(p, tag) * (p.oligomer === 'disulfide' && !reducing ? 2 : 1);
+
+// −1 to 1: positive below the pI and negative above it.
+const netCharge = (pI, pH) => Math.tanh((pI - pH) / 1.5);
+
+// Blue for positive, through neutral gray, to red for negative.
+function chargeColor(charge) {
+  const mix = (a, b, t) => Math.round(a + (b - a) * t);
+  const NEUTRAL = [228, 228, 228], POSITIVE = [21, 101, 192], NEGATIVE = [200, 16, 46];
+  const end = charge >= 0 ? POSITIVE : NEGATIVE, t = Math.min(1, Math.abs(charge));
+  return `rgb(${NEUTRAL.map((c, i) => mix(c, end[i], t)).join(',')})`;
+}
+
+// ── Lysate ──
+const MIN_BAND_RATIO = 1.12;    // the target's band stays this far from every contaminant's on a reducing gel
+function clearOfTarget(mw, target) {
+  return Math.max(mw, target.mw) / Math.min(mw, target.mw) >= MIN_BAND_RATIO;
+}
+
+// 8–10 contaminants and the target. Four contaminants are built to shadow the target: two share its
+// pI, so ion exchange can't separate them, and two share its native size, so SEC can't. So no single
+// non-affinity step can purify it, though each contaminant is separated from it by some step.
+function generateLysate(rand) {
+  for (;;) {
+    const proteins = buildProteins(rand);
+    if (isPurifiable(proteins)) return proteins;
+  }
+}
+
+function buildProteins(rand) {
+  const targetDimer = rand() < 0.25;
+  const target = {
+    isTarget: true,
+    oligomer: targetDimer ? 'dimer' : 'monomer',
+    mw: targetDimer ? between(rand, 25, 45) : between(rand, 30, 60),
+    pI: between(rand, 5.5, 8.5),
+  };
+  const size = nativeSize(target);
+  const contaminants = [];
+
+  // Same native size, different pI: they run with the target on SEC but not on ion exchange.
+  const offPI = () => {
+    const roomUp = 9.5 - target.pI, roomDown = target.pI - 4.5;
+    const goUp = roomUp >= 1.5 && (roomDown < 1.5 || rand() < 0.5);
+    return goUp ? target.pI + between(rand, 1.5, roomUp) : target.pI - between(rand, 1.5, roomDown);
+  };
+  for (const [factor, oligomer] of targetDimer
+    ? [[0.97, 'monomer'], [1.03, 'monomer']]
+    : [[0.97, 'dimer'], [1.03, 'disulfide']]) {
+    const native = size * factor;
+    contaminants.push({ oligomer, mw: oligomer === 'monomer' ? native : native / 2, pI: offPI() });
+  }
+
+  // Same pI, different size: they run with the target on ion exchange but not on SEC.
+  const larger = size * 3;
+  contaminants.push(larger <= 150
+    ? { oligomer: 'monomer', mw: larger, pI: target.pI }
+    : { oligomer: 'dimer', mw: size * 1.5, pI: target.pI });
+  contaminants.push({ oligomer: 'monomer', mw: size / 3, pI: target.pI });
+
+  // The rest are random, with at least one disulfide-linked dimer among the contaminants.
+  const extras = 4 + Math.floor(rand() * 3);
+  const hasDisulfide = contaminants.some(c => c.oligomer === 'disulfide');
+  for (let i = 0; i < extras; i++) {
+    let mw;
+    do { mw = logBetween(rand, 10, 150); } while (!clearOfTarget(mw, target));
+    const roll = rand();
+    const oligomer = i === 0 && !hasDisulfide ? 'disulfide' : roll < 0.6 ? 'monomer' : roll < 0.8 ? 'dimer' : 'disulfide';
+    contaminants.push({ oligomer, mw, pI: between(rand, 4.5, 9.5) });
+  }
+
+  // Amounts: the target is 5–10% of the total
+  for (const c of contaminants) c.amount = logBetween(rand, 4, 25);
+  const others = contaminants.reduce((sum, c) => sum + c.amount, 0);
+  const share = between(rand, 0.05, 0.10);
+  target.amount = others * share / (1 - share);
+  const scale = 100 / (others + target.amount);
+
+  // A couple of contaminants stick a little to any affinity resin.
+  const sticky = new Set(shuffled(contaminants, rand).slice(0, 1 + Math.floor(rand() * 2)));
+  return shuffled([target, ...contaminants], rand).map((p, id) => ({
+    ...p, id,
+    isTarget: Boolean(p.isTarget),
+    sticky: sticky.has(p),
+    amount: p.amount * scale,
+    scatter: between(rand, -0.012, 0.012),
+  }));
+}
+
+const fullSample = proteins => Object.fromEntries(proteins.map(p => [p.id, p.amount]));
+const sampleTotal = sample => Object.values(sample).reduce((sum, a) => sum + a, 0);
+
+// ── Ion exchange ──
+const bindsExchanger = (exchanger, pI, pH) => (exchanger === 'anion' ? pH > pI : pH < pI);
+
+// Rises with distance from the pI, and modestly with size, plus a little scatter.
+function elutionSalt(p, pH, tag = null) {
+  const fromCharge = 0.9 * (1 - Math.exp(-Math.abs(pH - p.pI) / 2));
+  const fromSize = 0.03 * Math.log10(nativeSize(p, tag) / 50);
+  return Math.min(0.97, Math.max(0.03, fromCharge + fromSize + p.scatter));
+}
+
+// ── Size exclusion ──
+function kav(size, range) {
+  const { min, max } = SEC_RANGES[range];
+  return Math.min(1, Math.max(0, (Math.log10(max) - Math.log10(size)) / (Math.log10(max) - Math.log10(min))));
+}
+const secVolume = (size, range) => SEC_VOID + kav(size, range) * (SEC_TOTAL - SEC_VOID);
+
+// ── Chromatography runs ──
+// A run is a list of Gaussian peaks. The curve and the fractions both come from the same peaks.
+function erf(x) {
+  const t = 1 / (1 + 0.5 * Math.abs(x));
+  const value = 1 - t * Math.exp(-x * x - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 +
+    t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+  return x >= 0 ? value : -value;
+}
+const normalCdf = (x, center, sigma) => 0.5 * (1 + erf((x - center) / (sigma * Math.SQRT2)));
+
+function fractionsFromPeaks(peaks) {
+  const fractions = Array.from({ length: FRACTIONS }, () => ({}));
+  for (const { id, center, sigma, amount } of peaks) {
+    if (amount <= 0) continue;
+    const inRange = normalCdf(FRACTIONS, center, sigma) - normalCdf(0, center, sigma);
+    for (let i = 0; i < FRACTIONS; i++) {
+      const part = (normalCdf(i + 1, center, sigma) - normalCdf(i, center, sigma)) / inRange;
+      fractions[i][id] = (fractions[i][id] || 0) + amount * part;
+    }
+  }
+  return fractions;
+}
+
+const FLOW_PEAK = { center: 3, sigma: 0.9 };
+const WASH_PEAK = { center: 8, sigma: 0.7 };
+const WASH_SHARE = 0.08;        // of unbound protein, trailing into the wash
+
+function unboundPeaks(id, amount) {
+  return [
+    { id, amount: amount * (1 - WASH_SHARE), ...FLOW_PEAK },
+    { id, amount: amount * WASH_SHARE, ...WASH_PEAK },
+  ];
+}
+const indexRange = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+
+function runIEX(proteins, sample, { exchanger, pH }, tag = null) {
+  const GRADIENT = { start: 10, end: 30 };
+  const peaks = [];
+  for (const p of proteins) {
+    const amount = sample[p.id] || 0;
+    if (!amount) continue;
+    if (bindsExchanger(exchanger, p.pI, pH)) {
+      const salt = elutionSalt(p, pH, tag);
+      peaks.push({ id: p.id, amount, center: GRADIENT.start + salt * (GRADIENT.end - GRADIENT.start), sigma: 0.8 });
+    } else {
+      peaks.push(...unboundPeaks(p.id, amount));
+    }
+  }
+  return {
+    method: 'iex', label: 'IEX', peaks, fractions: fractionsFromPeaks(peaks), gradient: GRADIENT, retained: {},
+    phases: { flowThrough: indexRange(0, 5), wash: indexRange(6, 9), elution: indexRange(10, FRACTIONS - 1) },
+    phaseMarks: [[0, 'Flow-through'], [6, 'Wash'], [10, 'NaCl gradient']],
+  };
+}
+
+function runSEC(proteins, sample, { range }, tag = null) {
+  const peaks = proteins.filter(p => sample[p.id]).map(p => ({
+    id: p.id, amount: sample[p.id], center: secVolume(nativeSize(p, tag), range), sigma: 0.7,
+  }));
+  return {
+    method: 'sec', label: 'SEC', peaks, fractions: fractionsFromPeaks(peaks), retained: {},
+    volumes: { void: SEC_VOID, total: SEC_TOTAL },
+    phases: { elution: indexRange(0, FRACTIONS - 1) },
+    phaseMarks: [],
+  };
+}
+
+const NONSPECIFIC_BINDING = 0.04, WASH_REMOVES = 0.8;
+
+function affinityOutcome({ resin, eluent }, tag) {
+  const binds = RESIN_TAG[resin] === tag;
+  return { binds, elutes: binds && ELUENT_RESIN[eluent] === resin };
+}
+
+function affinityNote({ resin, eluent }, tag) {
+  const { binds, elutes } = affinityOutcome({ resin, eluent }, tag);
+  if (!binds) return `The target did not bind: ${RESIN_NAMES[resin]} does not recognize the ${TAGS[tag].name} tag, so the target went into the flow-through.`;
+  if (!elutes) return `The target bound but did not elute: this elution agent does not compete for ${RESIN_NAMES[resin]}, so the target is still on the column.`;
+  return '';
+}
+
+function runAffinity(proteins, sample, settings, tag) {
+  const { binds, elutes } = affinityOutcome(settings, tag);
+  const correctEluent = ELUENT_RESIN[settings.eluent] === settings.resin;
+  const ELUTION = { center: 16, sigma: 1.2 };
+  const peaks = [], retained = {};
+  const elute = (id, amount) => {
+    if (!amount) return;
+    if (correctEluent) peaks.push({ id, amount, ...ELUTION });
+    else retained[id] = (retained[id] || 0) + amount;
+  };
+  for (const p of proteins) {
+    const amount = sample[p.id] || 0;
+    if (!amount) continue;
+    if (p.isTarget) {
+      if (binds && elutes) peaks.push({ id: p.id, amount, ...ELUTION });
+      else if (binds) retained[p.id] = amount;
+      else peaks.push(...unboundPeaks(p.id, amount));
+    } else if (p.sticky) {
+      const stuck = amount * NONSPECIFIC_BINDING;
+      peaks.push(...unboundPeaks(p.id, amount - stuck));
+      peaks.push({ id: p.id, amount: stuck * WASH_REMOVES, ...WASH_PEAK });
+      elute(p.id, stuck * (1 - WASH_REMOVES));
+    } else {
+      peaks.push(...unboundPeaks(p.id, amount));
+    }
+  }
+  return {
+    method: 'affinity', label: 'Affinity', peaks, fractions: fractionsFromPeaks(peaks), retained,
+    note: affinityNote(settings, tag), elutionStart: 12,
+    phases: { flowThrough: indexRange(0, 5), wash: indexRange(6, 11), elution: indexRange(12, FRACTIONS - 1) },
+    phaseMarks: [[0, 'Flow-through'], [6, 'Wash'], [12, 'Elution']],
+  };
+}
+
+// A280 at a volume: summed Gaussians, one scale for all proteins.
+function a280At(result, volume) {
+  return result.peaks.reduce((sum, { center, sigma, amount }) =>
+    sum + amount / (sigma * Math.sqrt(2 * Math.PI)) * Math.exp(-((volume - center) ** 2) / (2 * sigma * sigma)), 0);
+}
+
+function sumFractions(result, indices) {
+  const total = {};
+  for (const i of indices) {
+    for (const [id, amount] of Object.entries(result.fractions[i])) total[id] = (total[id] || 0) + amount;
+  }
+  return total;
+}
+
+// ── SDS-PAGE ──
+const GEL_RANGES = {       // kDa: the range each gel resolves
+  8: { lo: 40, hi: 250 },
+  10: { lo: 25, hi: 150 },
+  12: { lo: 15, hi: 100 },
+  15: { lo: 10, hi: 70 },
+};
+const LADDER = [250, 150, 100, 75, 50, 37, 25, 20, 15, 10];
+const DYE_FRONT = 0.97, RF_TOP = 0.05, RF_BOTTOM = 0.92;
+
+// Relative mobility, linear in log(MW) inside the gel's range. Outside it, bands bunch at the top
+// or run close to the dye front, still in order.
+function gelMobility(mw, percent) {
+  const { lo, hi } = GEL_RANGES[percent];
+  const position = (Math.log10(hi) - Math.log10(mw)) / (Math.log10(hi) - Math.log10(lo));
+  if (position < 0) return Math.max(0.01, RF_TOP + 0.04 * Math.tanh(position));
+  if (position > 1) return Math.min(DYE_FRONT - 0.005, RF_BOTTOM + 0.04 * Math.tanh(position - 1));
+  return RF_TOP + position * (RF_BOTTOM - RF_TOP);
+}
+
+const bandIntensity = amount => 1 - Math.exp(-amount / 6);
+const bandThickness = amount => Math.min(9, 1.6 + 1.5 * Math.sqrt(amount));
+const FAINTEST_BAND = 0.03;
+
+// Hovering shows nothing about these, so each carries only where and how strong it is.
+function laneBands(amounts, proteins, tag, percent, reducing) {
+  const bands = [];
+  for (const p of proteins) {
+    const amount = amounts[p.id] || 0;
+    if (amount < FAINTEST_BAND) continue;
+    bands.push({ rf: gelMobility(gelMW(p, tag, reducing), percent), intensity: bandIntensity(amount), thickness: bandThickness(amount) });
+  }
+  return bands.sort((a, b) => a.rf - b.rf);
+}
+
+// ── Lysate checks ──
+const SEC_COELUTE = 1.0;     // mL apart, about the width of a peak
+const IEX_COELUTE = 1.5;
+
+function iexPosition(p, exchanger, pH, tag = null) {
+  return bindsExchanger(exchanger, p.pI, pH) ? 10 + 20 * elutionSalt(p, pH, tag) : null;
+}
+function coElutesIEX(a, b, exchanger, pH, tag = null) {
+  const pa = iexPosition(a, exchanger, pH, tag), pb = iexPosition(b, exchanger, pH, tag);
+  if (pa === null || pb === null) return pa === pb;
+  return Math.abs(pa - pb) <= IEX_COELUTE;
+}
+const coElutesSEC = (a, b, range, tag = null) =>
+  Math.abs(secVolume(nativeSize(a, tag), range) - secVolume(nativeSize(b, tag), range)) <= SEC_COELUTE;
+
+const CHECK_PHS = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
+function separableFromTarget(c, target) {
+  if (!coElutesSEC(c, target, 'small') || !coElutesSEC(c, target, 'large')) return true;
+  return ['anion', 'cation'].some(ex => CHECK_PHS.some(pH => !coElutesIEX(c, target, ex, pH)));
+}
+
+function isPurifiable(proteins) {
+  const target = proteins.find(p => p.isTarget), others = proteins.filter(p => !p.isTarget);
+  if (!others.every(c => separableFromTarget(c, target))) return false;
+  if (!others.some(c => c.oligomer === 'disulfide')) return false;
+  if (!others.every(c => clearOfTarget(c.mw, target))) return false;
+  for (const range of Object.keys(SEC_RANGES)) {
+    if (others.filter(c => coElutesSEC(c, target, range)).length < 2) return false;
+  }
+  for (const ex of ['anion', 'cation']) {
+    for (const pH of CHECK_PHS) {
+      if (others.filter(c => coElutesIEX(c, target, ex, pH)).length < 2) return false;
+    }
+  }
+  return true;
+}
+
+// ── Blobs ──
+// Radius follows native size, across the range the tube can hold.
+const blobRadius = size => 5 + 3.2 * Math.log10(Math.max(size, 10) / 10);
+
+// Blob counts in proportion to each protein's share of the sample.
+function blobCounts(sample, total = 40) {
+  const sum = sampleTotal(sample);
+  if (sum <= 0) return {};
+  return Object.fromEntries(Object.entries(sample).map(([id, amount]) => [id, Math.round(amount / sum * total)]));
+}
+
+const STAR = 'M0,-5 L1.5,-1.6 5,-1.5 2.3,0.8 3.1,4.2 0,2.3 -3.1,4.2 -2.3,0.8 -5,-1.5 -1.5,-1.6 Z';
+
+function tagMarkup(tag, x, y) {
+  if (tag === 'his') return `<polyline points="${x},${y} ${x + 3},${y - 3} ${x + 6},${y} ${x + 9},${y - 3}" fill="none" stroke="#000000" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if (tag === 'mbp') return `<ellipse cx="${x + 6}" cy="${y}" rx="6" ry="3.6" fill="#FFFFFF" stroke="#000000" stroke-width="1.1"/>`;
+  if (tag === 'gst') return `<rect x="${x}" y="${y - 4}" width="8" height="8" rx="2.5" fill="#FFFFFF" stroke="#000000" stroke-width="1.1"/>`;
+  return '';
+}
+
+// A blob at the origin. Hovering it shows only its role.
+function blobMarkup(p, pH, tag = null) {
+  const size = nativeSize(p, tag), count = subunitCount(p, tag), fill = chargeColor(netCharge(p.pI, pH));
+  const stroke = p.isTarget ? 'stroke="#C8102E" stroke-width="2"' : 'stroke="#404040" stroke-width="0.8"';
+  let body;
+  if (count === 2) {
+    const r = blobRadius(size) * 0.72;
+    body = `<circle cx="${-r}" r="${r}" fill="${fill}" ${stroke}/><circle cx="${r}" r="${r}" fill="${fill}" ${stroke}/>`;
+    if (p.oligomer === 'disulfide') {
+      body += `<line x1="${-r * 0.5}" x2="${r * 0.5}" stroke="#000000" stroke-width="1.6"/><text y="${-r - 1.5}" font-size="6" font-weight="700" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">S–S</text>`;
+    }
+  } else {
+    body = `<circle r="${blobRadius(size)}" fill="${fill}" ${stroke}/>`;
+  }
+  const right = count === 2 ? blobRadius(size) * 1.44 : blobRadius(size);
+  if (p.isTarget) {
+    body += tagMarkup(tag, right, 0) + `<path d="${STAR}" fill="#FFFFFF" stroke="#C8102E" stroke-width="1"/>`;
+  }
+  return `<g class="blob" data-tip="${p.isTarget ? 'Target protein' : 'Contaminant'}">${body}</g>`;
+}
+
+// ── Column animation ──
+// Where a blob is, from 0 at the top of the bed to 1 at the bottom, at time t from 0 to 1.
+// Null means it has left the column.
+const STAGES = [[0, 'Load'], [0.3, 'Wash'], [0.55, 'Elute']];
+function blobPosition(kind, t, offset = 0) {
+  const BIND = 0.12 + offset * 0.1;
+  if (kind === 'through') {
+    const y = t / (0.5 + offset * 0.1);
+    return y > 1 ? null : y;
+  }
+  if (kind === 'sec') {           // larger first: offset 0 is largest
+    const y = t / (0.4 + offset * 0.55);
+    return y > 1 ? null : y;
+  }
+  const settled = Math.min(1, t / 0.25) * BIND;
+  if (kind === 'stay' || t < 0.55 + offset * 0.15) return settled;
+  const y = BIND + (t - 0.55 - offset * 0.15) / 0.3;
+  return y > 1 ? null : y;
+}
+
+
+// ═══ 2. STATE ═════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const newGel = () => ({ percent: 12, reducing: true, lanes: [] });
+const MAX_LANES = 12;     // the ladder counts as one
+
+const state = {
+  proteins: [],
+  sample: {},
+  tag: null,
+  tagLocked: false,       // set once a column has run with the tag
+  history: [],            // carried steps: { label, stepId, before }
+  pending: null,          // a run not yet carried forward: { result, stepId, before }
+  selection: new Set(),   // fraction indices
+  method: 'iex',
+  exchanger: 'anion',
+  pH: 7,
+  range: 'large',
+  resin: 'ni',
+  eluent: 'imidazole',
+  gels: [newGel()],
+  activeGel: 0,
+  nextStepId: 1,
+};
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+
+// ═══ 3. DRAWING ═══════════════════════════════════════════════
+
+// ── Tube ──
+const TUBE_SLOTS = (() => {
+  const rand = createRng(11), slots = [];
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 5; col++) {
+      slots.push({ x: 38 + col * 27 + between(rand, -4, 4) + (row % 2 ? 6 : -4), y: 62 + row * 33 + between(rand, -4, 4) });
+    }
+  }
+  return shuffled(slots, rand);
+})();
+
+function renderTube() {
+  const counts = blobCounts(state.sample);
+  const rand = createRng(23);
+  const placed = [];
+  for (const p of state.proteins) for (let i = 0; i < (counts[p.id] || 0); i++) placed.push(p);
+  const blobs = shuffled(placed, rand).slice(0, TUBE_SLOTS.length).map((p, i) =>
+    `<g transform="translate(${TUBE_SLOTS[i].x.toFixed(1)},${TUBE_SLOTS[i].y.toFixed(1)})">${blobMarkup(p, state.pH, state.tag)}</g>`).join('');
+  $('tube').innerHTML =
+    `<rect x="20" y="42" width="160" height="292" rx="14" fill="#FFCDFF" fill-opacity="0.25"/>` +
+    `<path d="M16,28 V300 Q16,340 56,340 H144 Q184,340 184,300 V28" fill="none" stroke="#685C53" stroke-width="3"/>` +
+    `<path d="M8,28 H192" stroke="#685C53" stroke-width="4" stroke-linecap="round"/>${blobs}`;
+  const target = state.proteins.find(p => p.isTarget);
+  $('tube').setAttribute('aria-label',
+    `Sample tube with ${placed.length} protein blobs, ${counts[target.id] || 0} of them the target protein.`);
+  $('key-ph').textContent = state.pH.toFixed(1);
+}
+
+// ── Column animation ──
+let animationFrame = 0;
+
+function animationBlobs() {
+  const counts = blobCounts(state.sample, 16), blobs = [];
+  const result = state.pending.result;
+  const bySize = [...state.proteins].sort((a, b) => nativeSize(b, state.tag) - nativeSize(a, state.tag));
+  for (const p of bySize) {
+    for (let i = 0; i < (counts[p.id] || 0); i++) {
+      let kind = 'through';
+      if (result.method === 'sec') kind = 'sec';
+      else if (result.retained[p.id] && p.isTarget) kind = 'stay';
+      else if (result.method === 'iex' && bindsExchanger(state.exchanger, p.pI, state.pH)) kind = 'bound';
+      else if (result.method === 'affinity' && p.isTarget && affinityOutcome(state, state.tag).elutes) kind = 'bound';
+      blobs.push({ p, kind });
+    }
+  }
+  return blobs.map((b, i) => ({ ...b, offset: blobs.length > 1 ? i / (blobs.length - 1) : 0, x: 30 + (i * 37) % 36 }));
+}
+
+const COLUMN_TOP = 34, COLUMN_BOTTOM = 182;
+
+function columnFrame(blobs, t) {
+  const stage = t >= 1 ? '' : STAGES.filter(([start]) => t >= start).at(-1)[1];
+  const scene = blobs.map(({ p, kind, offset, x }) => {
+    const y = blobPosition(kind, t, offset);
+    if (y === null) return '';
+    const fill = chargeColor(netCharge(p.pI, state.pH));
+    const outline = p.isTarget ? 'stroke="#C8102E" stroke-width="1.5"' : 'stroke="#404040" stroke-width="0.5"';
+    return `<circle cx="${x}" cy="${COLUMN_TOP + y * (COLUMN_BOTTOM - COLUMN_TOP)}" r="${Math.min(6, 2 + blobRadius(nativeSize(p, state.tag)) / 3)}" fill="${fill}" ${outline}/>`;
+  }).join('');
+  $('column-graphic').innerHTML = COLUMN_BASE + scene;
+  $('column-stage').textContent = result_stage(stage);
+}
+const result_stage = stage => (state.pending && state.pending.result.method === 'sec' && stage ? 'Separating by size' : stage);
+
+const COLUMN_BASE =
+  `<rect x="24" y="12" width="48" height="176" rx="5" fill="#F0F0F0" stroke="#685C53" stroke-width="2.5"/>` +
+  `<rect x="26" y="30" width="44" height="156" fill="#E6E0CC" fill-opacity="0.7"/>` +
+  `<path d="M48,2 V12 M48,188 V206" stroke="#685C53" stroke-width="3"/>`;
+
+function stopAnimation() {
+  cancelAnimationFrame(animationFrame);
+  animationFrame = 0;
+  $('skip-animation').hidden = true;
+  $('column-stage').textContent = '';
+  $('column-graphic').innerHTML = COLUMN_BASE;
+}
+
+function playColumnAnimation(onDone) {
+  stopAnimation();
+  const finish = () => {
+    stopAnimation();
+    onDone();
+  };
+  if (reduceMotion) { finish(); return; }
+  const blobs = animationBlobs(), DURATION = 3200;
+  let start = null;
+  $('skip-animation').hidden = false;
+  $('skip-animation').onclick = finish;
+  const step = now => {
+    start ??= now;
+    const t = (now - start) / DURATION;
+    if (t >= 1) { finish(); return; }
+    columnFrame(blobs, t);
+    animationFrame = requestAnimationFrame(step);
+  };
+  animationFrame = requestAnimationFrame(step);
+}
+
+// ── Chromatogram ──
+const CHROMA = { left: 38, right: 40, top: 22, bottom: 40 };
+const chroma = { width: 0, height: 0, dpr: 1, canvas: $('chromatogram') };
+
+function sizeChromatogram() {
+  const { canvas } = chroma;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  if (!width) return;
+  chroma.width = width;
+  chroma.height = height;
+  chroma.dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width * chroma.dpr);
+  canvas.height = Math.round(height * chroma.dpr);
+}
+
+const chromaPlotWidth = () => chroma.width - CHROMA.left - CHROMA.right;
+const volumeX = volume => CHROMA.left + volume / FRACTIONS * chromaPlotWidth();
+
+function drawChromatogram() {
+  const result = state.pending && state.pending.result;
+  if (!result || !chroma.width) return;
+  const ctx = chroma.canvas.getContext('2d');
+  const { width, height } = chroma;
+  const plotH = height - CHROMA.top - CHROMA.bottom, bottom = CHROMA.top + plotH, right = CHROMA.left + chromaPlotWidth();
+  ctx.setTransform(chroma.dpr, 0, 0, chroma.dpr, 0, 0);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, width, height);
+
+  // The pool, with a bar along the top so that it doesn't rely on color
+  ctx.fillStyle = 'rgba(255,205,255,0.7)';
+  for (const i of state.selection) {
+    ctx.fillRect(volumeX(i), CHROMA.top, volumeX(i + 1) - volumeX(i), plotH);
+  }
+  ctx.fillStyle = '#C8102E';
+  for (const i of state.selection) ctx.fillRect(volumeX(i), CHROMA.top - 4, volumeX(i + 1) - volumeX(i), 4);
+
+  // Fraction lines and numbers
+  ctx.strokeStyle = '#E4E4E4';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= FRACTIONS; i++) { ctx.moveTo(volumeX(i), CHROMA.top); ctx.lineTo(volumeX(i), bottom); }
+  ctx.stroke();
+  const every = chromaPlotWidth() / FRACTIONS < 14 ? 5 : 1;
+  ctx.fillStyle = '#000000';
+  ctx.font = "10px 'Segoe UI', Arial, sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < FRACTIONS; i++) {
+    if ((i + 1) % every === 0 || i === 0) ctx.fillText(String(i + 1), (volumeX(i) + volumeX(i + 1)) / 2, bottom + 4);
+  }
+  ctx.font = "600 12px 'Segoe UI', Arial, sans-serif";
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('Fraction number (elution volume →)', CHROMA.left + chromaPlotWidth() / 2, height - 3);
+
+  // Phase and volume marks
+  ctx.font = "600 10px 'Segoe UI', Arial, sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.strokeStyle = '#685C53';
+  ctx.setLineDash([4, 3]);
+  for (const [fraction, label] of result.phaseMarks) {
+    ctx.beginPath(); ctx.moveTo(volumeX(fraction), CHROMA.top); ctx.lineTo(volumeX(fraction), bottom); ctx.stroke();
+    ctx.fillStyle = '#000000';
+    ctx.fillText(label, volumeX(fraction) + 3, CHROMA.top - 5);
+  }
+  if (result.volumes) {
+    for (const [volume, label] of [[result.volumes.void, 'Void volume'], [result.volumes.total, 'Total volume']]) {
+      ctx.beginPath(); ctx.moveTo(volumeX(volume), CHROMA.top); ctx.lineTo(volumeX(volume), bottom); ctx.stroke();
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, volumeX(volume), CHROMA.top - 5);
+    }
+  }
+  ctx.setLineDash([]);
+
+  // Axes
+  ctx.strokeStyle = '#685C53';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(CHROMA.left, CHROMA.top, chromaPlotWidth(), plotH);
+  ctx.save();
+  ctx.translate(13, CHROMA.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#000000';
+  ctx.font = "600 12px 'Segoe UI', Arial, sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('A280', 0, 0);
+  ctx.restore();
+
+  // NaCl gradient over its own axis
+  if (result.gradient) {
+    const { start, end } = result.gradient, saltY = salt => bottom - salt * plotH;
+    ctx.strokeStyle = '#1565C0';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 4]);
+    ctx.beginPath();
+    ctx.moveTo(volumeX(0), saltY(0));
+    ctx.lineTo(volumeX(start), saltY(0));
+    ctx.lineTo(volumeX(end), saltY(1));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#1565C0';
+    ctx.font = "10px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (const salt of [0, 0.5, 1]) ctx.fillText(`${salt} M`, right + 4, saltY(salt));
+    ctx.save();
+    ctx.translate(width - 6, CHROMA.top + plotH / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.font = "600 11px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('[NaCl]', 0, 0);
+    ctx.restore();
+  }
+
+  // The trace: all proteins summed, with nothing to say which is which
+  const samples = [];
+  let peak = 0;
+  for (let v = 0; v <= FRACTIONS + 1e-9; v += 0.1) {
+    const y = a280At(result, v);
+    samples.push([v, y]);
+    peak = Math.max(peak, y);
+  }
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  samples.forEach(([v, y], i) => {
+    const py = bottom - (peak > 0 ? y / peak : 0) * plotH * 0.92;
+    if (i) ctx.lineTo(volumeX(v), py); else ctx.moveTo(volumeX(v), py);
+  });
+  ctx.stroke();
+}
+
+function fractionAt(clientX) {
+  const rect = chroma.canvas.getBoundingClientRect();
+  const fraction = Math.floor((clientX - rect.left - CHROMA.left) / chromaPlotWidth() * FRACTIONS);
+  return Math.max(0, Math.min(FRACTIONS - 1, fraction));
+}
+
+// ── Gel ──
+const GEL = { left: 34, top: 88, laneWidth: 30, height: 300, wellHeight: 10, rightRoom: 44 };
+
+function gelMarkup(gel) {
+  const laneCount = 1 + gel.lanes.length, shown = Math.max(laneCount, 6);
+  const width = GEL.left + shown * GEL.laneWidth + GEL.rightRoom, bottom = GEL.top + GEL.height;
+  const rfY = rf => GEL.top + rf * GEL.height;
+  const laneX = i => GEL.left + i * GEL.laneWidth + 4;
+  const bandWidth = GEL.laneWidth - 8;
+  let body = `<rect x="${GEL.left}" y="${GEL.top - 12}" width="${shown * GEL.laneWidth + 2}" height="${GEL.height + 14}" rx="3" fill="#EEF0F6" stroke="#685C53"/>`;
+  for (let i = 0; i < shown; i++) {
+    body += `<rect x="${laneX(i)}" y="${GEL.top - 10}" width="${bandWidth}" height="${GEL.wellHeight}" fill="#FFFFFF" stroke="#BFBFBF"/>`;
+  }
+  const front = rfY(DYE_FRONT);
+  body += `<line x1="${GEL.left + 1}" x2="${GEL.left + shown * GEL.laneWidth + 1}" y1="${front}" y2="${front}" stroke="#1565C0" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+
+  // Ladder. Labels go on from the bottom up, so a bunch at the top is named by its in-range band.
+  // Every band names itself on hover, over the stretch nearer to it than to the next band.
+  const ladderYs = LADDER.map(mw => rfY(gelMobility(mw, gel.percent)));
+  let lastLabelY = Infinity;
+  for (let i = LADDER.length - 1; i >= 0; i--) {
+    const mw = LADDER[i], y = ladderYs[i];
+    const top = Math.max(y - 4, i > 0 ? (ladderYs[i - 1] + y) / 2 : -Infinity);
+    const end = Math.min(y + 4, i < LADDER.length - 1 ? (y + ladderYs[i + 1]) / 2 : Infinity);
+    body += `<rect pointer-events="none" x="${laneX(0)}" y="${y - 1.5}" width="${bandWidth}" height="3" fill="#1A237E" fill-opacity="0.75"/>`;
+    body += `<rect class="ladder-band" data-tip="${mw} kDa" x="${laneX(0)}" y="${top}" width="${bandWidth}" height="${end - top}" fill="transparent"/>`;
+    if (lastLabelY - y >= 10) {
+      body += `<text x="${GEL.left - 3}" y="${y + 3}" font-size="9.5" text-anchor="end">${mw}</text>`;
+      lastLabelY = y;
+    }
+  }
+  body += `<text x="${GEL.left - 3}" y="${GEL.top - 16}" font-size="9" text-anchor="end">kDa</text>`;
+  body += `<text transform="translate(${laneX(0) + bandWidth / 2 + 3},${GEL.top - 15}) rotate(-55)" font-size="10">Ladder</text>`;
+
+  gel.lanes.forEach((lane, index) => {
+    const x = laneX(index + 1);
+    body += `<text transform="translate(${x + bandWidth / 2 + 3},${GEL.top - 15}) rotate(-55)" font-size="10">${lane.label}</text>`;
+    for (const band of laneBands(lane.amounts, state.proteins, state.tag, gel.percent, gel.reducing)) {
+      body += `<rect x="${x}" y="${(rfY(band.rf) - band.thickness / 2).toFixed(1)}" width="${bandWidth}" height="${band.thickness.toFixed(1)}" rx="1" fill="#1A237E" fill-opacity="${band.intensity.toFixed(3)}"/>`;
+    }
+  });
+  return { viewBox: `0 0 ${width} ${bottom + 6}`, body };
+}
+
+function renderGel() {
+  const gel = state.gels[state.activeGel];
+  const { viewBox, body } = gelMarkup(gel);
+  $('gel').setAttribute('viewBox', viewBox);
+  $('gel').innerHTML = body;
+  $('gel').setAttribute('aria-label',
+    `SDS-PAGE gel, ${gel.percent}% ${gel.reducing ? 'reducing' : 'non-reducing'}, with a ladder and ${gel.lanes.length} sample lanes: ${gel.lanes.map(l => l.label).join(', ') || 'none yet'}.`);
+  $('gel-tabs').innerHTML = state.gels.map((_, i) =>
+    `<button type="button" data-gel="${i}" class="${i === state.activeGel ? 'active' : ''}" aria-pressed="${i === state.activeGel}">Gel ${i + 1}</button>`).join('');
+  $('gel-percent').value = String(gel.percent);
+  document.querySelectorAll('[data-reducing]').forEach(b => setPressed(b, (b.dataset.reducing === 'true') === gel.reducing));
+}
+
+
+// ═══ 4. ACTIONS ═══════════════════════════════════════════════
+
+function setPressed(button, on) {
+  button.classList.toggle('active', on);
+  button.setAttribute('aria-pressed', String(on));
+}
+
+// Adds lanes to the open gel, moving to a new gel once it is full.
+function addLanes(lanes) {
+  let started = false;
+  for (const lane of lanes) {
+    if (1 + state.gels[state.activeGel].lanes.length >= MAX_LANES) {
+      const { percent, reducing } = state.gels[state.activeGel];
+      state.gels.push({ ...newGel(), percent, reducing });
+      state.activeGel = state.gels.length - 1;
+      started = true;
+    }
+    state.gels[state.activeGel].lanes.push(lane);
+  }
+  $('gel-message').textContent = started ? `That gel was full, so the new lanes are on Gel ${state.activeGel + 1}.` : '';
+}
+
+function removeLanesOfStep(stepId) {
+  for (const gel of state.gels) gel.lanes = gel.lanes.filter(lane => lane.stepId !== stepId);
+  // A gel emptied this way goes too, unless it is the only one
+  state.gels = state.gels.filter((gel, i) => gel.lanes.length || i === 0);
+  state.activeGel = Math.min(state.activeGel, state.gels.length - 1);
+}
+
+const snapshot = () => ({ sample: { ...state.sample }, tag: state.tag, tagLocked: state.tagLocked });
+function restore(before) {
+  state.sample = before.sample;
+  state.tag = before.tag;
+  state.tagLocked = before.tagLocked;
+}
+
+const stepNumber = () => state.history.length + 1;
+
+function runReason() {
+  if (sampleTotal(state.sample) < 0.01) return 'The sample has no protein left. Undo the last step or start over.';
+  if (state.method === 'affinity' && !state.tag) return 'Choose the target\'s tag first.';
+  return '';
+}
+
+function runColumn() {
+  if (runReason()) return;
+  // Running again replaces a run that was not carried forward
+  if (state.pending) {
+    removeLanesOfStep(state.pending.stepId);
+    restore(state.pending.before);
+    state.pending = null;
+  }
+  const before = snapshot();
+  const { proteins, sample, tag } = state;
+  const result = state.method === 'iex' ? runIEX(proteins, sample, { exchanger: state.exchanger, pH: state.pH }, tag)
+    : state.method === 'sec' ? runSEC(proteins, sample, { range: state.range }, tag)
+      : runAffinity(proteins, sample, { resin: state.resin, eluent: state.eluent }, tag);
+  const stepId = state.nextStepId++;
+  if (tag) state.tagLocked = true;
+  state.pending = { result, stepId, before };
+  state.selection = new Set();
+
+  const n = stepNumber(), lanes = [{ label: `${n}: Load`, amounts: { ...sample }, stepId }];
+  if (result.phases.flowThrough) lanes.push({ label: `${n}: Flow-through`, amounts: sumFractions(result, result.phases.flowThrough), stepId });
+  if (result.phases.wash) lanes.push({ label: `${n}: Wash`, amounts: sumFractions(result, result.phases.wash), stepId });
+  addLanes(lanes);
+
+  $('chromatogram-area').hidden = true;
+  $('chromatogram-hint').hidden = true;
+  $('outcome-note').hidden = true;
+  renderAll();
+  playColumnAnimation(() => {
+    $('outcome-note').textContent = result.note || '';
+    $('outcome-note').hidden = !result.note;
+    $('chromatogram-area').hidden = false;
+    sizeChromatogram();
+    drawChromatogram();
+    updatePoolControls();
+    updateChromatogramLabel();
+  });
+}
+
+function carryForward() {
+  const { pending, selection } = state;
+  if (!pending || !selection.size) return;
+  const indices = [...selection].sort((a, b) => a - b);
+  const pool = sumFractions(pending.result, indices);
+  addLanes([{ label: `${stepNumber()}: Pooled eluate`, amounts: pool, stepId: pending.stepId }]);
+  state.sample = pool;
+  state.history.push({ label: pending.result.label, stepId: pending.stepId, before: pending.before });
+  state.pending = null;
+  state.selection = new Set();
+  hideRunResult();
+  renderAll();
+}
+
+function addSelectedFractions() {
+  const { pending, selection } = state;
+  if (!pending || !selection.size) return;
+  const indices = [...selection].sort((a, b) => a - b);
+  addLanes(indices.map(i => ({ label: `${stepNumber()}: Fr ${i + 1}`, amounts: { ...pending.result.fractions[i] }, stepId: pending.stepId })));
+  renderGel();
+}
+
+function hideRunResult() {
+  stopAnimation();
+  $('chromatogram-area').hidden = true;
+  $('chromatogram-hint').hidden = false;
+  $('outcome-note').hidden = true;
+}
+
+function undoLastStep() {
+  if (state.pending) {
+    removeLanesOfStep(state.pending.stepId);
+    restore(state.pending.before);
+    state.pending = null;
+  } else {
+    const last = state.history.pop();
+    if (!last) return;
+    removeLanesOfStep(last.stepId);
+    restore(last.before);
+  }
+  state.selection = new Set();
+  hideRunResult();
+  renderAll();
+}
+
+function startOver() {
+  state.sample = fullSample(state.proteins);
+  state.tag = null;
+  state.tagLocked = false;
+  state.history = [];
+  state.pending = null;
+  state.selection = new Set();
+  state.gels = [newGel()];
+  state.activeGel = 0;
+  $('gel-message').textContent = '';
+  hideRunResult();
+  renderAll();
+}
+
+function newLysate() {
+  state.proteins = generateLysate(createRng(Math.floor(Math.random() * 2 ** 31)));
+  startOver();
+}
+
+
+// ═══ 5. PAGE ══════════════════════════════════════════════════
+
+function renderHistory() {
+  const crumbs = ['Lysate', ...state.history.map(h => h.label)];
+  const pending = state.pending ? `<li><span class="crumb pending">${state.pending.result.label} (choose a pool)</span></li>` : '';
+  $('breadcrumbs').innerHTML = crumbs.map(c => `<li><span class="crumb">${c}</span></li>`).join('') + pending;
+  $('undo').disabled = !state.pending && !state.history.length;
+}
+
+function renderSettings() {
+  document.querySelectorAll('[data-method]').forEach(b => setPressed(b, b.dataset.method === state.method));
+  document.querySelectorAll('[data-exchanger]').forEach(b => setPressed(b, b.dataset.exchanger === state.exchanger));
+  document.querySelectorAll('[data-range]').forEach(b => setPressed(b, b.dataset.range === state.range));
+  document.querySelectorAll('[data-resin]').forEach(b => setPressed(b, b.dataset.resin === state.resin));
+  document.querySelectorAll('[data-eluent]').forEach(b => setPressed(b, b.dataset.eluent === state.eluent));
+  document.querySelectorAll('[data-tag]').forEach(b => {
+    setPressed(b, b.dataset.tag === state.tag);
+    b.disabled = state.tagLocked && b.dataset.tag !== state.tag;
+  });
+  $('tag-note').textContent = state.tagLocked ? 'The tag stays with the target for the rest of this run.' : state.tag ? '' : 'Choose a tag to begin.';
+  $('iex-settings').hidden = state.method !== 'iex';
+  $('sec-settings').hidden = state.method !== 'sec';
+  $('affinity-settings').hidden = state.method !== 'affinity';
+  $('ph-range').value = state.pH;
+  if (document.activeElement !== $('ph-number')) $('ph-number').value = state.pH.toFixed(1);
+  const reason = runReason();
+  $('run-column').disabled = Boolean(reason);
+  $('run-note').textContent = reason;
+}
+
+function updatePoolControls() {
+  const indices = [...state.selection].sort((a, b) => a - b);
+  const none = !indices.length;
+  $('carry-forward').disabled = none;
+  $('add-fractions').disabled = none;
+  $('pool-clear').disabled = none;
+  if (none) {
+    $('pool-readout').textContent = 'Click or drag across the fractions to choose a pool.';
+    $('pool-from').value = '';
+    $('pool-to').value = '';
+    return;
+  }
+  // Runs of neighboring fractions, written as ranges
+  const parts = [];
+  for (const i of indices) {
+    const last = parts.at(-1);
+    if (last && last[1] === i) last[1] = i + 1; else parts.push([i, i + 1]);
+  }
+  const text = parts.map(([a, b]) => (b - a === 1 ? `${a + 1}` : `${a + 1}–${b}`)).join(', ');
+  $('pool-readout').textContent = `Pool: fraction${indices.length > 1 ? 's' : ''} ${text}`;
+  $('pool-from').value = indices[0] + 1;
+  $('pool-to').value = indices.at(-1) + 1;
+}
+
+function updateChromatogramLabel() {
+  const result = state.pending && state.pending.result;
+  if (!result) return;
+  const marks = result.gradient ? ' A dashed line shows the NaCl gradient.' : result.volumes ? ' Dashed lines mark the void and total volumes.' : ' Dashed lines mark the flow-through, wash and elution.';
+  chroma.canvas.setAttribute('aria-label', `Chromatogram of A280 against elution volume, divided into ${FRACTIONS} numbered fractions.${marks} ${$('pool-readout').textContent}`);
+}
+
+function renderAll() {
+  renderHistory();
+  renderSettings();
+  renderTube();
+  renderGel();
+  if (state.pending && !$('chromatogram-area').hidden) {
+    drawChromatogram();
+    updatePoolControls();
+    updateChromatogramLabel();
+  }
+}
+
+// ── Controls ──
+const choiceGroups = { method: 'method', exchanger: 'exchanger', range: 'range', resin: 'resin', eluent: 'eluent' };
+for (const [attribute, key] of Object.entries(choiceGroups)) {
+  document.querySelectorAll(`[data-${attribute}]`).forEach(button => button.addEventListener('click', () => {
+    state[key] = button.dataset[attribute];
+    renderAll();
+  }));
+}
+
+document.querySelectorAll('[data-tag]').forEach(button => button.addEventListener('click', () => {
+  if (state.tagLocked) return;
+  state.tag = button.dataset.tag;
+  renderAll();
+}));
+
+function setPH(value) {
+  if (!Number.isFinite(value) || value < 4 || value > 10) {
+    $('ph-error').textContent = 'Enter a pH from 4 to 10.';
+    return;
+  }
+  $('ph-error').textContent = '';
+  state.pH = value;
+  renderAll();
+}
+$('ph-range').addEventListener('input', e => setPH(Number(e.target.value)));
+$('ph-number').addEventListener('input', e => setPH(parseFloat(e.target.value)));
+$('ph-number').addEventListener('blur', () => {
+  $('ph-error').textContent = '';
+  $('ph-number').value = state.pH.toFixed(1);
+});
+
+$('run-column').addEventListener('click', runColumn);
+$('carry-forward').addEventListener('click', carryForward);
+$('add-fractions').addEventListener('click', addSelectedFractions);
+$('undo').addEventListener('click', undoLastStep);
+$('start-over').addEventListener('click', startOver);
+$('new-lysate').addEventListener('click', newLysate);
+
+// ── Choosing fractions: a click toggles one, and a drag selects a run ──
+let dragStart = null, dragged = false, selectionBefore = null;
+
+function selectDragRange(current) {
+  const [a, b] = dragStart <= current ? [dragStart, current] : [current, dragStart];
+  state.selection = new Set(indexRange(a, b));
+}
+
+chroma.canvas.addEventListener('pointerdown', e => {
+  if (!state.pending) return;
+  dragStart = fractionAt(e.clientX);
+  dragged = false;
+  selectionBefore = new Set(state.selection);
+  chroma.canvas.setPointerCapture?.(e.pointerId);
+});
+chroma.canvas.addEventListener('pointermove', e => {
+  if (dragStart === null) return;
+  const current = fractionAt(e.clientX);
+  if (current === dragStart && !dragged) return;
+  dragged = true;
+  selectDragRange(current);
+  drawChromatogram();
+  updatePoolControls();
+});
+chroma.canvas.addEventListener('pointerup', () => {
+  if (dragStart === null) return;
+  if (!dragged) {
+    const next = selectionBefore;
+    if (next.has(dragStart)) next.delete(dragStart); else next.add(dragStart);
+    state.selection = next;
+  }
+  dragStart = null;
+  drawChromatogram();
+  updatePoolControls();
+  updateChromatogramLabel();
+});
+chroma.canvas.addEventListener('pointercancel', () => {
+  if (dragStart === null) return;
+  dragStart = null;
+  state.selection = selectionBefore;
+  drawChromatogram();
+  updatePoolControls();
+});
+
+$('pool-apply').addEventListener('click', () => {
+  const from = parseInt($('pool-from').value, 10), to = parseInt($('pool-to').value, 10);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > FRACTIONS || from > to) {
+    $('pool-readout').textContent = `Enter fractions from 1 to ${FRACTIONS}, lowest first.`;
+    return;
+  }
+  state.selection = new Set(indexRange(from - 1, to - 1));
+  drawChromatogram();
+  updatePoolControls();
+  updateChromatogramLabel();
+});
+$('pool-clear').addEventListener('click', () => {
+  state.selection = new Set();
+  drawChromatogram();
+  updatePoolControls();
+  updateChromatogramLabel();
+});
+
+// ── Gel controls ──
+$('gel-percent').addEventListener('change', e => {
+  state.gels[state.activeGel].percent = Number(e.target.value);
+  renderGel();
+});
+document.querySelectorAll('[data-reducing]').forEach(button => button.addEventListener('click', () => {
+  state.gels[state.activeGel].reducing = button.dataset.reducing === 'true';
+  renderGel();
+}));
+$('new-gel').addEventListener('click', () => {
+  const { percent, reducing } = state.gels[state.activeGel];
+  state.gels.push({ ...newGel(), percent, reducing });
+  state.activeGel = state.gels.length - 1;
+  $('gel-message').textContent = '';
+  renderGel();
+});
+$('gel-tabs').addEventListener('click', e => {
+  const button = e.target.closest('[data-gel]');
+  if (!button) return;
+  state.activeGel = Number(button.dataset.gel);
+  renderGel();
+  $('gel-tabs').querySelector(`[data-gel="${state.activeGel}"]`).focus();
+});
+
+// ── Hover labels: a blob's role and a ladder band's size ──
+function showTip(target, x, y) {
+  const tip = $('tip');
+  tip.textContent = target.dataset.tip;
+  tip.hidden = false;
+  tip.style.left = `${Math.min(x + 12, window.innerWidth - tip.offsetWidth - 6)}px`;
+  tip.style.top = `${Math.max(4, y - 30)}px`;
+}
+const tipTarget = e => (e.target.closest ? e.target.closest('[data-tip]') : null);
+for (const type of ['pointermove', 'pointerdown']) {
+  document.addEventListener(type, e => {
+    const target = tipTarget(e);
+    if (target) showTip(target, e.clientX, e.clientY);
+    else $('tip').hidden = true;
+  });
+}
+
+window.addEventListener('resize', () => {
+  sizeChromatogram();
+  drawChromatogram();
+});
+
+
+// ═══ 6. STARTUP ═══════════════════════════════════════════════
+
+$('column-graphic').innerHTML = COLUMN_BASE;
+newLysate();
+</script>
+</body>
+</html>
