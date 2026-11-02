@@ -16,12 +16,12 @@ const {
   createRng, generateLysate, fullSample, sampleTotal, nativeSize, subunitMW, subunitCount, gelMW, netCharge, chargeColor,
   bindsExchanger, elutionSalt, kav, secVolume, runIEX, runSEC, runAffinity, affinityNote, a280At, sumFractions,
   gelMobility, laneBands, bandIntensity, bandThickness, coElutesIEX, coElutesSEC, isPurifiable, separableFromTarget,
-  blobRadius, blobCounts, blobMarkup, blobPosition,
+  blobRadius, blobCounts, blobMarkup, blobPosition, targetFacts, beadMarkup, columnBeads, columnLabel,
 } = run(`({
   createRng, generateLysate, fullSample, sampleTotal, nativeSize, subunitMW, subunitCount, gelMW, netCharge, chargeColor,
   bindsExchanger, elutionSalt, kav, secVolume, runIEX, runSEC, runAffinity, affinityNote, a280At, sumFractions,
   gelMobility, laneBands, bandIntensity, bandThickness, coElutesIEX, coElutesSEC, isPurifiable, separableFromTarget,
-  blobRadius, blobCounts, blobMarkup, blobPosition,
+  blobRadius, blobCounts, blobMarkup, blobPosition, targetFacts, beadMarkup, columnBeads, columnLabel,
 })`);
 const plain = value => JSON.parse(JSON.stringify(value));
 const FRACTIONS = run('FRACTIONS'), SEC_VOID = run('SEC_VOID'), SEC_TOTAL = run('SEC_TOTAL');
@@ -90,9 +90,7 @@ test('every contaminant can be separated from the target by some non-affinity st
 test('at least two contaminants run with the target in any single SEC step', () => {
   for (const proteins of lysates()) {
     const target = proteins.find(p => p.isTarget), others = proteins.filter(p => !p.isTarget);
-    for (const range of ['small', 'large']) {
-      assert.ok(others.filter(c => coElutesSEC(c, target, range)).length >= 2, range);
-    }
+    assert.ok(others.filter(c => coElutesSEC(c, target)).length >= 2);
   }
 });
 
@@ -116,7 +114,7 @@ test('the real runs agree: no single non-affinity step pools the target alone', 
       const pool = sumFractions(result, near3);
       return (pool[target.id] || 0) / sampleTotal(pool);
     };
-    for (const range of ['small', 'large']) assert.ok(purity(runSEC(proteins, sample, { range })) < 0.9, range);
+    assert.ok(purity(runSEC(proteins, sample)) < 0.9, 'SEC');
     for (const exchanger of ['anion', 'cation']) {
       for (const pH of [5, 6, 7, 8, 9]) assert.ok(purity(runIEX(proteins, sample, { exchanger, pH })) < 0.9, `${exchanger} ${pH}`);
     }
@@ -196,28 +194,22 @@ test('nothing is lost or created in an ion exchange run', () => {
 // ── Size exclusion ─────────────────────────────────────────────
 test('SEC elutes larger native proteins first', () => {
   const big = protein(60, 7), mid = protein(30, 7), small = protein(15, 7), proteins = [small, big, mid];
-  for (const range of ['small', 'large']) {
-    const result = runSEC(proteins, sampleOf(proteins), { range });
-    const center = id => result.peaks.find(x => x.id === id).center;
-    assert.ok(center(big.id) < center(mid.id) && center(mid.id) < center(small.id), range);
-  }
+  const result = runSEC(proteins, sampleOf(proteins));
+  const center = id => result.peaks.find(x => x.id === id).center;
+  assert.ok(center(big.id) < center(mid.id) && center(mid.id) < center(small.id));
 });
 
 test('proteins above the range elute in the void, and below it in the total volume', () => {
-  assert.equal(kav(100, 'small'), 0);
-  assert.equal(secVolume(100, 'small'), SEC_VOID);
-  assert.equal(secVolume(5000, 'large'), SEC_VOID);
-  assert.equal(kav(1, 'small'), 1);
-  assert.equal(secVolume(5, 'large'), SEC_TOTAL);
+  assert.equal(kav(600), 0);
+  assert.equal(secVolume(5000), SEC_VOID);
+  assert.equal(kav(10), 1);
+  assert.equal(secVolume(5), SEC_TOTAL);
 });
 
 test('Kav is linear in log(MW) inside the range', () => {
-  for (const [range, min, max] of [['small', 3, 70], ['large', 10, 600]]) {
-    const mid = Math.sqrt(min * max);
-    near(kav(mid, range), 0.5, 1e-9, range);
-    const a = kav(min * 2, range), b = kav(min * 4, range), c = kav(min * 8, range);
-    near(a - b, b - c, 1e-9, `${range} spacing`);
-  }
+  near(kav(Math.sqrt(10 * 600)), 0.5, 1e-9, 'middle');
+  const a = kav(20), b = kav(40), c = kav(80);
+  near(a - b, b - c, 1e-9, 'spacing');
 });
 
 test('SEC goes by native size: a dimer runs as twice its subunit', () => {
@@ -225,12 +217,12 @@ test('SEC goes by native size: a dimer runs as twice its subunit', () => {
   assert.equal(nativeSize(dimer), 60);
   assert.equal(nativeSize(bond), 60);
   assert.equal(nativeSize(monomer), 30);
-  assert.ok(secVolume(nativeSize(dimer), 'large') < secVolume(nativeSize(monomer), 'large'));
+  assert.ok(secVolume(nativeSize(dimer)) < secVolume(nativeSize(monomer)));
 });
 
 test('SEC has no flow-through or wash, and all protein is in the profile', () => {
   const proteins = plain(generateLysate(createRng(3)));
-  const result = runSEC(proteins, fullSample(proteins), { range: 'large' });
+  const result = runSEC(proteins, fullSample(proteins));
   assert.equal(result.phases.flowThrough, undefined);
   assert.equal(result.phases.wash, undefined);
   near(sampleTotal(sumFractions(result, all)), 100, 1e-6, 'total');
@@ -356,8 +348,8 @@ test('there are 30 fractions, and the curve peaks where the protein is', () => {
 
 test('A280 is the sum of the peaks, with larger amounts giving larger peaks', () => {
   const a = protein(600, 7, { amount: 10 }), b = protein(600, 7, { amount: 30 });
-  const one = runSEC([a], sampleOf([a]), { range: 'large' });
-  const both = runSEC([a, b], sampleOf([a, b]), { range: 'large' });
+  const one = runSEC([a], sampleOf([a]));
+  const both = runSEC([a, b], sampleOf([a, b]));
   const v = one.peaks[0].center;
   near(a280At(both, v), a280At(one, v) * 4, 1e-9, 'sum');
 });
@@ -575,4 +567,60 @@ test('tagged blobs stay inside the tube walls', () => {
   const widestRight = 25, widestLeft = 10;       // a dimer with an MBP tag, measured in the browser
   assert.ok(start + 4 * step + 4 + 6 + widestRight <= 182, 'right wall');
   assert.ok(start - 4 - 4 - widestLeft >= 18, 'left wall');
+});
+
+// ── Requested wording and known values ─────────────────────────
+test('the page wording matches the request', () => {
+  assert.match(HTML, /<p class="subtitle">Choose purification steps, evaluate results on an SDS-PAGE to pool the desired fractions<\/p>/);
+  assert.match(HTML, /<div>Color: net charge at/);
+  assert.match(HTML, /<div>★ Target protein<\/div>/);
+  assert.doesNotMatch(HTML, /Blob color|Blob size|Crimson outline/);
+});
+
+test('SEC offers no column choice and lists no range', () => {
+  assert.doesNotMatch(HTML, /data-range|sec-settings|Small range|Large range|fractionation range/i);
+  assert.doesNotMatch(SCRIPT, /state\.range/);
+});
+
+test('the target panel gives the known MW and pI, following the tag', () => {
+  const target = { isTarget: true, oligomer: 'monomer', mw: 41.6, pI: 6.84 };
+  assert.deepEqual(plain(targetFacts(target)), { mw: '42 kDa', pI: '6.8' });
+  assert.equal(targetFacts(target, 'his').mw, '43 kDa with His₆ tag');
+  assert.equal(targetFacts(target, 'mbp').mw, '84 kDa with MBP tag');
+  assert.equal(targetFacts(target, 'gst').mw, '68 kDa per subunit with GST tag (dimer in solution)');
+  assert.equal(targetFacts({ ...target, oligomer: 'dimer' }).mw, '42 kDa per subunit (dimer in solution)');
+  assert.match(SCRIPT, /targetFacts\(state\.proteins\.find\(p => p\.isTarget\), state\.tag\)/, 'never a contaminant');
+});
+
+test('the MW shown is where the target runs on a reducing gel', () => {
+  for (const proteins of lysates()) {
+    const target = proteins.find(p => p.isTarget);
+    for (const tag of [null, 'his', 'mbp', 'gst']) {
+      assert.equal(parseInt(targetFacts(target, tag).mw, 10), Math.round(gelMW(target, tag, true)));
+    }
+  }
+});
+
+test('each method shows its own beads in the column, inside the bed', () => {
+  const anion = { method: 'iex', exchanger: 'anion', resin: 'ni' }, cation = { ...anion, exchanger: 'cation' };
+  const sec = { ...anion, method: 'sec' };
+  const affinity = resin => ({ ...anion, method: 'affinity', resin });
+  const pictures = [anion, cation, sec, affinity('ni'), affinity('amylose'), affinity('glutathione')].map(s => columnBeads(s));
+  assert.equal(new Set(pictures).size, pictures.length, 'all different');
+  assert.match(beadMarkup(40, 40, anion), /V/, 'plus sign on anion exchange beads');
+  assert.doesNotMatch(beadMarkup(40, 40, cation), /V/, 'minus sign on cation exchange beads');
+  assert.match(columnLabel(anion), /positively charged anion/);
+  assert.match(columnLabel(cation), /negatively charged cation/);
+  assert.match(columnLabel(sec), /porous size exclusion/);
+  assert.match(columnLabel(affinity('amylose')), /Amylose affinity/);
+  for (const m of pictures.join('').matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)) {
+    const [x, y, r] = m.slice(1).map(Number);
+    assert.ok(x - r >= 26 && x + r <= 70 && y - r >= 30 && y + r <= 186, m[0]);
+  }
+});
+
+test('the column graphic draws the beads, behind any blobs in the animation', () => {
+  assert.match(SCRIPT, /columnBase\(\) \+ scene/);
+  assert.match(SCRIPT, /columnBeads\(state\)/);
+  assert.doesNotMatch(SCRIPT, /COLUMN_BASE/);
 });

@@ -105,6 +105,10 @@
     /* ── Sample tube ── */
     #tube { display: block; width: 100%; max-width: 220px; height: auto; margin: 0 auto; }
     .blob { cursor: help; }
+    #target-facts { font-size: 0.88em; margin: 0 0 8px; }
+    #target-facts div { display: flex; gap: 6px; }
+    #target-facts dt { font-weight: 700; white-space: nowrap; }
+    #target-facts dd { margin: 0; }
     #sample-key { font-size: 0.8em; margin-top: 8px; line-height: 1.5; }
     #charge-scale { height: 10px; border: 1px solid var(--ut-taupe); border-radius: 3px; background: linear-gradient(to right, #1565C0, #E4E4E4, #C8102E); margin: 3px 0 1px; }
     #charge-ends { display: flex; justify-content: space-between; }
@@ -152,7 +156,7 @@
 <body>
 
 <h1>Protein Purification</h1>
-<p class="subtitle">Chain purification steps, pool the fractions you choose, and judge the result on an SDS-PAGE gel</p>
+<p class="subtitle">Choose purification steps, evaluate results on an SDS-PAGE to pool the desired fractions</p>
 
 <main id="main-layout">
   <section class="panel" aria-label="Step history">
@@ -169,13 +173,16 @@
   <div id="columns">
     <section class="panel" id="sample-panel" aria-labelledby="sample-title">
       <h2 class="panel-title" id="sample-title">Current Sample</h2>
+      <dl id="target-facts">
+        <div><dt>Target MW</dt><dd id="target-mw"></dd></div>
+        <div><dt>Target pI</dt><dd id="target-pi"></dd></div>
+      </dl>
       <svg id="tube" viewBox="0 0 200 350" role="img"></svg>
       <div id="sample-key">
-        <div>Blob color: net charge at <b>pH <span id="key-ph"></span></b></div>
+        <div>Color: net charge at <b>pH <span id="key-ph"></span></b></div>
         <div id="charge-scale"></div>
         <div id="charge-ends"><span>Positive</span><span>Neutral</span><span>Negative</span></div>
-        <div>Blob size: native size</div>
-        <div>★ Crimson outline: target protein</div>
+        <div>★ Target protein</div>
       </div>
     </section>
 
@@ -207,16 +214,6 @@
                 <input type="number" id="ph-number" min="4" max="10" step="0.1">
               </div>
               <p class="error" id="ph-error" role="alert"></p>
-            </div>
-          </div>
-
-          <div id="sec-settings" hidden>
-            <div class="field">
-              <span class="field-label" id="range-label">Column fractionation range</span>
-              <div class="button-row" role="group" aria-labelledby="range-label">
-                <button type="button" data-range="small">Small range (3–70 kDa)</button>
-                <button type="button" data-range="large">Large range (10–600 kDa)</button>
-              </div>
             </div>
           </div>
 
@@ -314,10 +311,7 @@
 // Students never see these numbers: not MW, pI or amounts. Only the blobs, peaks and bands show them.
 
 const FRACTIONS = 30;           // 1 mL each, so fraction n covers volumes n−1 to n
-const SEC_RANGES = {
-  small: { min: 3, max: 70 },
-  large: { min: 10, max: 600 },
-};
+const SEC_RANGE = { min: 10, max: 600 };    // kDa
 const SEC_VOID = 9, SEC_TOTAL = 25;   // void and total volumes, in mL
 const TAGS = {
   his: { name: 'His₆', mass: 1 },
@@ -355,6 +349,16 @@ const nativeSize = (p, tag = null) => subunitMW(p, tag) * subunitCount(p, tag);
 
 // What runs on the gel: disulfide-linked dimers stay together only without reductant.
 const gelMW = (p, tag, reducing) => subunitMW(p, tag) * (p.oligomer === 'disulfide' && !reducing ? 2 : 1);
+
+// The target's known values, the only protein numbers the page shows. The tag adds its mass to the MW.
+function targetFacts(target, tag = null) {
+  const withTag = tag ? ` with ${TAGS[tag].name} tag` : '';
+  const dimer = subunitCount(target, tag) === 2;
+  return {
+    mw: `${Math.round(subunitMW(target, tag))} kDa${dimer ? ' per subunit' : ''}${withTag}${dimer ? ' (dimer in solution)' : ''}`,
+    pI: target.pI.toFixed(1),
+  };
+}
 
 // −1 to 1: positive below the pI and negative above it.
 const netCharge = (pI, pH) => Math.tanh((pI - pH) / 1.5);
@@ -457,11 +461,11 @@ function elutionSalt(p, pH, tag = null) {
 }
 
 // ── Size exclusion ──
-function kav(size, range) {
-  const { min, max } = SEC_RANGES[range];
+function kav(size) {
+  const { min, max } = SEC_RANGE;
   return Math.min(1, Math.max(0, (Math.log10(max) - Math.log10(size)) / (Math.log10(max) - Math.log10(min))));
 }
-const secVolume = (size, range) => SEC_VOID + kav(size, range) * (SEC_TOTAL - SEC_VOID);
+const secVolume = size => SEC_VOID + kav(size) * (SEC_TOTAL - SEC_VOID);
 
 // ── Chromatography runs ──
 // A run is a list of Gaussian peaks. The curve and the fractions both come from the same peaks.
@@ -518,9 +522,9 @@ function runIEX(proteins, sample, { exchanger, pH }, tag = null) {
   };
 }
 
-function runSEC(proteins, sample, { range }, tag = null) {
+function runSEC(proteins, sample, tag = null) {
   const peaks = proteins.filter(p => sample[p.id]).map(p => ({
-    id: p.id, amount: sample[p.id], center: secVolume(nativeSize(p, tag), range), sigma: 0.7,
+    id: p.id, amount: sample[p.id], center: secVolume(nativeSize(p, tag)), sigma: 0.7,
   }));
   return {
     method: 'sec', label: 'SEC', peaks, fractions: fractionsFromPeaks(peaks), retained: {},
@@ -639,12 +643,12 @@ function coElutesIEX(a, b, exchanger, pH, tag = null) {
   if (pa === null || pb === null) return pa === pb;
   return Math.abs(pa - pb) <= IEX_COELUTE;
 }
-const coElutesSEC = (a, b, range, tag = null) =>
-  Math.abs(secVolume(nativeSize(a, tag), range) - secVolume(nativeSize(b, tag), range)) <= SEC_COELUTE;
+const coElutesSEC = (a, b, tag = null) =>
+  Math.abs(secVolume(nativeSize(a, tag)) - secVolume(nativeSize(b, tag))) <= SEC_COELUTE;
 
 const CHECK_PHS = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 function separableFromTarget(c, target) {
-  if (!coElutesSEC(c, target, 'small') || !coElutesSEC(c, target, 'large')) return true;
+  if (!coElutesSEC(c, target)) return true;
   return ['anion', 'cation'].some(ex => CHECK_PHS.some(pH => !coElutesIEX(c, target, ex, pH)));
 }
 
@@ -653,9 +657,7 @@ function isPurifiable(proteins) {
   if (!others.every(c => separableFromTarget(c, target))) return false;
   if (!others.some(c => c.oligomer === 'disulfide')) return false;
   if (!others.every(c => clearOfTarget(c.mw, target))) return false;
-  for (const range of Object.keys(SEC_RANGES)) {
-    if (others.filter(c => coElutesSEC(c, target, range)).length < 2) return false;
-  }
+  if (others.filter(c => coElutesSEC(c, target)).length < 2) return false;
   for (const ex of ['anion', 'cation']) {
     for (const pH of CHECK_PHS) {
       if (others.filter(c => coElutesIEX(c, target, ex, pH)).length < 2) return false;
@@ -706,6 +708,44 @@ function blobMarkup(p, pH, tag = null) {
 }
 
 // ── Column animation ──
+// The beads packed in the column. Each kind has its own shape, so none relies on color: charged
+// beads carry a sign, SEC beads show pores, and affinity beads carry their resin's ligand.
+const BEAD_SPOTS = (() => {
+  const spots = [];
+  for (let row = 0; row < 15; row++) {
+    const xs = row % 2 ? [37, 48, 59] : [31.5, 42.5, 53.5, 64.5];
+    for (const x of xs) spots.push({ x, y: 36 + row * 10 });
+  }
+  return spots;
+})();
+const BEAD_BLUE = '#1565C0', BEAD_RED = '#C8102E', BEAD_GRAY = '#404040';
+
+function beadMarkup(x, y, { method, exchanger, resin }) {
+  const shell = (r, stroke) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#FFFFFF" stroke="${stroke}" stroke-width="1"/>`;
+  if (method === 'iex') {
+    const positive = exchanger === 'anion', color = positive ? BEAD_BLUE : BEAD_RED;
+    const sign = positive ? `M${x - 2.6},${y} H${x + 2.6} M${x},${y - 2.6} V${y + 2.6}` : `M${x - 2.6},${y} H${x + 2.6}`;
+    return shell(4.6, color) + `<path d="${sign}" stroke="${color}" stroke-width="1.4" fill="none"/>`;
+  }
+  if (method === 'sec') {
+    const pores = [[-1.9, -1.4], [1.8, -1.2], [0, 1.9]];
+    return shell(4.6, BEAD_GRAY) + pores.map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="1" fill="${BEAD_GRAY}"/>`).join('');
+  }
+  const ligand = (px, py) => {
+    if (resin === 'ni') return `<circle cx="${px}" cy="${py}" r="1.2" fill="${BEAD_BLUE}"/>`;
+    if (resin === 'amylose') return `<circle cx="${px}" cy="${py}" r="1.1" fill="#FFFFFF" stroke="${BEAD_GRAY}" stroke-width="0.8"/>`;
+    return `<rect x="${px - 1.1}" y="${py - 1.1}" width="2.2" height="2.2" fill="${BEAD_RED}"/>`;
+  };
+  return shell(3.1, BEAD_GRAY) + [[0, -4.1], [4.1, 0], [0, 4.1], [-4.1, 0]].map(([dx, dy]) => ligand(x + dx, y + dy)).join('');
+}
+const columnBeads = settings => BEAD_SPOTS.map(({ x, y }) => beadMarkup(x, y, settings)).join('');
+
+function columnLabel({ method, exchanger, resin }) {
+  if (method === 'iex') return `Column packed with ${exchanger === 'anion' ? 'positively charged anion' : 'negatively charged cation'} exchange beads`;
+  if (method === 'sec') return 'Column packed with porous size exclusion beads';
+  return `Column packed with ${RESIN_NAMES[resin]} affinity beads`;
+}
+
 // Where a blob is, from 0 at the top of the bed to 1 at the bottom, at time t from 0 to 1.
 // Null means it has left the column.
 const STAGES = [[0, 'Load'], [0.3, 'Wash'], [0.55, 'Elute']];
@@ -743,7 +783,6 @@ const state = {
   method: 'iex',
   exchanger: 'anion',
   pH: 7,
-  range: 'large',
   resin: 'ni',
   eluent: 'imidazole',
   gels: [newGel()],
@@ -815,22 +854,28 @@ function columnFrame(blobs, t) {
     const outline = p.isTarget ? 'stroke="#C8102E" stroke-width="1.5"' : 'stroke="#404040" stroke-width="0.5"';
     return `<circle cx="${x}" cy="${COLUMN_TOP + y * (COLUMN_BOTTOM - COLUMN_TOP)}" r="${Math.min(6, 2 + blobRadius(nativeSize(p, state.tag)) / 3)}" fill="${fill}" ${outline}/>`;
   }).join('');
-  $('column-graphic').innerHTML = COLUMN_BASE + scene;
+  $('column-graphic').innerHTML = columnBase() + scene;
   $('column-stage').textContent = result_stage(stage);
 }
 const result_stage = stage => (state.pending && state.pending.result.method === 'sec' && stage ? 'Separating by size' : stage);
 
-const COLUMN_BASE =
+const columnBase = () =>
   `<rect x="24" y="12" width="48" height="176" rx="5" fill="#F0F0F0" stroke="#685C53" stroke-width="2.5"/>` +
   `<rect x="26" y="30" width="44" height="156" fill="#E6E0CC" fill-opacity="0.7"/>` +
+  columnBeads(state) +
   `<path d="M48,2 V12 M48,188 V206" stroke="#685C53" stroke-width="3"/>`;
+
+function renderColumnGraphic() {
+  if (!animationFrame) $('column-graphic').innerHTML = columnBase();
+  $('column-graphic').setAttribute('aria-label', columnLabel(state));
+}
 
 function stopAnimation() {
   cancelAnimationFrame(animationFrame);
   animationFrame = 0;
   $('skip-animation').hidden = true;
   $('column-stage').textContent = '';
-  $('column-graphic').innerHTML = COLUMN_BASE;
+  renderColumnGraphic();
 }
 
 function playColumnAnimation(onDone) {
@@ -1108,7 +1153,7 @@ function runColumn() {
   const before = snapshot();
   const { proteins, sample, tag } = state;
   const result = state.method === 'iex' ? runIEX(proteins, sample, { exchanger: state.exchanger, pH: state.pH }, tag)
-    : state.method === 'sec' ? runSEC(proteins, sample, { range: state.range }, tag)
+    : state.method === 'sec' ? runSEC(proteins, sample, tag)
       : runAffinity(proteins, sample, { resin: state.resin, eluent: state.eluent }, tag);
   const stepId = state.nextStepId++;
   if (tag) state.tagLocked = true;
@@ -1212,7 +1257,6 @@ function renderHistory() {
 function renderSettings() {
   document.querySelectorAll('[data-method]').forEach(b => setPressed(b, b.dataset.method === state.method));
   document.querySelectorAll('[data-exchanger]').forEach(b => setPressed(b, b.dataset.exchanger === state.exchanger));
-  document.querySelectorAll('[data-range]').forEach(b => setPressed(b, b.dataset.range === state.range));
   document.querySelectorAll('[data-resin]').forEach(b => setPressed(b, b.dataset.resin === state.resin));
   document.querySelectorAll('[data-eluent]').forEach(b => setPressed(b, b.dataset.eluent === state.eluent));
   document.querySelectorAll('[data-tag]').forEach(b => {
@@ -1221,7 +1265,6 @@ function renderSettings() {
   });
   $('tag-note').textContent = state.tagLocked ? 'The tag stays with the target for the rest of this run.' : state.tag ? '' : 'Choose a tag to begin.';
   $('iex-settings').hidden = state.method !== 'iex';
-  $('sec-settings').hidden = state.method !== 'sec';
   $('affinity-settings').hidden = state.method !== 'affinity';
   $('ph-range').value = state.pH;
   if (document.activeElement !== $('ph-number')) $('ph-number').value = state.pH.toFixed(1);
@@ -1261,9 +1304,17 @@ function updateChromatogramLabel() {
   chroma.canvas.setAttribute('aria-label', `Chromatogram of A280 against elution volume, divided into ${FRACTIONS} numbered fractions.${marks} ${$('pool-readout').textContent}`);
 }
 
+function renderTargetFacts() {
+  const facts = targetFacts(state.proteins.find(p => p.isTarget), state.tag);
+  $('target-mw').textContent = facts.mw;
+  $('target-pi').textContent = facts.pI;
+}
+
 function renderAll() {
   renderHistory();
   renderSettings();
+  renderColumnGraphic();
+  renderTargetFacts();
   renderTube();
   renderGel();
   if (state.pending && !$('chromatogram-area').hidden) {
@@ -1274,7 +1325,7 @@ function renderAll() {
 }
 
 // ── Controls ──
-const choiceGroups = { method: 'method', exchanger: 'exchanger', range: 'range', resin: 'resin', eluent: 'eluent' };
+const choiceGroups = { method: 'method', exchanger: 'exchanger', resin: 'resin', eluent: 'eluent' };
 for (const [attribute, key] of Object.entries(choiceGroups)) {
   document.querySelectorAll(`[data-${attribute}]`).forEach(button => button.addEventListener('click', () => {
     state[key] = button.dataset[attribute];
@@ -1422,7 +1473,6 @@ window.addEventListener('resize', () => {
 
 // ═══ 6. STARTUP ═══════════════════════════════════════════════
 
-$('column-graphic').innerHTML = COLUMN_BASE;
 newLysate();
 </script>
 </body>
