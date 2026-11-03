@@ -383,6 +383,22 @@
     }
     .dp-legend-item { display: flex; align-items: center; gap: 5px; }
     .dp-legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: 1px solid #685C53; }
+
+    /* Narrow screens: one column, in the order top-left, top-right, bottom-left, bottom-right,
+       which is the order of the boxes in the page. Canvases shrink to fit. */
+    @media (max-width: 1080px) {
+      #main-layout { grid-template-columns: minmax(0, 520px); justify-content: center; width: 100%; }
+      #ribbon, #dipeptide, #plot { max-width: 100%; height: auto; }
+      #dipeptide-wrapper { max-width: 100%; }
+    }
+    @media (max-width: 480px) {
+      body { padding: 20px 12px 32px; }
+      #panel, #ribbon-section { padding: 14px; }
+      .angle-block { gap: 12px; }
+      .legend { padding: 0 12px; }
+      #dipeptide-header { flex-direction: column; align-items: center; gap: 2px; }
+      #residue-row { flex-wrap: wrap; justify-content: center; }
+    }
   </style>
 </head>
 <body>
