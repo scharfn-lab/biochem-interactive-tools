@@ -120,6 +120,14 @@
       margin-bottom: 24px;
     }
 
+    /* A topic group's heading spans the whole row of cards. */
+    .group-title {
+      grid-column: 1 / -1;
+      font-size: 0.95em;
+      margin-bottom: -4px;
+    }
+    .group-title:not(:first-child) { margin-top: 12px; }
+
     /* ── Tool cards ── */
     .tool-card {
       display: flex;
@@ -360,9 +368,15 @@ function topicCards(topic) {
   return tools.length ? tools.map(toolCard).join('') : comingSoonCard(topic);
 }
 
+// The cards of each group sit under the same heading as its button row.
+function groupCards(group) {
+  return `<h2 class="section-title group-title">${escapeHtml(group.heading)}</h2>`
+    + group.topics.map(topicCards).join('');
+}
+
 function renderPage() {
   document.getElementById('tool-links').innerHTML = TOPIC_GROUPS.map(buttonRow).join('');
-  document.getElementById('topics').innerHTML = TOPICS.map(topicCards).join('');
+  document.getElementById('topics').innerHTML = TOPIC_GROUPS.map(groupCards).join('');
   document.getElementById('site-footer').textContent = `Last updated: ${LAST_UPDATED}`;
 
   if (LOGO_FILE) {
