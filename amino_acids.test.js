@@ -80,7 +80,7 @@ function fakeRDKit(log) {
 }
 
 // Most tests begin from the structure section; asOpened keeps the page's real starting section
-function loadPage({ rdkit = true, asOpened = false } = {}) {
+function loadPage({ rdkit = true, asOpened = false, touch = false } = {}) {
   const roots = [...MARKUP.matchAll(/<(\w+)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*\/?>/g)].map(m => {
     const attrs = Object.fromEntries([...m[2].matchAll(/([\w-]+)="([^"]*)"/g)].map(a => [a[1], a[2]]));
     return makeElement(m[1], attrs);
@@ -99,6 +99,8 @@ function loadPage({ rdkit = true, asOpened = false } = {}) {
       then(onLoad) { loader.load = () => onLoad(fakeRDKit(log)); return { catch(onFail) { loader.fail = onFail; } }; },
     }),
   };
+  if (touch) window.matchMedia = query => ({ matches: query.includes('pointer: coarse') });
+  makeElement.focused = undefined;
   const context = vm.createContext({ document, window });
   vm.runInContext(SCRIPT, context);
   document.fire('DOMContentLoaded');
@@ -685,6 +687,13 @@ test('typing shows only the options that start with those letters, in any case',
   pickNameType(page, 'c1');
   typeInto(page, 'c1', 'a');
   assert.deepEqual(listed(page, 'c1'), ['A'], 'a complete answer still narrows while typing');
+});
+
+test('on a phone, a new question leaves focus alone, so the page does not scroll to the box', () => {
+  const page = loadPage({ touch: true });
+  ask(page, 'A', 7);
+  page.run(`setDisplayMode('name')`);
+  assert.equal(makeElement.focused, undefined);
 });
 
 test('a new question does not open a list by focusing the box', () => {

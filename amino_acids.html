@@ -1524,8 +1524,15 @@ function renderQuestion() {
   // Re-enable check button
   document.getElementById('btn-check').disabled = false;
 
-  if (activeFields.length > 0)
-    document.getElementById('inp-' + activeFields[0]).focus();
+  // On a phone, focusing the box opens the keyboard and scrolls the page to it, so a new
+  // question leaves focus alone there. Elsewhere the page stays put, with the box ready to type in.
+  if (activeFields.length > 0 && !isTouchScreen())
+    document.getElementById('inp-' + activeFields[0]).focus({ preventScroll: true });
+}
+
+function isTouchScreen() {
+  return typeof window.matchMedia === 'function'
+    && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
 // ─── Answer checking ──────────────────────────────────────────────────────────
