@@ -994,7 +994,14 @@ function nextQuizQuestion() {
   activePHPreset = pH;
   quizFormat = Math.random() < 0.5 ? 'one' : 'three';
   generateRandomPeptide();
-  $('quiz-seq').focus();
+  if (!isTouchScreen()) $('quiz-seq').focus({ preventScroll: true });
+}
+
+// On a phone, focusing a text box opens the keyboard and scrolls the page to it, so a new
+// question leaves focus alone there. Elsewhere the box is ready to type in, without scrolling.
+function isTouchScreen() {
+  return typeof window.matchMedia === 'function'
+    && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
 function toggleQuiz() {

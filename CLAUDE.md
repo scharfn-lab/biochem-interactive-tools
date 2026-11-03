@@ -184,6 +184,7 @@ These pages have a quiz but don't track results this way yet, and should gain it
 
 ## Conventions
 
+- **No jump to the answer box on phones.** A page that puts the cursor in a text box when a question opens calls `focus({ preventScroll: true })`, and skips it when `isTouchScreen()` is true, since on a phone focus opens the keyboard and scrolls the page.
 - **No framework, no bundler.** Pure vanilla JS + Canvas 2D API. All math (vectors, matrices, NeRF) is implemented inline.
 - **Greek letters** use Unicode directly in source (e.g., `ϕ` U+03D5, `ψ` U+03C8) — not HTML entities — in JS strings and canvas `fillText` calls.
 - **Depth-based alpha** throughout the 3D viewer: `alpha = 0.5 + 0.5 * Math.tanh(depth * 0.3 + 0.5)`. Atoms use a slightly different curve (`0.55 + 0.45 * ...`).

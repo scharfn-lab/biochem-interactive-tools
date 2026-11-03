@@ -696,7 +696,14 @@ function newQuestion() {
   // Reset check button
   document.getElementById('check-btn').disabled = false;
 
-  input.focus();
+  if (!isTouchScreen()) input.focus({ preventScroll: true });
+}
+
+// On a phone, focusing a text box opens the keyboard and scrolls the page to it, so a new
+// question leaves focus alone there. Elsewhere the box is ready to type in, without scrolling.
+function isTouchScreen() {
+  return typeof window.matchMedia === 'function'
+    && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
 // ─── Check Answer ─────────────────────────────────────────────────────────────

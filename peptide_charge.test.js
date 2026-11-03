@@ -53,14 +53,16 @@ function makeElement(tag, attrs = {}) {
     getContext: () => context,
     context,
     getBoundingClientRect: () => ({ left: 0, top: 0 }),
-    focus() {},
+    focus(options) { focusLog.push({ id: el.id, options }); },
     querySelectorAll: () => [],
     querySelector: () => null,
   };
   return el;
 }
 
-function loadPage() {
+const focusLog = [];
+
+function loadPage({ touch = false } = {}) {
   const roots = [...MARKUP.matchAll(/<(\w+)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*\/?>/g)].map(m => {
     const attrs = Object.fromEntries([...m[2].matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map(a => [a[1], a[2] ?? '']));
     return makeElement(m[1], attrs);
@@ -73,6 +75,7 @@ function loadPage() {
   document.getElementById = id => (id === 'structure' ? structure : realGet(id));
   const window = makeElement('window');
   window.devicePixelRatio = 1;
+  window.matchMedia = query => ({ matches: touch && query.includes('pointer: coarse') });
   const context = vm.createContext({ document, window });
   vm.runInContext(SCRIPT, context);
   return {
@@ -1218,4 +1221,14 @@ test('pH and pI keep their capitalization on screen', () => {
 test('feedback keeps black text on its colored background', () => {
   assert.match(CSS, /\.quiz-result \{[^}]*color: #000000/);
   assert.match(CSS, /\.quiz-result\.info \{/);
+});
+
+// ── Focus on a new quiz question ───────────────────────────────
+test('a new quiz question readies the sequence box without scrolling, but leaves focus alone on a phone', () => {
+  focusLog.length = 0;
+  loadPage().run('nextQuizQuestion()');
+  assert.deepEqual(JSON.parse(JSON.stringify(focusLog)), [{ id: 'quiz-seq', options: { preventScroll: true } }]);
+  focusLog.length = 0;
+  loadPage({ touch: true }).run('nextQuizQuestion()');
+  assert.deepEqual(focusLog, []);
 });
