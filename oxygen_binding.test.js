@@ -229,8 +229,8 @@ test('O₂ delivery has only Rest and Exercise, with no marker toggle', () => {
 
 test('P₅₀, the pink band and the old results text are gone', () => {
   assert.doesNotMatch(HTML, /drawP50|P₅₀|P<sub>50<\/sub>|COLORS\.band|results-shift|SHIFT_TEXT/);
-  const results = HTML.slice(HTML.indexOf('function renderResults'), HTML.indexOf('function updateCanvasLabel'));
-  assert.doesNotMatch(results, /Adjustable|p50/);
+  const hill = HTML.slice(HTML.indexOf('function renderHill'), HTML.indexOf('function updateCanvasLabel'));
+  assert.doesNotMatch(hill, /Adjustable|p50/);
   assert.doesNotMatch(HTML.slice(HTML.indexOf('function updateCanvasLabel'), HTML.indexOf('// ═══ 5.')), /P50|p50/);
 });
 
@@ -274,15 +274,14 @@ test('the label reads Adjusted Hb, never Adjustable', () => {
 });
 
 // ── Layout ─────────────────────────────────────────────────────
-test('Results sits right of Conditions, and the schematic left of the curve', () => {
+test('Conditions and the schematic stack left of the curve, with no Results box', () => {
   const at = marker => HTML.indexOf(marker);
-  assert.ok(at('id="controls-row"') < at('id="controls-title"'));
-  assert.ok(at('id="controls-title"') < at('id="results-title"'));
-  assert.ok(at('id="results-title"') < at('id="plot-row"'));
-  assert.ok(at('id="plot-row"') < at('id="schematic-title"'));
+  assert.doesNotMatch(HTML, /results-title|results-table|renderResults|controls-row/);
+  assert.ok(at('id="plot-row"') < at('id="side-column"'));
+  assert.ok(at('id="side-column"') < at('id="controls-title"'));
+  assert.ok(at('id="controls-title"') < at('id="schematic-title"'));
   assert.ok(at('id="schematic-title"') < at('id="plot-title"'));
-  assert.match(HTML, /#controls-row \{ grid-template-columns: minmax\(0, 588px\) minmax\(0, 1fr\); \}/);
-  assert.match(HTML, /#plot-row \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 533px\); \}/);
+  assert.match(HTML, /#plot-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 533px\); \}/);
 });
 
 // ── Schematic ──────────────────────────────────────────────────
@@ -298,16 +297,15 @@ test('the schematic has its name for screen readers and moves gently', () => {
   assert.match(HTML, /\{ key: 'po2', decimals: 0, name: 'pO₂' \}/);
 });
 
-// ── Results ────────────────────────────────────────────────────
-test('the results read % Saturation, with Hill coefficient last and briefly described', () => {
-  const results = HTML.slice(HTML.indexOf('function renderResults'), HTML.indexOf('function updateCanvasLabel'));
-  const at = text => results.indexOf(text);
-  assert.ok(at("'% Saturation (lung)'") > 0 && at("'% Saturation (lung)'") < at("'% Saturation (tissue)'"));
-  assert.ok(at("'% Saturation (tissue)'") < at("'% O₂ delivered'") && at("'% O₂ delivered'") < at("'Hill coefficient, n'"));
-  assert.doesNotMatch(results, /Y at lung|Y at tissue|Y\(lung\)/);
-  assert.match(results, /row\('% O₂ delivered', ''/, 'no descriptor');
-  const words = results.match(/'Hill coefficient, n', '([^']+)'/)[1].split(/\s+/).length;
-  assert.ok(words >= 5 && words <= 10, `${words} words`);
+// ── Hill coefficient ───────────────────────────────────────────
+test('the Hill coefficient and a short descriptor sit below the plot, hidden in the quiz', () => {
+  const panel = HTML.slice(HTML.indexOf('id="plot-panel"'), HTML.indexOf('</main>'));
+  assert.ok(panel.indexOf('<canvas id="plot"') < panel.indexOf('id="hill-note"'));
+  const hill = HTML.slice(HTML.indexOf('function renderHill'), HTML.indexOf('function updateCanvasLabel'));
+  assert.match(hill, /Hill coefficient, n/);
+  assert.match(hill, /c\.curve\.n\.toFixed\(2\)/);
+  assert.match(hill, /\$\{HILL_DESCRIPTOR\}/);
+  assert.ok(HTML.includes("$('hill-note').hidden = on;"));
 });
 
 // ── Schematic population ───────────────────────────────────────
@@ -747,10 +745,10 @@ test('in match questions Normal Hb never gives away a lettered curve', () => {
 // ── Page wiring ────────────────────────────────────────────────
 test('the quiz button sits above the page, and the quiz panel starts hidden', () => {
   const at = marker => HTML.indexOf(marker);
-  assert.ok(at('id="quiz-toggle"') < at('id="controls-row"'));
+  assert.ok(at('id="quiz-toggle"') < at('id="controls-panel"'));
   assert.match(HTML, /id="quiz-panel"[^>]*hidden/);
   const fn = HTML.slice(HTML.indexOf('function setQuizMode'), HTML.indexOf("$('quiz-toggle').addEventListener"));
-  for (const id of ['controls-row', 'schematic-panel', 'affinity-box', 'hide-normal-label']) assert.ok(fn.includes(`$('${id}').hidden = on;`), id);
+  for (const id of ['controls-panel', 'schematic-panel', 'affinity-box', 'hide-normal-label']) assert.ok(fn.includes(`$('${id}').hidden = on;`), id);
 });
 
 test('the quiz never changes the conditions, and clicks do not place the point', () => {
@@ -814,14 +812,14 @@ test('a revealed answer has its own neutral style, not right or wrong', () => {
 
 // ── Layout of the controls ─────────────────────────────────────
 test('Reset to Normal sits right of Quiz Mode, and leaves during a quiz', () => {
-  const bar = HTML.slice(HTML.indexOf('<div id="quiz-bar">'), HTML.indexOf('id="controls-row"'));
+  const bar = HTML.slice(HTML.indexOf('<div id="quiz-bar">'), HTML.indexOf('id="controls-panel"'));
   assert.ok(bar.indexOf('id="quiz-toggle"') >= 0 && bar.indexOf('id="quiz-toggle"') < bar.indexOf('id="reset">Reset to Normal'));
   assert.equal(HTML.split('id="reset"').length, 2, 'only once');
   assert.ok(HTML.includes("$('reset').hidden = on;"));
 });
 
 test('the Conditions box says Curves, with no Show heading, reference or carbon monoxide', () => {
-  const box = HTML.slice(HTML.indexOf('id="controls-title"'), HTML.indexOf('id="results-title"'));
+  const box = HTML.slice(HTML.indexOf('id="controls-title"'), HTML.indexOf('id="quiz-panel"'));
   assert.doesNotMatch(box, />Show</);
   const at = text => box.indexOf(text);
   assert.ok(at('>Curves:<') > 0 && at('>Curves:<') < at('data-toggle="myoglobin">Myoglobin<') && at('data-toggle="myoglobin"') < at('data-toggle="fetal">Fetal Hb<'));
@@ -849,7 +847,8 @@ test('pO₂ has its box beside the header and a slider only that wide, with the 
   assert.match(HTML, /#po2-control \{ flex: none; \}/, 'as wide as the header and box');
   assert.match(HTML, /#po2-control input\[type=range\] \{ display: block; width: 100%; \}/);
   assert.ok(box.indexOf('id="po2-control"') < box.indexOf('id="schematic-key"'), 'the key follows, to the right');
-  assert.match(HTML, /#schematic-panel \{[^}]*align-self: start;/, 'the box takes only the height it needs');
+  assert.match(HTML, /#plot-row \{[^}]*align-items: start;/, 'each column takes only the height it needs');
+  assert.doesNotMatch(HTML, /#schematic-panel \{[^}]*align-self/, 'and the box fills the width of its column');
 });
 
 test('the curve legend has line keys on the first row and markings on the second', () => {

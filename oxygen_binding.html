@@ -170,10 +170,9 @@
     .control-row button { font-weight: 400; padding: 4px 12px; }
     #activity { margin-top: 10px; }
 
-    /* ── Plot and results ── */
-    #controls-row, #plot-row { display: grid; gap: 18px; align-items: stretch; }
-    #controls-row { grid-template-columns: minmax(0, 588px) minmax(0, 1fr); }
-    #plot-row { grid-template-columns: minmax(0, 1fr) minmax(0, 533px); }
+    /* ── Layout: Conditions and the schematic on the left, the curve on the right ── */
+    #plot-row { display: grid; gap: 18px; align-items: start; grid-template-columns: minmax(0, 1fr) minmax(0, 533px); }
+    #side-column { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 
     #plot-panel { min-width: 0; }
     #plot-wrap { max-width: 497px; margin: 0 auto; }
@@ -219,7 +218,7 @@
     .check-label input { accent-color: var(--ut-crimson); width: 16px; height: 16px; cursor: pointer; }
 
     /* ── Mb and Hb schematic ── */
-    #schematic-panel { display: flex; flex-direction: column; min-width: 0; align-self: start; }
+    #schematic-panel { display: flex; flex-direction: column; min-width: 0; }
     #schematic { display: block; width: 100%; height: auto; }
     #schematic text { font-family: inherit; fill: #000000; text-anchor: middle; }
     #schematic .cell-name { font-size: 11px; fill: var(--text-secondary); }
@@ -241,6 +240,9 @@
     #model-buttons button { padding: 3px 5px; font-size: 0.68em; }
  padding-top: 10px; }
     @media (prefers-reduced-motion: reduce) { .o2-site { transition: none; } }
+
+    #hill-note { font-size: 0.88em; margin-top: 10px; line-height: 1.5; }
+    #hill-note .unit { color: var(--text-secondary); }
 
     .plot-hint { font-size: 0.8em; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
 
@@ -275,7 +277,7 @@
     #quiz-breakdown td { text-align: right; }
 
     @media (max-width: 960px) {
-      #controls-row, #plot-row { grid-template-columns: minmax(0, 1fr); }
+      #plot-row { grid-template-columns: minmax(0, 1fr); }
     }
     @media (max-width: 480px) {
       .panel { padding: 12px; }
@@ -298,8 +300,9 @@
     <button type="button" id="reset">Reset to Normal</button>
   </div>
 
-  <div id="controls-row">
-  <section class="panel" aria-labelledby="controls-title">
+  <div id="plot-row">
+  <div id="side-column">
+  <section class="panel" id="controls-panel" aria-labelledby="controls-title">
     <div class="panel-header">
       <h2 class="panel-section-title" id="controls-title">Conditions</h2>
     </div>
@@ -355,13 +358,6 @@
     </div>
   </section>
 
-    <section class="panel" aria-labelledby="results-title">
-      <h2 class="panel-section-title" id="results-title">Results</h2>
-      <div id="results-table"></div>
-    </section>
-  </div>
-
-  <div id="plot-row">
     <section class="panel" id="quiz-panel" aria-labelledby="quiz-title" hidden>
       <div class="panel-header">
         <h2 class="panel-section-title" id="quiz-title">Quiz</h2>
@@ -428,6 +424,7 @@
       </div>
       </div>
     </section>
+  </div>
 
     <section class="panel" id="plot-panel" aria-labelledby="plot-title">
       <div class="panel-header">
@@ -437,6 +434,7 @@
       </div>
       <div id="plot-wrap"><canvas id="plot" role="img"></canvas></div>
       <div class="legend" id="legend"></div>
+      <p id="hill-note"></p>
       <p class="plot-hint" id="plot-hint">Click or tap the plot to place the red point at that pO₂. Hover to read the nearest curve.</p>
     </section>
   </div>
@@ -1367,21 +1365,14 @@ function renderAffinity() {
   box.className = shift === 'none' ? '' : shift;
 }
 
-function renderResults() {
-  const tissueP = state.activity ? MODEL.tissue[state.activity] : null;
-  const columns = [{ name: 'Adjusted Hb', curve: currentCurve() }];
-  if (state.show.fetal) columns.push({ name: 'Fetal Hb', curve: fetalCurve(state) });
-  const data = columns.map(c => ({ ...c, lung: saturation(c.curve, MODEL.tissue.lung), ...(tissueP ? delivery(c.curve, tissueP) : {}) }));
-  const row = (label, unit, value) => `<tr><th scope="row">${label}${unit ? ` <span class="unit">${unit}</span>` : ''}</th>${data.map(d => `<td>${value(d)}</td>`).join('')}</tr>`;
-  // One column needs no heading. Two have to say which is which.
-  const head = data.length > 1 ? `<thead><tr><td></td>${data.map(d => `<th scope="col">${d.name}</th>`).join('')}</tr></thead>` : '';
+const HILL_DESCRIPTOR = 'Measures cooperativity (>1 is cooperative)';
 
-  $('results-table').innerHTML = `<table>${head}<tbody>` +
-    row('% Saturation (lung)', `${MODEL.tissue.lung} torr`, d => fmtPercent(d.lung)) +
-    row('% Saturation (tissue)', tissueP ? `${tissueP} torr` : 'Select an O₂ delivery', d => (tissueP ? fmtPercent(d.tissue) : '—')) +
-    row('% O₂ delivered', '', d => (tissueP ? fmtPercent(d.delivered) : '—')) +
-    row('Hill coefficient, n', 'Measures cooperativity (>1 is cooperative)', d => d.curve.n.toFixed(2)) +
-    '</tbody></table>';
+// Below the plot: the Hill coefficient of Adjusted Hb, and of Fetal Hb when it shows.
+function renderHill() {
+  const curves = [{ name: 'Adjusted Hb', curve: currentCurve() }];
+  if (state.show.fetal) curves.push({ name: 'Fetal Hb', curve: fetalCurve(state) });
+  const values = curves.map(c => `${curves.length > 1 ? `${c.name} ` : ''}<b>${c.curve.n.toFixed(2)}</b>`).join(', ');
+  $('hill-note').innerHTML = `Hill coefficient, n: ${values}<br><span class="unit">${HILL_DESCRIPTOR}</span>`;
 }
 
 function updateCanvasLabel() {
@@ -1398,7 +1389,7 @@ function updateCanvasLabel() {
   const shift = state.show.normal ? (selected - saturation(normalHbCurve(), state.po2)) * 100 : 0;
   const shiftText = Math.abs(shift) >= 0.05 ? ` That is ${Math.abs(shift).toFixed(1)}% ${shift > 0 ? 'above' : 'below'} Normal Hb.` : '';
   plot.canvas.setAttribute('aria-label',
-    `Fractional and percent O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}.${deliveryText} A red point marks Adjusted Hb at the selected pO₂ of ${state.po2} torr, at ${fmtPercent(selected)} saturation.${shiftText} Values are in the results panel.`);
+    `Fractional and percent O₂ saturation against pO₂ from 0 to 120 torr. Curves: ${names}.${deliveryText} A red point marks Adjusted Hb at the selected pO₂ of ${state.po2} torr, at ${fmtPercent(selected)} saturation.${shiftText} The Hill coefficient is below the plot.`);
 }
 
 // Twelve molecules of each. Hemoglobin follows the Adjusted Hb curve.
@@ -1464,7 +1455,7 @@ function render() {
   state.hover = null;
   renderLegend();
   renderAffinity();
-  renderResults();
+  renderHill();
   renderSchematic();
   updateCanvasLabel();
   drawPlot();
@@ -1662,7 +1653,8 @@ function nextQuizQuestion() {
 function setQuizMode(on) {
   quiz.active = on;
   setPressed($('quiz-toggle'), on);
-  $('controls-row').hidden = on;
+  $('controls-panel').hidden = on;
+  $('hill-note').hidden = on;
   $('schematic-panel').hidden = on;
   $('reset').hidden = on;
   $('quiz-panel').hidden = !on;
