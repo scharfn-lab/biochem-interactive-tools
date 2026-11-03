@@ -214,6 +214,7 @@ test('sliders run pH, pCO₂, then 2,3-BPG side by side, below the O₂ delivery
     assert.ok(HTML.indexOf(`id="${key}-number"`) < HTML.indexOf(`id="${key}-range"`), `${key}: the bar sits below its box`);
   }
   assert.match(HTML, /#sliders \.slider-row \{ flex-direction: column;/);
+  assert.doesNotMatch(HTML, /#sliders \{[^}]*grid-template-columns: minmax\(0, 1fr\)/, 'phones keep all three on one line');
   const at = marker => HTML.indexOf(marker);
   assert.ok(at('id="toggles"') < at('id="activity-buttons"'));
   assert.ok(at('id="activity-buttons"') < at('id="sliders"'));
