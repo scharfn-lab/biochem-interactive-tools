@@ -469,13 +469,16 @@ test('extension toggles cascade and keep button labels in sync', () => {
   const flags = () => ['showNterm', 'showCterm', 'showExtra2', 'showExtra4'].map(f => page.run(f));
 
   page.run('toggleExtra4()');
-  assert.deepEqual(flags(), [true, true, true, true], 'adding 4 turns on everything it needs');
-  assert.equal(page.el('extra4-toggle').textContent, 'Remove 4 Additional AAs');
+  assert.deepEqual(flags(), [true, true, true, true], 'showing the extras turns on everything they need');
+  assert.equal(page.el('extra4-toggle').textContent, 'Hide Additional AAs');
 
-  page.run('toggleNterm()');
+  page.run('toggleExtra4()');
+  assert.deepEqual(flags(), [true, true, false, false], 'hiding removes all four extras, back to three residues');
+  assert.equal(page.el('extra4-toggle').textContent, 'Show Additional AAs');
+
+  page.run('toggleExtra4(); toggleNterm()');
   assert.deepEqual(flags(), [false, true, false, false], 'removing a flank drops the extensions');
-  assert.equal(page.el('extra2-toggle').textContent, 'Add 2 Additional AAs');
-  assert.equal(page.el('extra4-toggle').textContent, 'Add 4 Additional AAs');
+  assert.equal(page.el('extra4-toggle').textContent, 'Show Additional AAs');
   assert.equal(page.el('nterm-toggle').textContent, 'Add N-terminal AA');
 });
 
@@ -772,9 +775,11 @@ test('the default view is a proper rotation', () => {
   assertClose(dot(cross(m[0], m[1]), m[2]), 1, 1e-9, 'determinant');
 });
 
-test('the Reset button is always visible, between the Add 2 and Add 4 buttons', () => {
+test('the Reset button is always visible, left of Show Additional AAs, and there is no Add 2 button', () => {
   const row = HTML.match(/<div id="extra-row"[\s\S]*?<\/div>/)[0];
-  assert.deepEqual([...row.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]), ['extra2-toggle', 'reset-one', 'extra4-toggle']);
+  assert.deepEqual([...row.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]), ['reset-one', 'extra4-toggle']);
+  assert.match(row, />Show Additional AAs</);
+  assert.ok(!IDS.includes('extra2-toggle'));
   assert.match(row, />Reset to 1 AA</);
   assert.doesNotMatch(row.match(/<div[^>]*>/)[0], /display:\s*none/, 'row is not hidden in the markup');
   assert.doesNotMatch(SCRIPT, /extra-row/, 'the script never hides the row');
@@ -805,7 +810,7 @@ test('Reset to 1 AA restores the page from any state', () => {
     }
 
     // Stub buttons start with empty text, so a never-toggled button has no label to compare
-    for (const id of ['nterm-toggle', 'cterm-toggle', 'extra2-toggle', 'extra4-toggle', 'bturn-type1', 'bturn-type2']) {
+    for (const id of ['nterm-toggle', 'cterm-toggle', 'extra4-toggle', 'bturn-type1', 'bturn-type2']) {
       assert.ok(!page.el(id).textContent.startsWith('Remove'), `${setup}: #${id} says "${page.el(id).textContent}"`);
       assert.ok(!page.el(id).classList.contains('active'), `${setup}: #${id} is active`);
     }
@@ -1100,6 +1105,7 @@ for (const [name, p, q, ribbon, hbonds] of STRUCTURE_PRESETS) {
 
 test('a preset button exists for every structure and the turn button resets its label', () => {
   const page = loadPage();
+  // The β-sheet buttons are kept, commented out, so they can be brought back
   const buttons = [...HTML.matchAll(/onclick="goToStructure\('(\w+)'\)"/g)].map(m => m[1]);
   assert.deepEqual(buttons, ['alpha', 'antiparallel', 'parallel', 'ppII', 'leftHelix', 'helix310'], 'button order');
   assert.deepEqual([...Object.keys(page.run('STRUCTURES'))].sort(), [...buttons].sort());
@@ -1709,4 +1715,18 @@ test('on narrow screens the boxes stack in one column and nothing is cut off on 
   const at = id => HTML.indexOf(`id="${id}"`);
   assert.ok(at('ribbon-section') < at('panel') && at('panel') < at('dipeptide-section') && at('dipeptide-section') < at('plot-wrapper'),
     'top row left to right, then bottom row left to right');
+});
+
+// ── Button layout ──────────────────────────────────────────────
+test('Show Specific Fold has the β turns and no β-sheet buttons; Peptide Planes sits left of the angle toggle', () => {
+  const visible = HTML.replace(/<!--[\s\S]*?-->/g, '');
+  const presets = visible.match(/<div id="preset-row">[\s\S]*?<\/div>/)[0];
+  const labels = [...presets.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map(m => m[1]);
+  assert.deepEqual(labels, ['α-helix', 'Show β turn (Type I)', 'Show β turn (Type II)', 'PPII', 'Left-handed helix', '3₁₀ helix']);
+  assert.doesNotMatch(presets, /goToStructure\('(anti)?parallel'\)/, 'β-sheet buttons hidden');
+  assert.match(HTML, /<!--[\s\S]*goToStructure\('antiparallel'\)[\s\S]*goToStructure\('parallel'\)[\s\S]*?-->/, 'kept in a comment');
+  const top = visible.match(/<div id="dipeptide-btns">[\s\S]*?<\/div>/)[0];
+  assert.deepEqual([...top.matchAll(/<button id="([^"]+)"/g)].map(m => m[1]), ['nterm-toggle', 'cterm-toggle']);
+  const at = id => visible.indexOf(`id="${id}"`);
+  assert.ok(at('dipeptide-wrapper') < at('plane-toggle') && at('plane-toggle') < at('angle-toggle'), 'planes, then angles, under the viewer');
 });

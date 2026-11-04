@@ -314,7 +314,7 @@
     #angle-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
     #angle-toggle:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
 
-    #extra2-toggle, #reset-one, #extra4-toggle {
+    #reset-one, #extra4-toggle {
       padding: 5px 14px;
       border-radius: 6px;
       border: 1px solid #685C53;
@@ -324,21 +324,8 @@
       cursor: pointer;
       transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
-    #extra2-toggle:hover, #reset-one:hover, #extra4-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
-    #extra2-toggle.active, #extra4-toggle.active { background: #FFCDD2; border-color: #C8102E; color: #000000; }
-
-    #bturn-type1, #bturn-type2 {
-      padding: 5px 14px;
-      border-radius: 6px;
-      border: 1px solid #685C53;
-      background: #FFFFFF;
-      color: #685C53;
-      font-size: 0.82em;
-      cursor: pointer;
-      transition: background 0.2s, color 0.2s, border-color 0.2s;
-    }
-    #bturn-type1:hover, #bturn-type2:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
-    #bturn-type1:active, #bturn-type2:active { background: #C8102E; border-color: #C8102E; color: #FFFFFF; }
+    #reset-one:hover, #extra4-toggle:hover { background: #FFCDFF; border-color: #C8102E; color: #000000; }
+    #extra4-toggle.active { background: #FFCDD2; border-color: #C8102E; color: #000000; }
 
     #structure-presets { width: 100%; margin-top: 10px; text-align: center; }
     #structure-presets .panel-section-title { margin-bottom: 6px; }
@@ -454,13 +441,11 @@
   </div>
   <div id="dipeptide-btns">
     <button id="nterm-toggle" onclick="toggleNterm()">Add N-terminal AA</button>
-    <button id="plane-toggle" onclick="togglePlanes()">Show Peptide Planes</button>
     <button id="cterm-toggle" onclick="toggleCterm()">Add C-terminal AA</button>
   </div>
   <div id="extra-row" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-    <button id="extra2-toggle" onclick="toggleExtra2()">Add 2 Additional AAs</button>
     <button id="reset-one" onclick="resetToOneAA()">Reset to 1 AA</button>
-    <button id="extra4-toggle" onclick="toggleExtra4()">Add 4 Additional AAs</button>
+    <button id="extra4-toggle" onclick="toggleExtra4()">Show Additional AAs</button>
   </div>
   <div id="dipeptide-wrapper">
     <canvas id="dipeptide" width="500" height="261" tabindex="0" role="application"></canvas>
@@ -491,9 +476,8 @@
     </div>
   </div>
   <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+    <button id="plane-toggle" onclick="togglePlanes()">Show Peptide Planes</button>
     <button id="angle-toggle" onclick="toggleAngles()">Hide ϕ/ψ Angles</button>
-    <button id="bturn-type1" onclick="setBetaTurnTypeI()">Show β turn (Type I)</button>
-    <button id="bturn-type2" onclick="setBetaTurnTypeII()">Show β turn (Type II)</button>
   </div>
   <div id="dipeptide-legend">
     <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#0277BD;"></div>N (nitrogen)</div>
@@ -506,8 +490,12 @@
     <div class="panel-section-title">Show Specific Fold</div>
     <div id="preset-row">
       <button class="preset-btn" onclick="goToStructure('alpha')">α-helix</button>
+      <!-- Hidden for now. STRUCTURES, goToStructure() and the sheet ribbons still support them; uncomment to bring them back.
       <button class="preset-btn" onclick="goToStructure('antiparallel')">Antiparallel β</button>
       <button class="preset-btn" onclick="goToStructure('parallel')">Parallel β</button>
+      -->
+      <button class="preset-btn" id="bturn-type1" onclick="setBetaTurnTypeI()">Show β turn (Type I)</button>
+      <button class="preset-btn" id="bturn-type2" onclick="setBetaTurnTypeII()">Show β turn (Type II)</button>
       <button class="preset-btn" onclick="goToStructure('ppII')">PPII</button>
       <button class="preset-btn" onclick="goToStructure('leftHelix')">Left-handed helix</button>
       <button class="preset-btn" onclick="goToStructure('helix310')">3₁₀ helix</button>
@@ -2015,15 +2003,14 @@ function syncExtraRow() {
   }
 }
 
+// One button, Show/Hide Additional AAs, adds or removes all four extra residues (AA1, AA2, AA8, AA9).
 function updateExtraBtn() {
-  const b2 = document.getElementById('extra2-toggle');
-  b2.textContent = showExtra2 ? 'Remove 2 Additional AAs' : 'Add 2 Additional AAs';
-  b2.classList.toggle('active', showExtra2);
   const b4 = document.getElementById('extra4-toggle');
-  b4.textContent = showExtra4 ? 'Remove 4 Additional AAs' : 'Add 4 Additional AAs';
+  b4.textContent = showExtra4 ? 'Hide Additional AAs' : 'Show Additional AAs';
   b4.classList.toggle('active', showExtra4);
 }
 
+// No button calls this now; toggleExtra4() uses it to add the inner pair.
 function toggleExtra2() {
   if (!showNterm) toggleNterm();
   if (!showCterm) toggleCterm();
@@ -2035,8 +2022,12 @@ function toggleExtra2() {
 }
 
 function toggleExtra4() {
-  if (!showExtra2) toggleExtra2();  // auto-enables Nterm/Cterm via toggleExtra2
-  showExtra4 = !showExtra4;
+  if (showExtra4) {
+    showExtra4 = false; showExtra2 = false;   // hiding removes the inner pair too, back to three residues
+  } else {
+    if (!showExtra2) toggleExtra2();  // auto-enables Nterm/Cterm via toggleExtra2
+    showExtra4 = true;
+  }
   updateExtraBtn();
   fitToCanvas(buildChain());
   renderDipeptide();
