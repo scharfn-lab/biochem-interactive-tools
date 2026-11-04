@@ -479,7 +479,6 @@
   </div>
 
   <div id="type-buttons" role="group" aria-label="Inhibition type" hidden>
-    <button type="button" data-type="none">None</button>
     <button type="button" data-type="competitive">Competitive</button>
     <button type="button" data-type="uncompetitive">Uncompetitive</button>
     <button type="button" data-type="noncompetitive">Noncompetitive</button>
@@ -2582,8 +2581,9 @@ NUMBER_FIELDS.forEach(f => $(f).addEventListener('input', () => {
 }));
 ['concUnit', 'timeUnit', 'compare'].forEach(id => $(id).addEventListener('change', commit));
 
+// Clicking the selected inhibitor again unselects it, which shows the enzyme with no inhibitor.
 document.querySelectorAll('[data-type]').forEach(button => button.addEventListener('click', () => {
-  state.type = button.dataset.type;
+  state.type = state.type === button.dataset.type ? 'none' : button.dataset.type;
   commit();
 }));
 

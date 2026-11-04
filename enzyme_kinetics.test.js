@@ -1038,3 +1038,8 @@ test('an answered quiz box left blank is grayed out, and an empty run asks for a
   assert.ok(HTML.indexOf('.quiz-item input[type=text]:disabled') < HTML.indexOf('.quiz-item.correct input[type=text]'), 'a marked answer keeps its color');
   assert.ok(HTML.includes("'Enter a positive [Substrate].'"));
 });
+
+test('there is no None button: clicking the selected inhibitor again unselects it', () => {
+  assert.doesNotMatch(HTML, /data-type="none"/);
+  assert.ok(HTML.includes("state.type = state.type === button.dataset.type ? 'none' : button.dataset.type;"));
+});
