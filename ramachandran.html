@@ -125,7 +125,7 @@
     }
 
     #region-display {
-      padding: 12px 14px;
+      padding: 7px 14px;   /* about 20% shorter than 12px padding; text size unchanged */
       border-radius: 8px;
       font-weight: 600;
       font-size: 1em;
@@ -367,7 +367,7 @@
     #dipeptide-legend {
       display: flex;
       gap: 18px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;   /* letters only, on one line */
       justify-content: center;
       font-size: 0.8em;
       color: #000000;
@@ -480,11 +480,11 @@
     <button id="angle-toggle" onclick="toggleAngles()">Hide ϕ/ψ Angles</button>
   </div>
   <div id="dipeptide-legend">
-    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#0277BD;"></div>N (nitrogen)</div>
-    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#b0bec5;"></div>C (carbon)</div>
-    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ef5350;"></div>O (oxygen)</div>
-    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#BDBDBD;"></div>H (hydrogen)</div>
-    <div class="dp-legend-item"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R (side chain)</div>
+    <div class="dp-legend-item" title="Nitrogen"><div class="dp-legend-dot" style="background:#0277BD;"></div>N</div>
+    <div class="dp-legend-item" title="Carbon"><div class="dp-legend-dot" style="background:#b0bec5;"></div>C</div>
+    <div class="dp-legend-item" title="Oxygen"><div class="dp-legend-dot" style="background:#ef5350;"></div>O</div>
+    <div class="dp-legend-item" title="Hydrogen"><div class="dp-legend-dot" style="background:#BDBDBD;"></div>H</div>
+    <div class="dp-legend-item" title="Side chain"><div class="dp-legend-dot" style="background:#ab47bc;"></div>R</div>
   </div>
   <div id="structure-presets">
     <div class="panel-section-title">Show Specific Fold</div>

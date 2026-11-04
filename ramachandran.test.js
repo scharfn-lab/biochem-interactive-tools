@@ -1730,3 +1730,13 @@ test('Show Specific Fold has the β turns and no β-sheet buttons; Peptide Plane
   const at = id => visible.indexOf(`id="${id}"`);
   assert.ok(at('dipeptide-wrapper') < at('plane-toggle') && at('plane-toggle') < at('angle-toggle'), 'planes, then angles, under the viewer');
 });
+
+test('the atom legend shows letters only, on one line, and the region box is about 20% shorter', () => {
+  const legend = HTML.match(/<div id="dipeptide-legend">[\s\S]*?\n  <\/div>/)[0];
+  const labels = [...legend.matchAll(/<\/div>([^<]+)<\/div>/g)].map(m => m[1]);
+  assert.deepEqual(labels, ['N', 'C', 'O', 'H', 'R']);
+  assert.match(HTML, /#dipeptide-legend \{[^}]*flex-wrap: nowrap;/);
+  const box = HTML.match(/#region-display \{[^}]*\}/)[0];
+  assert.match(box, /padding: 7px 14px;/);
+  assert.match(box, /font-size: 1em;/, 'text size unchanged');
+});
