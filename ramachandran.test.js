@@ -1696,3 +1696,17 @@ test('every part of the α lobes reads as α, and its ribbon as a helix', () => 
     assert.equal(page.run('ribbonShown'), 'helix');
   }
 });
+
+// ── Narrow screens ─────────────────────────────────────────────
+test('on narrow screens the boxes stack in one column and nothing is cut off on the left', () => {
+  const narrow = HTML.slice(HTML.indexOf('@media (max-width: 1080px)'));
+  assert.ok(narrow.length < HTML.length, 'has a narrow-screen rule');
+  assert.match(narrow, /#main-layout \{ grid-template-columns: minmax\(0, 520px\);/);
+  assert.match(narrow, /#ribbon, #dipeptide, #plot \{ max-width: 100%; height: auto; \}/);
+  const body = HTML.match(/\bbody \{[^}]*\}/)[0];
+  assert.doesNotMatch(body, /align-items: center/, 'centered overflow spills past the left edge');
+  assert.match(HTML, /#main-layout \{[^}]*margin-inline: auto;/);
+  const at = id => HTML.indexOf(`id="${id}"`);
+  assert.ok(at('ribbon-section') < at('panel') && at('panel') < at('dipeptide-section') && at('dipeptide-section') < at('plot-wrapper'),
+    'top row left to right, then bottom row left to right');
+});
